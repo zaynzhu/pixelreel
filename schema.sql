@@ -1,0 +1,42 @@
+CREATE TABLE movie (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tmdb_id BIGINT NULL,
+  imdb_id VARCHAR(20) NULL,
+  douban_id VARCHAR(20) NULL,
+  trakt_id VARCHAR(20) NULL,
+  title VARCHAR(255) NOT NULL,
+  poster_url VARCHAR(500) NULL,
+  status VARCHAR(20) NOT NULL,
+  rating TINYINT NULL,
+  short_review VARCHAR(1000) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_movie_tmdb_id (tmdb_id),
+  INDEX idx_movie_imdb_id (imdb_id),
+  INDEX idx_movie_douban_id (douban_id),
+  INDEX idx_movie_trakt_id (trakt_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE game (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  rawg_id BIGINT NULL,
+  steam_app_id BIGINT NULL,
+  xbox_id VARCHAR(50) NULL,
+  psn_id VARCHAR(50) NULL,
+  platform VARCHAR(20) NULL,
+  title VARCHAR(255) NOT NULL,
+  poster_url VARCHAR(500) NULL,
+  playtime_minutes INT NULL,
+  achievement_total INT NULL,
+  achievement_unlocked INT NULL,
+  imported_at DATETIME NULL,
+  status VARCHAR(20) NOT NULL,
+  rating TINYINT NULL,
+  short_review VARCHAR(1000) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_game_rawg_id (rawg_id),
+  INDEX idx_game_steam_app_id (steam_app_id),
+  INDEX idx_game_xbox_id (xbox_id),
+  INDEX idx_game_psn_id (psn_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

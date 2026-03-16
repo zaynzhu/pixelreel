@@ -1,0 +1,99 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: pixelreel
+  datasource:
+    url: jdbc:mysql://localhost:3306/pixelreel?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: ${DB_PASSWORD}
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  type-enums-package: com.pixelreel.enums
+
+tmdb:
+  enabled: true
+  api-key: ${TMDB_API_KEY}
+  base-url: https://api.themoviedb.org/3
+  image-base-url: https://image.tmdb.org/t/p/w500
+  language: zh-CN
+
+omdb:
+  enabled: false
+  base-url: https://www.omdbapi.com
+  api-key: YOUR_OMDB_API_KEY
+
+trakt:
+  enabled: false
+  base-url: https://api.trakt.tv
+  client-id: YOUR_TRAKT_CLIENT_ID
+  api-version: 2
+
+douban:
+  enabled: false
+  base-url: https://api.douban.com/v2
+  api-key: YOUR_DOUBAN_API_KEY
+
+imdb:
+  enabled: false
+  endpoint: https://api-fulfill.dataexchange.us-east-1.amazonaws.com/v1
+  api-key: YOUR_IMDB_API_KEY
+  aws-region: us-east-1
+  aws-access-key-id: YOUR_AWS_ACCESS_KEY_ID
+  aws-secret-access-key: YOUR_AWS_SECRET_ACCESS_KEY
+
+steam:
+  enabled: false
+  base-url: https://store.steampowered.com/api/storesearch
+  country: cn
+  language: zh-CN
+  page-size: 20
+
+steam-webapi:
+  enabled: false
+  base-url: https://api.steampowered.com
+  api-key: YOUR_STEAM_WEB_API_KEY
+  app-list-refresh-minutes: 1440
+  search-page-size: 20
+  default-steam-id: YOUR_STEAM_ID
+
+openxbl:
+  enabled: false
+  base-url: https://xbl.io/api/v2
+  api-key: ${OPENXBL_API_KEY}
+
+xbox:
+  enabled: false
+  base-url: https://example.xbox.api
+
+psn:
+  enabled: false
+  base-url: https://example.psn.api
+
+psnprofiles:
+  enabled: false
+  base-url: https://psnprofiles.com
+  user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36
+  cookie: ${PSNPROFILES_COOKIE} # 可选：遇到 403 时填写 Cookie 以绕过反爬
+
+rawg:
+  enabled: false
+  base-url: https://api.rawg.io/api
+  api-key: ${RAWG_API_KEY}
+
+switch:
+  enabled: false
+
+psprices:
+  enabled: false
+  base-url: https://api.psprices.com/v1
+  api-key: YOUR_PSPRICES_API_KEY
+  region: us
+
+

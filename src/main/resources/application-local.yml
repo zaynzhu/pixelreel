@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    password: # 填你的数据库密码
+
+tmdb:
+  api-key: # 从 themoviedb.org 申请
+
+openxbl:
+  api-key: # 从 xbl.io 申请
+
+rawg:
+  api-key: # 从 rawg.io 申请
+
+psnprofiles:
+  cookie: # 可选：遇到 403 时填写 Cookie
