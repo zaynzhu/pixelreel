@@ -1,106 +1,145 @@
-# 🎮🎬 PixelReel
+# PixelReel
 
-> 你的个人影游记录平台 —— 把看过的电影和玩过的游戏，都收进自己的库。
+> 个人影游记录平台，把电影和游戏放进同一套自己的库。
 
----
+## 简介
 
-## ✨ 项目简介
+PixelReel 是一个面向个人使用的影视与游戏记录项目。
+当前代码状态已经覆盖三条主线能力：
 
-PixelReel 是一个专为个人设计的影视与游戏记录平台。
-不依赖豆瓣、不依赖 Steam 主页，数据完全由自己掌控。
-支持从多个平台一键导入你的游戏库，配合影视搜索与记录功能，
-让你的观影和游戏历史有一个统一的归宿。
+- 搜索：电影多 Provider 搜索、游戏 RAWG / Steam 搜索
+- 平台导入：Steam / Xbox / PSN
+- 个人主页统计：首页总览、状态分布、来源分布、最近新增
 
----
+## 已完成功能
 
-## 🚀 已完成功能
+- 电影 / 游戏基础 CRUD
+- 影视搜索：TMDB / OMDb / Trakt / 豆瓣
+- 游戏搜索：RAWG 主搜索、Steam 精搜
+- Steam 已购导入
+- Xbox 已玩导入（OpenXBL）
+- PSN 已玩导入（PSNProfiles）
+- RAWG 封面补全
+- 平台 + 外部 ID 去重
+- 成就 / 奖杯总数与已解锁统计
+- 个人主页统计接口与前端首页
+- 前端路由骨架：主页 / 电影搜索 / 游戏搜索 / 记录库占位页
 
-- [x] 影视搜索（OMDb API）
-- [x] 游戏搜索（RAWG API）
-- [x] Steam 游戏库导入
-- [x] Xbox 游戏库导入（OpenXBL）
-- [x] PSN 游戏库导入（PSNProfiles）
-- [x] 游戏封面自动补全（RAWG 兜底）
-- [x] 记录状态管理（想看 / 在看 / 已看 / UNSET）
-- [x] 平台 + 外部 ID 去重
-- [x] 成就 / 奖杯统计（total / unlocked）
+## 当前未完成
 
-## 🔧 开发中 / 待完成
+- 多用户登录与权限体系
+- 豆瓣 CSV 导入稳定方案
+- Switch 接入
+- 评分与短评体验完善
+- 记录库完整列表页
 
-- [ ] 前端页面（React + TailwindCSS）
-- [ ] 豆瓣 CSV 导入
-- [ ] Nintendo Switch 接入
-- [ ] 个人主页统计展示
-- [ ] 评分与短评功能
-- [ ] 部署到 GitHub Pages + Railway
-
----
-
-## 🛠 技术栈
+## 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 后端 | Spring Boot 3 + MyBatis Plus |
+| 后端 | Spring Boot 3, MyBatis Plus |
 | 数据库 | MySQL |
-| 前端 | React + TailwindCSS（开发中） |
-| 影视数据 | OMDb API / TMDB API |
-| 游戏数据 | RAWG API |
-| 游戏导入 | Steam Web API / OpenXBL / PSNProfiles |
+| 前端 | React 18, React Router, Zustand, TailwindCSS, Vite |
+| 影视数据 | TMDB, OMDb, Trakt, 豆瓣 |
+| 游戏数据 | RAWG, Steam Web API, OpenXBL, PSNProfiles |
 
----
+## 本地启动
 
-## ⚙️ 本地启动
+### 1. 初始化数据库
 
-### 1. 克隆项目
+执行根目录下的 `schema.sql`。
 
-\`\`\`bash
-git clone https://github.com/你的用户名/pixelreel.git
-cd pixelreel
-\`\`\`
+### 2. 配置后端环境
 
-### 2. 配置 API Key
+建议在 `src/main/resources/application-local.yml` 中覆盖本地配置，或直接使用环境变量。
 
-复制示例配置文件并填入你的密钥：
+常用配置项：
 
-\`\`\`bash
-cp src/main/resources/application-local.yml.example \
-   src/main/resources/application-local.yml
-\`\`\`
+- `spring.datasource.url`
+- `spring.datasource.username`
+- `spring.datasource.password`
+- `TMDB_API_KEY`
+- `RAWG_API_KEY`
+- `OPENXBL_API_KEY`
+- `PSNPROFILES_COOKIE`
 
-需要申请的 Key：
+### 3. 启动后端
 
-| 服务 | 申请地址 | 免费额度 |
-|------|---------|---------|
-| OMDb | omdbapi.com | 1000次/天 |
-| RAWG | rawg.io/apiv2 | 20000次/月 |
-| OpenXBL | xbl.io | 500次/月 |
-| Steam | steamcommunity.com/dev/apikey | 免费 |
-
-### 3. 初始化数据库
-
-\`\`\`bash
-mysql -u root -p < src/main/resources/schema.sql
-\`\`\`
-
-### 4. 启动项目
-
-\`\`\`bash
+```bash
 mvn clean spring-boot:run
-\`\`\`
-
----
-
-## 📡 主要接口
-
-\`\`\`
-POST /api/import/xbox/owned?gamertag={你的Gamertag}
-POST /api/import/psn/owned?psnId={你的PSNID}
-POST /api/import/covers/fill?limit=50
-\`\`\`
-
----
-
-## 📄 License
-
-MIT — 随便用，随便改。
 ```
+
+默认地址：`http://localhost:8080`
+
+### 4. 启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+默认地址：`http://localhost:5173`
+
+前端已配置 `/api` 代理到 `http://localhost:8080`。
+
+### 5. 构建验证
+
+后端：
+
+```bash
+mvn test
+```
+
+前端：
+
+```bash
+cd frontend
+npm run build
+```
+
+## 主要接口
+
+### 搜索
+
+```text
+GET /api/search/movies?query=xxx&page=1&providers=tmdb
+GET /api/search/games?query=xxx&page=1&providers=rawg
+```
+
+### 导入
+
+```text
+POST /api/import/steam/owned?steamId=xxx&status=WANT
+POST /api/import/xbox/owned?gamertag=xxx&status=UNSET
+POST /api/import/psn/owned?psnId=xxx&status=UNSET
+POST /api/import/covers/fill?limit=50
+```
+
+### 个人主页
+
+```text
+GET /api/profile/summary
+```
+
+返回内容包括：
+
+- 总记录数、电影数、游戏数
+- 已完成数量
+- 评分均值
+- 电影来源分布
+- 游戏平台分布
+- 最近新增记录
+
+## 当前前端路由
+
+```text
+/                个人主页统计首页
+/movies/search   电影搜索
+/games/search    游戏搜索
+/library         记录库占位页
+```
+
+## License
+
+MIT

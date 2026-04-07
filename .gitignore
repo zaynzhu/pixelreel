@@ -1,0 +1,16 @@
+# Sensitive local config
+src/main/resources/application-local.yml
+
+# Build output
+target/
+frontend/dist/
+frontend/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# System
+.DS_Store
+Thumbs.db

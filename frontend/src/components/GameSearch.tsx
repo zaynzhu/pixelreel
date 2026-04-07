@@ -40,12 +40,14 @@ const PROVIDERS = [
   },
 ] as const;
 
+type ProviderId = (typeof PROVIDERS)[number]["id"];
+
 const defaultProvider = PROVIDERS[0].id;
 
 export default function GameSearch() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [activeProvider, setActiveProvider] = useState(defaultProvider);
+  const [activeProvider, setActiveProvider] = useState<ProviderId>(defaultProvider);
   const [data, setData] = useState<ProviderSearchResult<ExternalGameSearchResult> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

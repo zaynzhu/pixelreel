@@ -1,0 +1,72 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --page-bg: #f5ecd9;
+  --paper: rgba(255, 250, 241, 0.78);
+  --ink: #1f180e;
+  --muted: #665948;
+  --accent: #d9482f;
+  --accent-deep: #9f2815;
+  --line: rgba(61, 42, 23, 0.14);
+  --shadow: 0 18px 50px rgba(76, 38, 8, 0.12);
+}
+
+@layer base {
+  html {
+    min-height: 100%;
+    background:
+      radial-gradient(circle at top left, rgba(233, 95, 53, 0.18), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(217, 72, 47, 0.16), transparent 24%),
+      linear-gradient(135deg, #f8f2e7 0%, #f5ecd9 42%, #efe2cb 100%);
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    font-family: "IBM Plex Sans", sans-serif;
+    background:
+      linear-gradient(to right, rgba(51, 28, 6, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(51, 28, 6, 0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Fraunces", serif;
+    letter-spacing: -0.03em;
+  }
+}
+
+@layer components {
+  .paper-panel {
+    background: var(--paper);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+
+  .dash-card {
+    background: var(--paper);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    @apply rounded-[28px] p-5;
+  }
+
+  .section-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em];
+    color: var(--accent-deep);
+  }
+}
