@@ -6,11 +6,39 @@ import type {
 } from "../types/externalSearch";
 
 const PROVIDERS = [
-  { id: "steam", label: "Steam" },
-  { id: "xbox", label: "Xbox" },
-  { id: "psn", label: "PSN" },
-  { id: "switch", label: "Switch" },
-];
+  {
+    id: "rawg",
+    label: "RAWG",
+    mode: "search",
+    placeholder: "按游戏名搜索全平台条目",
+    description: "推荐默认入口，适合先找游戏条目再加入记录。",
+  },
+  {
+    id: "steam",
+    label: "Steam",
+    mode: "search",
+    placeholder: "按 Steam 商店名称搜索",
+    description: "适合精确查找 Steam App 并保留 Steam App ID。",
+  },
+  {
+    id: "xbox",
+    label: "Xbox 导入",
+    mode: "import",
+    description: "Xbox 暂不提供目录搜索，请调用 /api/import/xbox/owned?gamertag=你的ID 导入已玩游戏。",
+  },
+  {
+    id: "psn",
+    label: "PSN 导入",
+    mode: "import",
+    description: "PSN 暂不提供目录搜索，请调用 /api/import/psn/owned?psnId=你的ID 导入奖杯列表。",
+  },
+  {
+    id: "switch",
+    label: "Switch",
+    mode: "placeholder",
+    description: "Switch 数据源仍是占位，当前还没有可用搜索或导入入口。",
+  },
+] as const;
 
 const defaultProvider = PROVIDERS[0].id;
 
@@ -24,9 +52,17 @@ export default function GameSearch() {
   const [addingKey, setAddingKey] = useState<string | null>(null);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
+  const activeProviderConfig =
+    PROVIDERS.find((item) => item.id === activeProvider) ?? PROVIDERS[0];
+  const isSearchProvider = activeProviderConfig.mode === "search";
 
   const search = async (nextPage = 1) => {
     const trimmed = query.trim();
+    if (!isSearchProvider) {
+      setData(null);
+      setError(null);
+      return;
+    }
     if (!trimmed) {
       setError("请输入关键词");
       return;
@@ -75,8 +111,7 @@ export default function GameSearch() {
     }
   };
 
-  const providerLabel =
-    PROVIDERS.find((item) => item.id === activeProvider)?.label ?? activeProvider;
+  const providerLabel = activeProviderConfig.label;
 
   return (
     <section className="w-full max-w-4xl mx-auto p-6">
@@ -101,21 +136,32 @@ export default function GameSearch() {
         ))}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={`在 ${providerLabel} 搜索游戏`}
-          className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm outline-none focus:border-slate-400"
-        />
-        <button
-          onClick={() => search(1)}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          disabled={loading}
-        >
-          {loading ? "搜索中..." : "搜索"}
-        </button>
-      </div>
+      {isSearchProvider ? (
+        <div className="mt-4">
+          <p className="mb-3 text-sm text-slate-500">
+            {activeProviderConfig.description}
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={activeProviderConfig.placeholder}
+              className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm outline-none focus:border-slate-400"
+            />
+            <button
+              onClick={() => search(1)}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              disabled={loading}
+            >
+              {loading ? "搜索中..." : `搜索 ${providerLabel}`}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          {activeProviderConfig.description}
+        </div>
+      )}
 
       {data?.message && (
         <p className="mt-3 text-sm text-amber-600">
@@ -200,10 +246,10 @@ export default function GameSearch() {
 
 function buildGameKey(game: ExternalGameSearchResult) {
   return (
+    game.rawgId?.toString() ||
     game.steamAppId?.toString() ||
     game.xboxId ||
     game.psnId ||
-    game.rawgId?.toString() ||
     game.title
   );
 }

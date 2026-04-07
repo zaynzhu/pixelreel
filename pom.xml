@@ -14,7 +14,7 @@
   <artifactId>pixelreel</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>pixelreel</name>
-  <description>Personal movie & game backlog tracker backend</description>
+  <description>Personal movie &amp; game backlog tracker backend</description>
 
   <properties>
     <java.version>17</java.version>

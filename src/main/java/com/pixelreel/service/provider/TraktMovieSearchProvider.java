@@ -68,7 +68,7 @@ public class TraktMovieSearchProvider implements MovieSearchProvider {
             .queryParam("limit", DEFAULT_PAGE_SIZE)
             .build())
         .header("trakt-api-key", traktProperties.clientId())
-        .header("trakt-api-version", Optional.ofNullable(traktProperties.apiVersion()).orElse(2))
+        .header("trakt-api-version", String.valueOf(Optional.ofNullable(traktProperties.apiVersion()).orElse(2)))
         .retrieve()
         .body(new ParameterizedTypeReference<List<TraktSearchItem>>() {});
 
