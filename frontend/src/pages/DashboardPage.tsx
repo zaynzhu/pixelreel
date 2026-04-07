@@ -14,9 +14,9 @@ const QUICK_LINKS = [
     description: "RAWG 作为主入口，Steam 作为补充精搜。",
   },
   {
-    title: "记录库骨架",
+    title: "进入记录库",
     to: "/library",
-    description: "先把未来的列表页路由预留出来，后续直接扩展。",
+    description: "筛选电影和游戏记录，并在同一页补评分与短评。",
   },
 ];
 

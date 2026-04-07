@@ -1,4 +1,4 @@
-export type RecordStatus = "WANT" | "IN_PROGRESS" | "DONE";
+export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
 
 export type MovieRecordSuggestion = {
   tmdbId?: number | null;

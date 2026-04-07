@@ -21,7 +21,8 @@ export default function AppShell() {
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
                 首页现在作为个人主页入口，负责展示总量、状态分布、平台来源和最近新增。
-                下面的路由把搜索、记录和后续扩展区分开，后面接多用户时不用重拆结构。
+                下面的路由已经把搜索、记录和统计分开，记录库现在可以直接筛选条目并补评分短评，
+                后面接多用户时不用重拆结构。
               </p>
             </div>
             <nav className="flex flex-wrap gap-2">

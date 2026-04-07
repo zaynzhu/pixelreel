@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type RecordStatus = "WANT" | "IN_PROGRESS" | "DONE";
+export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
 
 export type GameRecord = {
   id: number;

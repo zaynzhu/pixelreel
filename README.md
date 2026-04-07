@@ -10,6 +10,7 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 - 搜索：电影多 Provider 搜索、游戏 RAWG / Steam 搜索
 - 平台导入：Steam / Xbox / PSN
 - 个人主页统计：首页总览、状态分布、来源分布、最近新增
+- 记录库：电影 / 游戏混合列表、筛选排序、评分与短评编辑
 
 ## 已完成功能
 
@@ -23,15 +24,15 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 - 平台 + 外部 ID 去重
 - 成就 / 奖杯总数与已解锁统计
 - 个人主页统计接口与前端首页
-- 前端路由骨架：主页 / 电影搜索 / 游戏搜索 / 记录库占位页
+- 记录库混合列表页：筛选、排序、状态编辑、评分和短评编辑
+- 前端路由：主页 / 电影搜索 / 游戏搜索 / 记录库
 
 ## 当前未完成
 
 - 多用户登录与权限体系
 - 豆瓣 CSV 导入稳定方案
 - Switch 接入
-- 评分与短评体验完善
-- 记录库完整列表页
+- 多用户登录后的用户隔离记录库
 
 ## 技术栈
 
@@ -122,6 +123,13 @@ POST /api/import/covers/fill?limit=50
 GET /api/profile/summary
 ```
 
+### 记录库
+
+```text
+GET /api/library
+PATCH /api/library/{category}/{id}
+```
+
 返回内容包括：
 
 - 总记录数、电影数、游戏数
@@ -137,7 +145,7 @@ GET /api/profile/summary
 /                个人主页统计首页
 /movies/search   电影搜索
 /games/search    游戏搜索
-/library         记录库占位页
+/library         记录库列表 + 评分短评工作台
 ```
 
 ## License
