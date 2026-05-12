@@ -1,13 +1,17 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useAuthStore } from "../stores/authStore";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home" },
   { to: "/movies/search", label: "Movie Search" },
   { to: "/games/search", label: "Game Search" },
+  { to: "/tv-shows/search", label: "TV Search" },
   { to: "/library", label: "Library" },
 ];
 
 export default function AppShell() {
+  const logout = useAuthStore((s) => s.logout);
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -25,7 +29,7 @@ export default function AppShell() {
                 后面接多用户时不用重拆结构。
               </p>
             </div>
-            <nav className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.to}
@@ -42,7 +46,13 @@ export default function AppShell() {
                   {item.label}
                 </NavLink>
               ))}
-            </nav>
+              <button
+                onClick={logout}
+                className="rounded-full border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-white"
+              >
+                退出
+              </button>
+            </div>
           </div>
         </header>
 

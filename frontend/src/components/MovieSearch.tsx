@@ -4,6 +4,7 @@ import type {
   ExternalSearchResponse,
   ProviderSearchResult,
 } from "../types/externalSearch";
+import { apiFetch } from "../api";
 
 const PROVIDERS = [
   { id: "omdb", label: "OMDb" },
@@ -37,13 +38,9 @@ export default function MovieSearch() {
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/search/movies?query=${encodeURIComponent(trimmed)}&page=${nextPage}&providers=${activeProvider}`
+      const payload = await apiFetch<ExternalSearchResponse<ExternalMovieSearchResult>>(
+        `/search/movies?query=${encodeURIComponent(trimmed)}&page=${nextPage}&providers=${activeProvider}`
       );
-      if (!response.ok) {
-        throw new Error(`搜索失败 (${response.status})`);
-      }
-      const payload = (await response.json()) as ExternalSearchResponse<ExternalMovieSearchResult>;
       const providerResult = payload.providers?.[0] ?? null;
       setData(providerResult);
       setPage(providerResult?.page ?? nextPage);
@@ -60,15 +57,10 @@ export default function MovieSearch() {
     setError(null);
 
     try {
-      const response = await fetch("/api/movies", {
+      await apiFetch("/movies", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(movie.suggestedRecord),
       });
-
-      if (!response.ok) {
-        throw new Error(`添加失败 (${response.status})`);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "添加失败");
     } finally {

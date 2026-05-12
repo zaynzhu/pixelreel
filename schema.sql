@@ -17,6 +17,27 @@ CREATE TABLE movie (
   INDEX idx_movie_trakt_id (trakt_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE tv_show (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tmdb_id BIGINT NULL,
+  imdb_id VARCHAR(20) NULL,
+  douban_id VARCHAR(20) NULL,
+  trakt_id VARCHAR(20) NULL,
+  title VARCHAR(255) NOT NULL,
+  poster_url VARCHAR(500) NULL,
+  first_air_date VARCHAR(20) NULL,
+  overview TEXT NULL,
+  status VARCHAR(20) NOT NULL,
+  rating TINYINT NULL,
+  short_review VARCHAR(1000) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_tv_show_tmdb_id (tmdb_id),
+  INDEX idx_tv_show_imdb_id (imdb_id),
+  INDEX idx_tv_show_douban_id (douban_id),
+  INDEX idx_tv_show_trakt_id (trakt_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE game (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   rawg_id BIGINT NULL,

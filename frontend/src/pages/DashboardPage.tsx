@@ -14,9 +14,14 @@ const QUICK_LINKS = [
     description: "RAWG 作为主入口，Steam 作为补充精搜。",
   },
   {
+    title: "找电视剧条目",
+    to: "/tv-shows/search",
+    description: "搜索电视剧，加入你的记录库。",
+  },
+  {
     title: "进入记录库",
     to: "/library",
-    description: "筛选电影和游戏记录，并在同一页补评分与短评。",
+    description: "筛选电影、游戏和电视剧记录，并在同一页补评分与短评。",
   },
 ];
 
@@ -39,7 +44,7 @@ export default function DashboardPage() {
               个人主页统计
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              这一版先把主页做成总览仪表盘：汇总影游记录、评分、平台来源和最近新增，
+              这一版先把主页做成总览仪表盘：汇总影剧游记录、评分、平台来源和最近新增，
               让后面做个人资料、年度回顾或多用户主页时有稳定接口可以复用。
             </p>
           </div>
@@ -58,11 +63,11 @@ export default function DashboardPage() {
           </p>
         ) : null}
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard
             label="总记录"
             value={overview?.totalRecords ?? 0}
-            caption="影游条目总和"
+            caption="影剧游戏总和"
           />
           <MetricCard
             label="电影"
@@ -75,22 +80,32 @@ export default function DashboardPage() {
             caption={`${overview?.completedGames ?? 0} 个已完成`}
           />
           <MetricCard
+            label="电视剧"
+            value={overview?.totalTvShows ?? 0}
+            caption={`${overview?.completedTvShows ?? 0} 部已完成`}
+          />
+          <MetricCard
             label="已导入"
             value={overview?.importedGames ?? 0}
             caption="来自平台导入的游戏"
           />
         </div>
 
-        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 lg:grid-cols-4">
           <MetricStrip
             title="整体均分"
             value={summary?.ratings.overallAverage ?? null}
-            note="电影 + 游戏"
+            note="电影 + 电视剧 + 游戏"
           />
           <MetricStrip
             title="电影均分"
             value={summary?.ratings.movieAverage ?? null}
             note={`${overview?.ratedRecords ?? 0} 条评分中`}
+          />
+          <MetricStrip
+            title="电视剧均分"
+            value={summary?.ratings.tvShowAverage ?? null}
+            note="电视剧评分"
           />
           <MetricStrip
             title="游戏均分"
@@ -169,6 +184,26 @@ export default function DashboardPage() {
       <section className="dash-card">
         <div className="flex items-center justify-between gap-4">
           <div>
+            <p className="section-kicker">Status</p>
+            <h2 className="mt-3 text-2xl text-[var(--ink)]">电视剧状态分布</h2>
+          </div>
+          <span className="text-sm text-[var(--muted)]">TV Shows</span>
+        </div>
+        <div className="mt-6 space-y-4">
+          {summary?.tvShowStatuses.map((item) => (
+            <DistributionBar
+              key={item.key}
+              label={item.label}
+              count={item.count}
+              total={overview?.totalTvShows ?? 0}
+            />
+          )) ?? <LoadingHint loading={loading} />}
+        </div>
+      </section>
+
+      <section className="dash-card">
+        <div className="flex items-center justify-between gap-4">
+          <div>
             <p className="section-kicker">Sources</p>
             <h2 className="mt-3 text-2xl text-[var(--ink)]">电影来源</h2>
           </div>
@@ -191,6 +226,21 @@ export default function DashboardPage() {
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {summary?.gamePlatforms.map((item) => (
+            <SourceChip key={item.key} label={item.label} count={item.count} />
+          )) ?? <LoadingHint loading={loading} />}
+        </div>
+      </section>
+
+      <section className="dash-card">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="section-kicker">Sources</p>
+            <h2 className="mt-3 text-2xl text-[var(--ink)]">电视剧来源</h2>
+          </div>
+          <span className="text-sm text-[var(--muted)]">Providers</span>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {summary?.tvShowSources.map((item) => (
             <SourceChip key={item.key} label={item.label} count={item.count} />
           )) ?? <LoadingHint loading={loading} />}
         </div>
@@ -223,14 +273,14 @@ export default function DashboardPage() {
                     />
                   ) : (
                     <div className="flex h-full items-end p-4 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent-deep)]">
-                      {item.category}
+                      {categoryLabel(item.category)}
                     </div>
                   )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="rounded-full bg-[var(--ink)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white">
-                      {item.category}
+                      {categoryLabel(item.category)}
                     </span>
                     <span className="text-xs text-[var(--muted)]">
                       {formatStatus(item.status)}
@@ -351,6 +401,19 @@ function formatStatus(status: string) {
       return "已完成";
     default:
       return "未分类";
+  }
+}
+
+function categoryLabel(category: string) {
+  switch (category) {
+    case "movie":
+      return "Movie";
+    case "game":
+      return "Game";
+    case "tv_show":
+      return "TV";
+    default:
+      return category;
   }
 }
 

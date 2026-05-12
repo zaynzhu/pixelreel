@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ProfileSummary } from "../types/profile";
+import { apiFetch } from "../api";
 
 type ProfileState = {
   summary: ProfileSummary | null;
@@ -16,11 +17,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   fetchSummary: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch("/api/profile/summary");
-      if (!response.ok) {
-        throw new Error(`获取统计失败 (${response.status})`);
-      }
-      const payload = (await response.json()) as ProfileSummary;
+      const payload = await apiFetch<ProfileSummary>("/profile/summary");
       set({ summary: payload, loading: false });
     } catch (err) {
       set({

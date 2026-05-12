@@ -7,7 +7,7 @@ export type CountItem = {
 };
 
 export type RecentRecordItem = {
-  category: "movie" | "game";
+  category: "movie" | "game" | "tv_show";
   id: number;
   title: string;
   subtitle: string;
@@ -22,8 +22,10 @@ export type ProfileSummary = {
     totalRecords: number;
     totalMovies: number;
     totalGames: number;
+    totalTvShows: number;
     completedMovies: number;
     completedGames: number;
+    completedTvShows: number;
     ratedRecords: number;
     reviewedRecords: number;
     importedGames: number;
@@ -32,10 +34,13 @@ export type ProfileSummary = {
     overallAverage?: number | null;
     movieAverage?: number | null;
     gameAverage?: number | null;
+    tvShowAverage?: number | null;
   };
   movieStatuses: CountItem[];
   gameStatuses: CountItem[];
+  tvShowStatuses: CountItem[];
   movieSources: CountItem[];
   gamePlatforms: CountItem[];
+  tvShowSources: CountItem[];
   recentItems: RecentRecordItem[];
 };

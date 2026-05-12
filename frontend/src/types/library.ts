@@ -1,6 +1,6 @@
 export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
 
-export type LibraryCategory = "movie" | "game";
+export type LibraryCategory = "movie" | "game" | "tv_show";
 
 export type LibraryRecord = {
   id: number;

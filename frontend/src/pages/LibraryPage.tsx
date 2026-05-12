@@ -132,7 +132,7 @@ export default function LibraryPage() {
             <p className="section-kicker">Library Desk</p>
             <h2 className="mt-3 text-3xl text-[var(--ink)] sm:text-4xl">记录库</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              这一页把电影和游戏合并成同一张桌面。左边负责找记录，右边负责补状态、
+              这一页把电影、游戏和电视剧合并成同一张桌面。左边负责找记录，右边负责补状态、
               评分和短评，让搜索、导入和首页统计之间真正形成闭环。
             </p>
           </div>
@@ -174,6 +174,7 @@ export default function LibraryPage() {
                 { value: "all", label: "全部" },
                 { value: "movie", label: "电影" },
                 { value: "game", label: "游戏" },
+                { value: "tv_show", label: "电视剧" },
               ]}
             />
 
@@ -209,6 +210,7 @@ export default function LibraryPage() {
                 { value: "all", label: "全部" },
                 { value: "movie", label: "电影" },
                 { value: "game", label: "游戏" },
+                { value: "tv_show", label: "电视剧" },
               ].map((item) => (
                 <button
                   key={item.value}
@@ -270,13 +272,13 @@ export default function LibraryPage() {
                       />
                     ) : (
                       <div className="flex h-full items-end p-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]">
-                        {record.category}
+                        {formatCategoryLabel(record.category)}
                       </div>
                     )}
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge>{record.category === "movie" ? "Movie" : "Game"}</Badge>
+                      <Badge>{record.category === "movie" ? "Movie" : record.category === "game" ? "Game" : "TV"}</Badge>
                       <Badge tone="muted">{record.sourceLabel}</Badge>
                       {record.platformLabel && record.category === "game" ? (
                         <Badge tone="muted">{record.platformLabel}</Badge>
@@ -331,13 +333,13 @@ export default function LibraryPage() {
                   />
                 ) : (
                   <div className="flex h-full items-end p-5 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent-deep)]">
-                    {selectedRecord.category}
+                    {formatCategoryLabel(selectedRecord.category)}
                   </div>
                 )}
               </div>
               <div className="p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge>{selectedRecord.category === "movie" ? "Movie" : "Game"}</Badge>
+                  <Badge>{selectedRecord.category === "movie" ? "Movie" : selectedRecord.category === "game" ? "Game" : "TV"}</Badge>
                   <Badge tone="muted">{selectedRecord.sourceLabel}</Badge>
                 </div>
                 <h3 className="mt-4 text-2xl text-[var(--ink)]">{selectedRecord.title}</h3>
@@ -598,6 +600,15 @@ function buildRecordMeta(record: LibraryRecord) {
   }
 
   return parts.join(" · ");
+}
+
+function formatCategoryLabel(category: string) {
+  switch (category) {
+    case "movie": return "Movie";
+    case "game": return "Game";
+    case "tv_show": return "TV";
+    default: return category;
+  }
 }
 
 function formatStatus(status: RecordStatus) {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { apiFetch } from "../api";
 
 export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
 
@@ -36,11 +37,7 @@ export const useGameRecordStore = create<GameRecordState>((set, get) => ({
   fetchRecords: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch("/api/games");
-      if (!response.ok) {
-        throw new Error(`获取失败 (${response.status})`);
-      }
-      const payload = (await response.json()) as GameRecord[];
+      const payload = await apiFetch<GameRecord[]>("/games");
       set({ records: payload, loading: false });
     } catch (err) {
       set({
@@ -53,15 +50,10 @@ export const useGameRecordStore = create<GameRecordState>((set, get) => ({
   createRecord: async (payload) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch("/api/games", {
+      const created = await apiFetch<GameRecord>("/games", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) {
-        throw new Error(`创建失败 (${response.status})`);
-      }
-      const created = (await response.json()) as GameRecord;
       set({ records: [created, ...get().records], loading: false });
       return created;
     } catch (err) {
@@ -76,15 +68,10 @@ export const useGameRecordStore = create<GameRecordState>((set, get) => ({
   updateRecord: async (id, payload) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/games/${id}`, {
+      const updated = await apiFetch<GameRecord>(`/games/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) {
-        throw new Error(`更新失败 (${response.status})`);
-      }
-      const updated = (await response.json()) as GameRecord;
       set({
         records: get().records.map((record) =>
           record.id === id ? updated : record
@@ -104,12 +91,7 @@ export const useGameRecordStore = create<GameRecordState>((set, get) => ({
   removeRecord: async (id) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/games/${id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        throw new Error(`删除失败 (${response.status})`);
-      }
+      await apiFetch<void>(`/games/${id}`, { method: "DELETE" });
       set({
         records: get().records.filter((record) => record.id !== id),
         loading: false,

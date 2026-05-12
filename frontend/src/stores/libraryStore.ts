@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { LibraryRecord, LibraryRecordUpdateInput } from "../types/library";
+import { apiFetch } from "../api";
 
 type LibraryState = {
   records: LibraryRecord[];
@@ -23,11 +24,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   fetchRecords: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch("/api/library");
-      if (!response.ok) {
-        throw new Error(`获取记录库失败 (${response.status})`);
-      }
-      const payload = (await response.json()) as LibraryRecord[];
+      const payload = await apiFetch<LibraryRecord[]>("/library");
       set({ records: payload, loading: false });
     } catch (err) {
       set({
@@ -40,15 +37,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   updateRecord: async (category, id, payload) => {
     set({ saving: true, error: null });
     try {
-      const response = await fetch(`/api/library/${category}/${id}`, {
+      const updated = await apiFetch<LibraryRecord>(`/library/${category}/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) {
-        throw new Error(`保存失败 (${response.status})`);
-      }
-      const updated = (await response.json()) as LibraryRecord;
       set({
         records: get().records.map((record) =>
           record.id === id && record.category === category ? updated : record

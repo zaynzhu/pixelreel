@@ -24,6 +24,18 @@ export type GameRecordSuggestion = {
   shortReview?: string | null;
 };
 
+export type TvShowRecordSuggestion = {
+  tmdbId?: number | null;
+  imdbId?: string | null;
+  doubanId?: string | null;
+  traktId?: string | null;
+  title: string;
+  posterUrl?: string | null;
+  status: RecordStatus;
+  rating?: number | null;
+  shortReview?: string | null;
+};
+
 export type ExternalMovieSearchResult = {
   provider: string;
   tmdbId?: number | null;
@@ -52,6 +64,21 @@ export type ExternalGameSearchResult = {
   alreadyAdded: boolean;
   existingRecordId?: number | null;
   suggestedRecord: GameRecordSuggestion;
+};
+
+export type ExternalTvShowSearchResult = {
+  provider: string;
+  tmdbId?: number | null;
+  imdbId?: string | null;
+  doubanId?: string | null;
+  traktId?: string | null;
+  title: string;
+  posterUrl?: string | null;
+  firstAirDate?: string | null;
+  overview?: string | null;
+  alreadyAdded: boolean;
+  existingRecordId?: number | null;
+  suggestedRecord: TvShowRecordSuggestion;
 };
 
 export type ProviderSearchResult<T> = {

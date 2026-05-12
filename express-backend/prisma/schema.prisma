@@ -1,0 +1,82 @@
+// Prisma Schema - 从现有 MySQL 数据库反向生成
+// 与 Java 端共用同一个数据库，表结构与 schema.sql 完全对齐
+// 注意：updatedAt 不使用 @updatedAt，由 MySQL ON UPDATE CURRENT_TIMESTAMP 负责更新
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Movie {
+  id          BigInt   @id @default(autoincrement())
+  tmdbId      BigInt?  @map("tmdb_id")
+  imdbId      String?  @db.VarChar(20) @map("imdb_id")
+  doubanId    String?  @db.VarChar(20) @map("douban_id")
+  traktId     String?  @db.VarChar(20) @map("trakt_id")
+  title       String   @db.VarChar(255)
+  posterUrl   String?  @db.VarChar(500) @map("poster_url")
+  status      String   @db.VarChar(20)
+  rating      Int?
+  shortReview String?  @db.VarChar(1000) @map("short_review")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime
+
+  @@index([tmdbId], map: "idx_movie_tmdb_id")
+  @@index([imdbId], map: "idx_movie_imdb_id")
+  @@index([doubanId], map: "idx_movie_douban_id")
+  @@index([traktId], map: "idx_movie_trakt_id")
+  @@map("movie")
+}
+
+model TvShow {
+  id          BigInt   @id @default(autoincrement())
+  tmdbId      BigInt?  @map("tmdb_id")
+  imdbId      String?  @db.VarChar(20) @map("imdb_id")
+  doubanId    String?  @db.VarChar(20) @map("douban_id")
+  traktId     String?  @db.VarChar(20) @map("trakt_id")
+  title       String   @db.VarChar(255)
+  posterUrl   String?  @db.VarChar(500) @map("poster_url")
+  firstAirDate String?  @db.VarChar(20) @map("first_air_date")
+  overview    String?  @db.Text
+  status      String   @db.VarChar(20)
+  rating      Int?
+  shortReview String?  @db.VarChar(1000) @map("short_review")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime
+
+  @@index([tmdbId], map: "idx_tv_show_tmdb_id")
+  @@index([imdbId], map: "idx_tv_show_imdb_id")
+  @@index([doubanId], map: "idx_tv_show_douban_id")
+  @@index([traktId], map: "idx_tv_show_trakt_id")
+  @@map("tv_show")
+}
+
+model Game {
+  id                  BigInt   @id @default(autoincrement())
+  rawgId              BigInt?  @map("rawg_id")
+  steamAppId          BigInt?  @map("steam_app_id")
+  xboxId              String?  @db.VarChar(50) @map("xbox_id")
+  psnId               String?  @db.VarChar(50) @map("psn_id")
+  platform            String?  @db.VarChar(20)
+  title               String   @db.VarChar(255)
+  posterUrl           String?  @db.VarChar(500) @map("poster_url")
+  playtimeMinutes     Int?     @map("playtime_minutes")
+  achievementTotal    Int?     @map("achievement_total")
+  achievementUnlocked Int?     @map("achievement_unlocked")
+  importedAt          DateTime? @map("imported_at") @db.DateTime
+  status              String   @db.VarChar(20)
+  rating              Int?
+  shortReview         String?  @db.VarChar(1000) @map("short_review")
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.DateTime
+
+  @@index([rawgId], map: "idx_game_rawg_id")
+  @@index([steamAppId], map: "idx_game_steam_app_id")
+  @@index([xboxId], map: "idx_game_xbox_id")
+  @@index([psnId], map: "idx_game_psn_id")
+  @@map("game")
+}
