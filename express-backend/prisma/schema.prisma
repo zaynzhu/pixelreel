@@ -46,7 +46,7 @@ model TvShow {
   rating      Int?
   shortReview String?  @db.VarChar(1000) @map("short_review")
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime
 
   @@index([tmdbId], map: "idx_tv_show_tmdb_id")
   @@index([imdbId], map: "idx_tv_show_imdb_id")
