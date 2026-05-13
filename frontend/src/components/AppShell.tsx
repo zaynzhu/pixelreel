@@ -1,57 +1,75 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
-
-const NAV_ITEMS = [
-  { to: "/", label: "Home" },
-  { to: "/movies/search", label: "Movie Search" },
-  { to: "/games/search", label: "Game Search" },
-  { to: "/tv-shows/search", label: "TV Search" },
-  { to: "/library", label: "Library" },
-];
+import { useI18nStore } from "../stores/i18nStore";
 
 export default function AppShell() {
   const logout = useAuthStore((s) => s.logout);
+  const { lang, toggleLang, t } = useI18nStore();
+
+  const NAV_ITEMS = [
+    { to: "/", label: t("nav.overview") },
+    { to: "/movies/search", label: t("nav.movies") },
+    { to: "/games/search", label: t("nav.games") },
+    { to: "/tv-shows/search", label: t("nav.tv") },
+    { to: "/library", label: t("nav.library") },
+  ];
 
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <header className="paper-panel relative overflow-hidden rounded-[36px] px-6 py-6 sm:px-8">
-          <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,_rgba(217,72,47,0.18),_transparent_62%)] lg:block" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <header className="relative overflow-hidden border border-[var(--line)] bg-[var(--surface)] px-6 py-8 sm:px-8">
+          <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,_rgba(212,255,0,0.05),_transparent_70%)] lg:block" />
+          
+          <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
+          <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-[var(--accent)]" />
+
+          <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="section-kicker">PixelReel Command Deck</p>
-              <h1 className="mt-3 max-w-2xl text-4xl text-[var(--ink)] sm:text-5xl">
-                把电影和游戏记录，收成一张属于自己的总览首页。
+              <span className="section-kicker">{t("nav.system")}</span>
+              <h1 className="mt-2 max-w-2xl text-4xl text-white sm:text-5xl hover-glitch whitespace-pre-wrap">
+                {t("nav.title")}
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                首页现在作为个人主页入口，负责展示总量、状态分布、平台来源和最近新增。
-                下面的路由已经把搜索、记录和统计分开，记录库现在可以直接筛选条目并补评分短评，
-                后面接多用户时不用重拆结构。
+              <p className="mt-4 max-w-2xl text-xs leading-6 text-[var(--muted)] sm:text-sm whitespace-pre-wrap">
+                {t("nav.desc")}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {NAV_ITEMS.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-sm font-medium transition ${
-                      isActive
-                        ? "bg-[var(--accent)] text-white shadow-[0_10px_24px_rgba(159,40,21,0.24)]"
-                        : "bg-white/70 text-[var(--ink)] hover:bg-white"
-                    }`
-                  }
+            
+            <div className="flex flex-col items-end gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-[var(--accent)] uppercase tracking-widest animate-pulse">
+                  ● {t("nav.live")}
+                </span>
+                <button
+                  onClick={toggleLang}
+                  className="brutal-btn"
                 >
-                  {item.label}
-                </NavLink>
-              ))}
-              <button
-                onClick={logout}
-                className="rounded-full border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-white"
-              >
-                退出
-              </button>
+                  {lang === "en" ? "中文" : "EN"}
+                </button>
+                <button
+                  onClick={logout}
+                  className="brutal-btn"
+                >
+                  {t("nav.terminate")}
+                </button>
+              </div>
+              <nav className="flex flex-wrap items-center gap-2">
+                {NAV_ITEMS.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    className={({ isActive }) =>
+                      `px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        isActive
+                          ? "bg-[var(--accent)] text-black shadow-[0_0_15px_rgba(212,255,0,0.3)]"
+                          : "border border-[var(--line)] bg-[var(--surface-hover)] text-[var(--muted)] hover:text-white hover:border-white"
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
             </div>
           </div>
         </header>

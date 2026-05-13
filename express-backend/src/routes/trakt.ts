@@ -43,6 +43,34 @@ router.get('/callback', async (req: Request, res: Response) => {
   }
 });
 
+// 分页辅助函数，自动处理 Trakt 的分页拉取
+async function fetchAllTraktPages(endpoint: string, accessToken: string) {
+  const headers = {
+    'trakt-api-key': config.trakt.clientId,
+    'trakt-api-version': '2',
+    Authorization: `Bearer ${accessToken}`,
+  };
+  
+  let page = 1;
+  const limit = 250; // 根据 Trakt 最新 API 规范，单页最稳妥上限为 250
+  let allData: any[] = [];
+  
+  while (true) {
+    const res = await axios.get(`${config.trakt.baseUrl}${endpoint}?page=${page}&limit=${limit}`, { headers });
+    const data = res.data || [];
+    allData = allData.concat(data);
+    
+    // 解析 Trakt 返回的分页 Headers
+    const pageCount = parseInt(res.headers['x-pagination-page-count'] || '1', 10);
+    if (page >= pageCount) {
+      break;
+    }
+    page++;
+  }
+  
+  return allData;
+}
+
 // POST /api/trakt/import/movies?accessToken=xxx&status=DONE
 router.post('/import/movies', async (req: Request, res: Response) => {
   const accessToken = (req.query.accessToken as string) || config.trakt.accessToken;
@@ -54,26 +82,11 @@ router.post('/import/movies', async (req: Request, res: Response) => {
   const status = (req.query.status as string) || RecordStatus.WANT;
 
   try {
-    // 并发拉取观看历史和想看列表
-    const [watchedRes, watchlistRes] = await Promise.all([
-      axios.get(`${config.trakt.baseUrl}/sync/history/movies`, {
-        headers: {
-          'trakt-api-key': config.trakt.clientId,
-          'trakt-api-version': '2',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }),
-      axios.get(`${config.trakt.baseUrl}/sync/watchlist/movies`, {
-        headers: {
-          'trakt-api-key': config.trakt.clientId,
-          'trakt-api-version': '2',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }),
+    // 使用自动分页并发拉取所有页面的数据
+    const [watched, watchlist] = await Promise.all([
+      fetchAllTraktPages('/sync/history/movies', accessToken),
+      fetchAllTraktPages('/sync/watchlist/movies', accessToken)
     ]);
-
-    const watched = watchedRes.data || [];
-    const watchlist = watchlistRes.data || [];
 
     // 用 traktId 去重合并
     const seen = new Set<number>();
@@ -168,26 +181,11 @@ router.post('/import/shows', async (req: Request, res: Response) => {
   const status = (req.query.status as string) || RecordStatus.WANT;
 
   try {
-    // 并发拉取观看历史和想看列表
-    const [watchedRes, watchlistRes] = await Promise.all([
-      axios.get(`${config.trakt.baseUrl}/sync/history/shows`, {
-        headers: {
-          'trakt-api-key': config.trakt.clientId,
-          'trakt-api-version': '2',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }),
-      axios.get(`${config.trakt.baseUrl}/sync/watchlist/shows`, {
-        headers: {
-          'trakt-api-key': config.trakt.clientId,
-          'trakt-api-version': '2',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }),
+    // 使用自动分页并发拉取所有页面的数据
+    const [watched, watchlist] = await Promise.all([
+      fetchAllTraktPages('/sync/history/shows', accessToken),
+      fetchAllTraktPages('/sync/watchlist/shows', accessToken)
     ]);
-
-    const watched = watchedRes.data || [];
-    const watchlist = watchlistRes.data || [];
 
     // 用 traktId 去重合并
     const seen = new Set<number>();

@@ -5,6 +5,7 @@ import { importXboxOwnedGames } from '../services/import/OpenXblImportService';
 import { importPsnOwnedGames } from '../services/import/PsnProfilesImportService';
 import { importDoubanCsv } from '../services/import/DoubanCsvImportService';
 import { fillMissingCovers } from '../services/import/RawgCoverFillService';
+import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 
 const router = Router();
 
@@ -55,7 +56,15 @@ router.post('/douban', upload.single('file'), async (req: Request, res: Response
 router.post('/covers/fill', async (req: Request, res: Response) => {
   const limitParam = req.query.limit as string | undefined;
   const limit = limitParam ? parseInt(limitParam, 10) : null;
-  const result = await fillMissingCovers(isNaN(limit ?? 0) ? null : limit);
+  const result = await fillMissingCovers(limit);
+  res.json(result);
+});
+
+// POST /api/import/tmdb-covers/fill?limit=50
+router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
+  const limitParam = req.query.limit as string | undefined;
+  const limit = limitParam ? parseInt(limitParam, 10) : null;
+  const result = await fillTmdbCovers(limit);
   res.json(result);
 });
 

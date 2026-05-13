@@ -5,39 +5,40 @@ import type {
   ProviderSearchResult,
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
+import { useI18nStore } from "../stores/i18nStore";
 
 const PROVIDERS = [
   {
     id: "rawg",
     label: "RAWG",
     mode: "search",
-    placeholder: "按游戏名搜索全平台条目",
-    description: "推荐默认入口，适合先找游戏条目再加入记录。",
+    placeholder: "QUERY RAWG DATABASE",
+    description: "Recommended node for general game telemetry.",
   },
   {
     id: "steam",
-    label: "Steam",
+    label: "STEAM",
     mode: "search",
-    placeholder: "按 Steam 商店名称搜索",
-    description: "适合精确查找 Steam App 并保留 Steam App ID。",
+    placeholder: "QUERY STEAM STORE",
+    description: "Direct access to Steam Application records.",
   },
   {
     id: "xbox",
-    label: "Xbox 导入",
+    label: "XBOX SYNC",
     mode: "import",
-    description: "Xbox 暂不提供目录搜索，请调用 /api/import/xbox/owned?gamertag=你的ID 导入已玩游戏。",
+    description: "Use /api/import/xbox/owned?gamertag=ID to sync.",
   },
   {
     id: "psn",
-    label: "PSN 导入",
+    label: "PSN SYNC",
     mode: "import",
-    description: "PSN 暂不提供目录搜索，请调用 /api/import/psn/owned?psnId=你的ID 导入奖杯列表。",
+    description: "Use /api/import/psn/owned?psnId=ID to sync.",
   },
   {
     id: "switch",
-    label: "Switch",
+    label: "SWITCH",
     mode: "placeholder",
-    description: "Switch 数据源仍是占位，当前还没有可用搜索或导入入口。",
+    description: "Node offline. No data available.",
   },
 ] as const;
 
@@ -46,6 +47,7 @@ type ProviderId = (typeof PROVIDERS)[number]["id"];
 const defaultProvider = PROVIDERS[0].id;
 
 export default function GameSearch() {
+  const { t } = useI18nStore();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [activeProvider, setActiveProvider] = useState<ProviderId>(defaultProvider);
@@ -67,7 +69,7 @@ export default function GameSearch() {
       return;
     }
     if (!trimmed) {
-      setError("请输入关键词");
+      setError(t("search.empty"));
       return;
     }
 
@@ -82,7 +84,7 @@ export default function GameSearch() {
       setData(providerResult);
       setPage(providerResult?.page ?? nextPage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "搜索失败");
+      setError(err instanceof Error ? err.message : t("search.failed"));
     } finally {
       setLoading(false);
     }
@@ -99,17 +101,16 @@ export default function GameSearch() {
         body: JSON.stringify(game.suggestedRecord),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "添加失败");
+      setError(err instanceof Error ? err.message : t("search.commit_failed"));
     } finally {
       setAddingKey(null);
     }
   };
 
-  const providerLabel = activeProviderConfig.label;
-
   return (
-    <section className="w-full max-w-4xl mx-auto p-6">
-      <h2 className="text-2xl font-semibold text-slate-900">搜索游戏</h2>
+    <section className="dash-card max-w-5xl mx-auto w-full">
+      <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
+      <h2 className="font-display text-3xl text-white">{t("search.game.title")}</h2>
       <div className="mt-4 flex flex-wrap gap-2">
         {PROVIDERS.map((provider) => (
           <button
@@ -119,11 +120,7 @@ export default function GameSearch() {
               setData(null);
               setPage(1);
             }}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              activeProvider === provider.id
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
+            className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >
             {provider.label}
           </button>
@@ -131,81 +128,97 @@ export default function GameSearch() {
       </div>
 
       {isSearchProvider ? (
-        <div className="mt-4">
-          <p className="mb-3 text-sm text-slate-500">
-            {activeProviderConfig.description}
+        <div className="mt-6 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
+          <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
+          <p className="mb-3 text-[10px] uppercase font-bold text-[var(--muted)] tracking-widest">
+            /// {activeProviderConfig.description}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={activeProviderConfig.placeholder}
-              className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm outline-none focus:border-slate-400"
+              className="tech-input flex-1"
             />
             <button
               onClick={() => search(1)}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="brutal-btn-accent"
               disabled={loading}
             >
-              {loading ? "搜索中..." : `搜索 ${providerLabel}`}
+              {loading ? t("search.btn.searching") : t("search.btn.exec")}
             </button>
           </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        <div className="mt-6 border border-dashed border-[var(--line)] p-8 text-[10px] uppercase tracking-widest text-[var(--muted)] flex items-center justify-center text-center">
           {activeProviderConfig.description}
         </div>
       )}
 
       {data?.message && (
-        <p className="mt-3 text-sm text-amber-600">
-          {data.message}
-        </p>
+        <div className="mt-5 border-l-4 border-yellow-500 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-bold uppercase">
+          [WARN] {data.message}
+        </div>
       )}
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="mt-5 border-l-4 border-red-500 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-bold uppercase">
+          [ERR] {error}
+        </div>
+      )}
 
       {hasResults && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-8 space-y-4">
           {data?.results.map((game) => {
             const key = buildGameKey(game);
             return (
               <div
                 key={key}
-                className="flex gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+                className="group border border-[var(--line)] bg-[var(--surface-hover)] flex gap-4 p-4 transition-all hover:border-white"
               >
-                <div className="h-28 w-20 overflow-hidden rounded-lg bg-slate-100">
+                <div className="h-32 w-24 overflow-hidden bg-black border border-[var(--line)] relative shrink-0">
                   {game.posterUrl ? (
                     <img
                       src={game.posterUrl}
                       alt={game.title}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex h-full items-center justify-center p-2 text-[10px] font-bold uppercase tracking-widest text-[var(--line)] text-center">
+                      NO_IMG
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      {game.title}
-                    </h3>
-                    <button
-                      onClick={() => addToRecords(game)}
-                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:border-slate-400 disabled:opacity-60"
-                      disabled={game.alreadyAdded || addingKey === key}
-                    >
-                      {game.alreadyAdded
-                        ? "已在记录"
-                        : addingKey === key
-                        ? "添加中..."
-                        : "加入记录"}
-                    </button>
+                <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-display text-xl text-white uppercase truncate" title={game.title}>{game.title}</h3>
+                      <button
+                        onClick={() => addToRecords(game)}
+                        className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all ${
+                          game.alreadyAdded 
+                            ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
+                            : addingKey === key
+                            ? "bg-[var(--accent)] text-black border border-[var(--accent)]"
+                            : "border border-white text-white hover:bg-white hover:text-black"
+                        }`}
+                        disabled={game.alreadyAdded || addingKey === key}
+                      >
+                        {game.alreadyAdded
+                          ? t("search.already")
+                          : addingKey === key
+                          ? t("search.committing")
+                          : t("search.add")}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[10px] text-[var(--accent)] uppercase font-bold tracking-widest">
+                      {t("search.release")} // {game.releaseDate || t("search.unknown")}
+                    </p>
+                    <p className="mt-3 line-clamp-2 text-[10px] uppercase tracking-widest leading-relaxed text-[var(--muted)]">
+                      {game.overview || t("search.no_data")}
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {game.releaseDate || "暂无发售日期"}
-                  </p>
-                  <p className="mt-2 line-clamp-3 text-sm text-slate-600">
-                    {game.overview || "暂无简介"}
-                  </p>
                 </div>
               </div>
             );
@@ -214,23 +227,23 @@ export default function GameSearch() {
       )}
 
       {data && data.totalPages > 1 && (
-        <div className="mt-6 flex items-center gap-2">
+        <div className="mt-8 flex items-center justify-between border border-[var(--line)] bg-[var(--surface-hover)] p-4">
           <button
-            className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+            className="brutal-btn"
             disabled={page <= 1 || loading}
             onClick={() => search(page - 1)}
           >
-            上一页
+            {t("search.prev")}
           </button>
-          <span className="text-xs text-slate-500">
-            第 {page} / {data.totalPages} 页
+          <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--muted)]">
+            {t("search.page", page, data.totalPages)}
           </span>
           <button
-            className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+            className="brutal-btn"
             disabled={page >= data.totalPages || loading}
             onClick={() => search(page + 1)}
           >
-            下一页
+            {t("search.next")}
           </button>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { useI18nStore } from "../stores/i18nStore";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
+  const { lang, toggleLang, t } = useI18nStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,21 +21,30 @@ export default function LoginPage() {
     if (ok) {
       navigate("/", { replace: true });
     } else {
-      setError("用户名或密码错误");
+      setError(t("login.err_auth"));
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--page-bg, #f5ecd9)" }}>
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--page-bg)" }}>
+      <div className="absolute top-4 right-4">
+        <button onClick={toggleLang} className="brutal-btn">
+          {lang === "en" ? "中文" : "EN"}
+        </button>
+      </div>
+      
       <div className="w-full max-w-md">
-        <div className="paper-panel rounded-[36px] px-8 py-10">
+        <div className="dash-card">
+          <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
+          <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-[var(--accent)]" />
+          
           <div className="text-center">
-            <p className="section-kicker">PixelReel</p>
-            <h1 className="mt-3 text-3xl text-[var(--ink)] sm:text-4xl">
-              登录你的记录库
+            <span className="section-kicker animate-pulse">{t("login.sys_auth")}</span>
+            <h1 className="font-display mt-2 text-3xl text-white sm:text-4xl hover-glitch">
+              {t("login.title")}
             </h1>
-            <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-              管理你的电影和游戏，追踪状态、评分与短评。
+            <p className="mt-4 text-[10px] uppercase tracking-widest leading-6 text-[var(--muted)]">
+              {t("login.desc")}
             </p>
           </div>
 
@@ -41,28 +52,28 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="username"
-                className="block text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]"
+                className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]"
               >
-                用户名
+                {t("login.user_id")}
               </label>
               <input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="zaynzhu"
+                placeholder={t("login.user_placeholder")}
                 autoComplete="username"
                 required
-                className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-white/80 px-4 py-3 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:bg-white"
+                className="tech-input mt-2"
               />
             </div>
 
             <div>
               <label
                 htmlFor="password"
-                className="block text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]"
+                className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]"
               >
-                密码
+                {t("login.access_code")}
               </label>
               <input
                 id="password"
@@ -72,22 +83,22 @@ export default function LoginPage() {
                 placeholder="••••••"
                 autoComplete="current-password"
                 required
-                className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-white/80 px-4 py-3 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:bg-white"
+                className="tech-input mt-2"
               />
             </div>
 
             {error && (
-              <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </p>
+              <div className="mt-5 border-l-4 border-red-500 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-bold uppercase">
+                [ERR] {error}
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading || !username.trim() || !password.trim()}
-              className="w-full rounded-full bg-[var(--accent)] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(159,40,21,0.24)] transition hover:bg-[var(--accent-deep)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="brutal-btn-accent w-full mt-4"
             >
-              {loading ? "登录中..." : "登录"}
+              {loading ? t("login.btn_verify") : t("login.btn_login")}
             </button>
           </form>
         </div>

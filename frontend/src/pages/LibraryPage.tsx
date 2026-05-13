@@ -1,5 +1,6 @@
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useLibraryStore } from "../stores/libraryStore";
+import { useI18nStore } from "../stores/i18nStore";
 import type {
   LibraryCategory,
   LibraryRecord,
@@ -7,25 +8,28 @@ import type {
   RecordStatus,
 } from "../types/library";
 
-const STATUS_OPTIONS: Array<{ value: RecordStatus; label: string }> = [
-  { value: "UNSET", label: "未分类" },
-  { value: "WANT", label: "想记录" },
-  { value: "IN_PROGRESS", label: "进行中" },
-  { value: "DONE", label: "已完成" },
-];
-
-const SORT_OPTIONS = [
-  { value: "recent", label: "最近更新" },
-  { value: "rating", label: "评分优先" },
-  { value: "title", label: "标题 A-Z" },
-] as const;
-
 type CategoryFilter = "all" | LibraryCategory;
-type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 type SelectedRecordKey = `${LibraryCategory}:${number}`;
 
 export default function LibraryPage() {
   const { records, loading, saving, error, fetchRecords, updateRecord } = useLibraryStore();
+  const { t } = useI18nStore();
+  
+  const STATUS_OPTIONS: Array<{ value: RecordStatus; label: string }> = [
+    { value: "UNSET", label: t("global.status.unset") },
+    { value: "WANT", label: t("global.status.want") },
+    { value: "IN_PROGRESS", label: t("global.status.active") },
+    { value: "DONE", label: t("global.status.done") },
+  ];
+
+  const SORT_OPTIONS = [
+    { value: "recent", label: t("global.sort.latest") },
+    { value: "rating", label: t("global.sort.rating") },
+    { value: "title", label: t("global.sort.az") },
+  ] as const;
+
+  type SortValue = (typeof SORT_OPTIONS)[number]["value"];
+
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [status, setStatus] = useState<"all" | RecordStatus>("all");
@@ -120,107 +124,105 @@ export default function LibraryPage() {
     });
 
     if (updated) {
-      setSaveMessage("已保存评分与短评");
+      setSaveMessage(t("lib.edit.success"));
     }
   };
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
       <section className="dash-card overflow-hidden">
+        <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
+        
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="section-kicker">Library Desk</p>
-            <h2 className="mt-3 text-3xl text-[var(--ink)] sm:text-4xl">记录库</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              这一页把电影、游戏和电视剧合并成同一张桌面。左边负责找记录，右边负责补状态、
-              评分和短评，让搜索、导入和首页统计之间真正形成闭环。
+            <p className="section-kicker">{t("lib.kicker")}</p>
+            <h2 className="font-display mt-2 text-3xl text-white sm:text-4xl">{t("lib.title")}</h2>
+            <p className="mt-3 max-w-2xl text-xs leading-6 text-[var(--muted)] uppercase">
+              {t("lib.desc")}
             </p>
           </div>
           <button
             type="button"
             onClick={() => void fetchRecords()}
-            className="rounded-full border border-[var(--line)] bg-white/80 px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-white"
+            className="brutal-btn"
           >
-            {loading ? "刷新中..." : "刷新记录"}
+            {loading ? t("lib.fetching") : t("lib.query")}
           </button>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <LibraryMetric label="当前结果" value={overview.total} caption="按当前筛选显示" />
-          <LibraryMetric label="已评分" value={overview.rated} caption="带数值评分的条目" />
-          <LibraryMetric label="有短评" value={overview.reviewed} caption="写过短评的条目" />
-          <LibraryMetric label="已完成" value={overview.completed} caption="DONE 状态数量" />
+          <LibraryMetric label={t("lib.met.results")} value={overview.total} caption={t("lib.met.results_cap")} />
+          <LibraryMetric label={t("lib.met.rated")} value={overview.rated} caption={t("lib.met.rated_cap")} />
+          <LibraryMetric label={t("lib.met.reviewed")} value={overview.reviewed} caption={t("lib.met.reviewed_cap")} />
+          <LibraryMetric label={t("lib.met.done")} value={overview.completed} caption={t("lib.met.done_cap")} />
         </div>
 
-        <div className="mt-8 rounded-[28px] border border-[var(--line)] bg-white/70 p-5">
+        <div className="mt-8 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
+          <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
           <div className="grid gap-4 lg:grid-cols-[1.3fr_repeat(4,minmax(0,1fr))]">
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]">
-                Search
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
+                {t("lib.search.param")}
               </span>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="按标题、来源、平台过滤"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                placeholder={t("lib.search.placeholder")}
+                className="tech-input mt-2"
               />
             </label>
 
             <FilterSelect
-              label="类别"
+              label={t("lib.search.cat")}
               value={category}
               onChange={setCategory}
               options={[
-                { value: "all", label: "全部" },
-                { value: "movie", label: "电影" },
-                { value: "game", label: "游戏" },
-                { value: "tv_show", label: "电视剧" },
+                { value: "all", label: t("lib.search.all") },
+                { value: "movie", label: t("global.cat.mov") },
+                { value: "game", label: t("global.cat.gam") },
+                { value: "tv_show", label: t("global.cat.tvs") },
               ]}
             />
 
             <FilterSelect
-              label="状态"
+              label={t("lib.search.status")}
               value={status}
               onChange={setStatus}
-              options={[{ value: "all", label: "全部" }, ...STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))]}
+              options={[{ value: "all", label: t("lib.search.all") }, ...STATUS_OPTIONS]}
             />
 
             <FilterSelect
-              label="来源"
+              label={t("lib.search.source")}
               value={source}
               onChange={setSource}
-              options={[{ value: "all", label: "全部来源" }, ...sourceOptions]}
+              options={[{ value: "all", label: t("lib.search.all") }, ...sourceOptions]}
             />
 
             <FilterSelect
-              label="短评"
+              label={t("lib.search.log")}
               value={reviewFilter}
               onChange={setReviewFilter}
               options={[
-                { value: "all", label: "全部" },
-                { value: "reviewed", label: "只看有短评" },
-                { value: "unreviewed", label: "只看未写短评" },
+                { value: "all", label: t("lib.search.all") },
+                { value: "reviewed", label: t("lib.search.has_log") },
+                { value: "unreviewed", label: t("lib.search.null_log") },
               ]}
             />
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2">
               {[
-                { value: "all", label: "全部" },
-                { value: "movie", label: "电影" },
-                { value: "game", label: "游戏" },
-                { value: "tv_show", label: "电视剧" },
+                { value: "all", label: t("lib.search.all") },
+                { value: "movie", label: t("global.cat.mov") },
+                { value: "game", label: t("global.cat.gam") },
+                { value: "tv_show", label: t("global.cat.tvs") },
               ].map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => setCategory(item.value as CategoryFilter)}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                    category === item.value
-                      ? "bg-[var(--accent)] text-white"
-                      : "bg-[rgba(31,24,14,0.08)] text-[var(--ink)] hover:bg-white"
-                  }`}
+                  className={category === item.value ? "brutal-btn-accent" : "brutal-btn"}
                 >
                   {item.label}
                 </button>
@@ -228,19 +230,19 @@ export default function LibraryPage() {
             </div>
 
             <FilterSelect
-              label="排序"
+              label={t("lib.search.order")}
               value={sortBy}
               onChange={setSortBy}
-              options={SORT_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+              options={[...SORT_OPTIONS]}
               compact
             />
           </div>
         </div>
 
         {error ? (
-          <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
+          <div className="mt-5 border-l-4 border-red-500 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-bold uppercase">
+            [ERR] {error}
+          </div>
         ) : null}
 
         <div className="mt-8 space-y-4">
@@ -257,104 +259,105 @@ export default function LibraryPage() {
                       setSelectedKey(buildRecordKey(record));
                     });
                   }}
-                  className={`grid w-full gap-4 rounded-[28px] border px-4 py-4 text-left transition sm:grid-cols-[96px_1fr] ${
+                  className={`group relative grid w-full gap-4 border px-4 py-4 text-left transition-all sm:grid-cols-[80px_1fr] ${
                     active
-                      ? "border-[var(--accent)] bg-white shadow-[0_18px_48px_rgba(159,40,21,0.12)]"
-                      : "border-[var(--line)] bg-white/75 hover:bg-white"
+                      ? "border-[var(--accent)] bg-[#1a1a1a]"
+                      : "border-[var(--line)] bg-[var(--surface-hover)] hover:border-white"
                   }`}
                 >
-                  <div className="h-28 overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#f1e1c5_0%,#f7f1e7_100%)]">
+                  {active && (
+                    <div className="absolute top-0 bottom-0 left-0 w-1 bg-[var(--accent)]" />
+                  )}
+                  <div className="h-28 overflow-hidden bg-[#0a0a0a] border border-[var(--line)]">
                     {record.posterUrl ? (
                       <img
                         src={record.posterUrl}
                         alt={record.title}
-                        className="h-full w-full object-cover"
+                        className={`h-full w-full object-cover transition-all duration-300 ${active ? 'opacity-100 mix-blend-normal' : 'opacity-60 mix-blend-luminosity group-hover:opacity-100 group-hover:mix-blend-normal'}`}
                       />
                     ) : (
-                      <div className="flex h-full items-end p-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]">
-                        {formatCategoryLabel(record.category)}
+                      <div className="flex h-full items-center justify-center p-2 text-[10px] font-bold uppercase tracking-widest text-[var(--line)]">
+                        {t("dash.null")}
                       </div>
                     )}
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge>{record.category === "movie" ? "Movie" : record.category === "game" ? "Game" : "TV"}</Badge>
+                      <Badge tone="accent">{categoryLabel(record.category, t)}</Badge>
                       <Badge tone="muted">{record.sourceLabel}</Badge>
                       {record.platformLabel && record.category === "game" ? (
                         <Badge tone="muted">{record.platformLabel}</Badge>
                       ) : null}
-                      <span className="text-xs text-[var(--muted)]">{formatStatus(record.status)}</span>
+                      <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
                     </div>
                     <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h3 className="text-2xl text-[var(--ink)]">{record.title}</h3>
-                        <p className="mt-2 text-sm text-[var(--muted)]">
-                          {buildRecordMeta(record)}
+                        <h3 className="font-display text-xl text-white uppercase">{record.title}</h3>
+                        <p className="mt-1 text-[10px] text-[var(--muted)] uppercase tracking-widest">
+                          {buildRecordMeta(record, t)}
                         </p>
                       </div>
-                      <div className="rounded-[22px] bg-[rgba(217,72,47,0.08)] px-4 py-3 text-right">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-deep)]">
-                          Rating
+                      <div className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-right">
+                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+                          {t("lib.list.metric")}
                         </p>
-                        <p className="mt-2 text-2xl font-semibold text-[var(--ink)]">
-                          {record.rating == null ? "--" : `${record.rating}/10`}
+                        <p className="font-display mt-1 text-xl text-white">
+                          {record.rating == null ? t("dash.null") : `${record.rating}`}
                         </p>
                       </div>
                     </div>
-                    <p className="mt-4 line-clamp-3 text-sm leading-6 text-[var(--muted)]">
-                      {record.shortReview?.trim() || "还没有短评，点开右侧可以直接补内容。"}
+                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[var(--muted)] uppercase">
+                      {record.shortReview?.trim() || t("lib.list.no_log")}
                     </p>
                   </div>
                 </button>
               );
             })
           ) : (
-            <EmptyState loading={loading} />
+            <EmptyState loading={loading} t={t} />
           )}
         </div>
       </section>
 
-      <aside className="dash-card xl:sticky xl:top-6 xl:self-start">
-        <p className="section-kicker">Review Panel</p>
-        <h2 className="mt-3 text-3xl text-[var(--ink)]">评分与短评</h2>
-        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-          选中左侧任意记录后，可以直接改状态、打分和补一句短评。保存后主页统计会自动吃到这些数据。
-        </p>
-
+      <aside className="dash-card xl:sticky xl:top-6 xl:self-start border-t-4 border-t-[var(--accent)]">
+        <p className="section-kicker">{t("lib.edit.kicker")}</p>
+        <h2 className="font-display mt-2 text-2xl text-white">{t("lib.edit.title")}</h2>
+        
         {selectedRecord ? (
           <>
-            <div className="mt-6 overflow-hidden rounded-[28px] border border-[var(--line)] bg-white/80">
-              <div className="aspect-[4/3] bg-[linear-gradient(135deg,#f1e1c5_0%,#f7f1e7_100%)]">
+            <div className="mt-6 border border-[var(--line)] bg-[#0a0a0a] relative overflow-hidden group">
+              <div className="aspect-[4/3] bg-black">
                 {selectedRecord.posterUrl ? (
                   <img
                     src={selectedRecord.posterUrl}
                     alt={selectedRecord.title}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
                   />
                 ) : (
-                  <div className="flex h-full items-end p-5 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent-deep)]">
-                    {formatCategoryLabel(selectedRecord.category)}
+                  <div className="flex h-full items-center justify-center p-5 text-xs font-bold uppercase tracking-widest text-[var(--line)]">
+                    {t("lib.edit.no_img")}
                   </div>
                 )}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50" />
               </div>
-              <div className="p-5">
+              <div className="p-4 border-t border-[var(--line)] bg-[var(--surface)]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge>{selectedRecord.category === "movie" ? "Movie" : selectedRecord.category === "game" ? "Game" : "TV"}</Badge>
+                  <Badge tone="accent">{categoryLabel(selectedRecord.category, t)}</Badge>
                   <Badge tone="muted">{selectedRecord.sourceLabel}</Badge>
                 </div>
-                <h3 className="mt-4 text-2xl text-[var(--ink)]">{selectedRecord.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                  {buildRecordMeta(selectedRecord)}
+                <h3 className="font-display mt-3 text-xl text-white uppercase">{selectedRecord.title}</h3>
+                <p className="mt-1 text-[10px] text-[var(--muted)] uppercase tracking-widest">
+                  {buildRecordMeta(selectedRecord, t)}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 space-y-5">
+            <div className="mt-6 space-y-6">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]">
-                  状态
+                <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] block mb-3">
+                  {t("lib.edit.status_flag")}
                 </label>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
                   {STATUS_OPTIONS.map((item) => (
                     <button
                       key={item.value}
@@ -365,11 +368,7 @@ export default function LibraryPage() {
                           status: item.value,
                         }))
                       }
-                      className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                        form.status === item.value
-                          ? "bg-[var(--accent)] text-white"
-                          : "bg-[rgba(31,24,14,0.08)] text-[var(--ink)] hover:bg-white"
-                      }`}
+                      className={form.status === item.value ? "brutal-btn-accent" : "brutal-btn"}
                     >
                       {item.label}
                     </button>
@@ -380,11 +379,11 @@ export default function LibraryPage() {
               <div>
                 <label
                   htmlFor="rating-select"
-                  className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]"
+                  className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] block mb-3"
                 >
-                  评分
+                  {t("lib.edit.eval_metric")}
                 </label>
-                <div className="mt-3 flex gap-3">
+                <div className="flex gap-2">
                   <select
                     id="rating-select"
                     value={form.rating == null ? "" : form.rating}
@@ -394,9 +393,9 @@ export default function LibraryPage() {
                         rating: event.target.value === "" ? null : Number(event.target.value),
                       }))
                     }
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                    className="tech-input"
                   >
-                    <option value="">暂不评分</option>
+                    <option value="">{t("dash.null")}</option>
                     {Array.from({ length: 11 }, (_, index) => (
                       <option key={index} value={index}>
                         {index} / 10
@@ -411,9 +410,9 @@ export default function LibraryPage() {
                         rating: null,
                       }))
                     }
-                    className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-sm text-[var(--ink)] transition hover:bg-[rgba(31,24,14,0.06)]"
+                    className="brutal-btn"
                   >
-                    清空
+                    {t("lib.edit.clr")}
                   </button>
                 </div>
               </div>
@@ -421,9 +420,9 @@ export default function LibraryPage() {
               <div>
                 <label
                   htmlFor="short-review"
-                  className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]"
+                  className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] block mb-3"
                 >
-                  短评
+                  {t("lib.edit.sys_log")}
                 </label>
                 <textarea
                   id="short-review"
@@ -434,37 +433,37 @@ export default function LibraryPage() {
                       shortReview: event.target.value,
                     }))
                   }
-                  rows={7}
+                  rows={6}
                   maxLength={1000}
-                  placeholder="写一句你为什么喜欢、失望，或者这条记录现在对你意味着什么。"
-                  className="mt-3 w-full rounded-[24px] border border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-900 outline-none transition focus:border-slate-400"
+                  placeholder={t("lib.edit.log_placeholder")}
+                  className="tech-input"
                 />
-                <div className="mt-2 flex items-center justify-between text-xs text-[var(--muted)]">
-                  <span>建议 1 到 3 句话，后续也方便扩展成长评。</span>
-                  <span>{form.shortReview?.length ?? 0} / 1000</span>
+                <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--muted)] uppercase font-bold">
+                  <span>{t("lib.edit.buffer")}</span>
+                  <span className={form.shortReview?.length && form.shortReview.length > 900 ? "text-[var(--accent-deep)]" : ""}>{form.shortReview?.length ?? 0}/1000</span>
                 </div>
               </div>
             </div>
 
             {saveMessage ? (
-              <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                {saveMessage}
-              </p>
+              <div className="mt-6 border-l-4 border-[var(--accent)] bg-[var(--accent)]/10 px-4 py-3 text-xs text-[var(--accent)] font-bold uppercase">
+                [SYS] {saveMessage}
+              </div>
             ) : null}
 
             <button
               type="button"
               onClick={() => void saveRecord()}
               disabled={saving}
-              className="mt-6 w-full rounded-[24px] bg-[var(--accent)] px-5 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-[0_14px_32px_rgba(159,40,21,0.22)] transition hover:brightness-105 disabled:opacity-60"
+              className="mt-6 w-full brutal-btn-accent py-4"
             >
-              {saving ? "保存中..." : "保存记录"}
+              {saving ? t("lib.edit.committing") : t("lib.edit.commit")}
             </button>
           </>
         ) : (
-          <p className="mt-6 rounded-[24px] border border-dashed border-[var(--line)] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
-            当前筛选条件下还没有记录。你可以先去搜索页添加条目，或者放宽筛选条件。
-          </p>
+          <div className="mt-6 border border-dashed border-[var(--line)] px-4 py-8 text-[10px] uppercase tracking-widest text-[var(--muted)] flex items-center justify-center text-center whitespace-pre-line leading-relaxed">
+            {t("lib.edit.waiting")}
+          </div>
         )}
       </aside>
     </div>
@@ -486,18 +485,16 @@ function FilterSelect({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-deep)]">
+      <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] block mb-2">
         {label}
       </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={`rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 ${
-          compact ? "mt-0 min-w-[140px]" : "mt-2 w-full"
-        }`}
+        className={`tech-input ${compact ? "mt-0" : ""}`}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} className="bg-[var(--surface)]">
             {option.label}
           </option>
         ))}
@@ -516,10 +513,10 @@ function LibraryMetric({
   caption: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-[var(--line)] bg-white/70 p-5">
-      <p className="text-sm font-medium text-[var(--muted)]">{label}</p>
-      <p className="mt-2 text-4xl font-semibold text-[var(--ink)]">{value}</p>
-      <p className="mt-3 text-sm text-[var(--muted)]">{caption}</p>
+    <div className="border border-[var(--line)] bg-[var(--surface-hover)] p-4">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">{label}</p>
+      <p className="font-display mt-2 text-3xl text-white">{value}</p>
+      <p className="mt-2 text-[10px] uppercase text-[var(--muted)] tracking-widest">{caption}</p>
     </div>
   );
 }
@@ -533,23 +530,19 @@ function Badge({
 }) {
   return (
     <span
-      className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
-        tone === "accent"
-          ? "bg-[var(--ink)] text-white"
-          : "bg-[rgba(31,24,14,0.08)] text-[var(--ink)]"
-      }`}
+      className={tone === "accent" ? "neo-badge-accent" : "neo-badge text-[var(--muted)]"}
     >
       {children}
     </span>
   );
 }
 
-function EmptyState({ loading }: { loading: boolean }) {
+function EmptyState({ loading, t }: { loading: boolean, t: any }) {
   return (
-    <div className="rounded-[28px] border border-dashed border-[var(--line)] px-5 py-6 text-sm leading-6 text-[var(--muted)]">
+    <div className="border border-dashed border-[var(--line)] px-5 py-8 text-[10px] uppercase tracking-widest leading-relaxed text-[var(--muted)] text-center">
       {loading
-        ? "记录库加载中..."
-        : "当前没有匹配的记录。你可以调整筛选条件，或先从搜索页加入内容。"}
+        ? t("lib.list.executing")
+        : t("lib.list.zero")}
     </div>
   );
 }
@@ -563,7 +556,7 @@ function buildOverview(records: LibraryRecord[]) {
   };
 }
 
-function compareRecords(left: LibraryRecord, right: LibraryRecord, sortBy: SortValue) {
+function compareRecords(left: LibraryRecord, right: LibraryRecord, sortBy: string) {
   if (sortBy === "rating") {
     return (right.rating ?? -1) - (left.rating ?? -1) || compareByRecent(left, right);
   }
@@ -581,14 +574,14 @@ function buildRecordKey(record: LibraryRecord | null): SelectedRecordKey {
   return `${record?.category ?? "movie"}:${record?.id ?? 0}`;
 }
 
-function buildRecordMeta(record: LibraryRecord) {
-  const parts = [record.sourceLabel, formatStatus(record.status), formatDate(record.updatedAt ?? record.createdAt)];
+function buildRecordMeta(record: LibraryRecord, t: any) {
+  const parts = [record.sourceLabel, formatStatus(record.status, t), formatDate(record.updatedAt ?? record.createdAt)];
 
   if (record.category === "game" && record.platformLabel) {
     parts.unshift(record.platformLabel);
   }
   if (record.playtimeMinutes && record.playtimeMinutes > 0) {
-    parts.push(`${Math.round(record.playtimeMinutes / 60)} 小时游玩`);
+    parts.push(`${Math.round(record.playtimeMinutes / 60)}${t("lib.list.hr")}`);
   }
   if (
     record.category === "game" &&
@@ -596,46 +589,39 @@ function buildRecordMeta(record: LibraryRecord) {
     record.achievementUnlocked != null &&
     record.achievementTotal > 0
   ) {
-    parts.push(`${record.achievementUnlocked}/${record.achievementTotal} 成就`);
+    parts.push(`${record.achievementUnlocked}/${record.achievementTotal} ${t("lib.list.ach")}`);
   }
 
-  return parts.join(" · ");
+  return parts.join(" // ");
 }
 
-function formatCategoryLabel(category: string) {
-  switch (category) {
-    case "movie": return "Movie";
-    case "game": return "Game";
-    case "tv_show": return "TV";
-    default: return category;
-  }
-}
-
-function formatStatus(status: RecordStatus) {
+function formatStatus(status: RecordStatus, t: any) {
   switch (status) {
-    case "WANT":
-      return "想记录";
-    case "IN_PROGRESS":
-      return "进行中";
-    case "DONE":
-      return "已完成";
-    default:
-      return "未分类";
+    case "WANT": return t("global.status.want");
+    case "IN_PROGRESS": return t("global.status.active");
+    case "DONE": return t("global.status.done");
+    default: return t("global.status.unset");
+  }
+}
+
+function categoryLabel(category: string, t: any) {
+  switch (category) {
+    case "movie": return t("global.cat.mov");
+    case "game": return t("global.cat.gam");
+    case "tv_show": return t("global.cat.tvs");
+    default: return category.toUpperCase();
   }
 }
 
 function formatDate(value?: string | null) {
   if (!value) {
-    return "未知时间";
+    return "NULL_DATE";
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "未知时间";
+    return "NULL_DATE";
   }
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  return date.toISOString().split('T')[0];
 }
 
 function toTimestamp(value?: string | null) {
