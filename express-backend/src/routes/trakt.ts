@@ -3,6 +3,7 @@ import axios from 'axios';
 import { config } from '../config';
 import { prisma } from '../config/db';
 import { RecordStatus } from '../enums/RecordStatus';
+import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
 
 const router = Router();
 
@@ -145,13 +146,19 @@ router.post('/import/movies', async (req: Request, res: Response) => {
       const rating = item.movie.rating ? Math.round(item.movie.rating * 2) : null;
 
       try {
+        let posterUrl: string | null = null;
+        if (ids.tmdb) {
+          posterUrl = await fetchTmdbPosterUrl('movie', ids.tmdb);
+          await delay(250);
+        }
+
         await prisma.movie.create({
           data: {
             title,
             traktId: ids.trakt ? String(ids.trakt) : null,
             tmdbId: ids.tmdb || null,
             imdbId: ids.imdb || null,
-            posterUrl: null,
+            posterUrl,
             status: movieStatus,
             rating,
             shortReview: '',
@@ -243,13 +250,19 @@ router.post('/import/shows', async (req: Request, res: Response) => {
       const rating = item.show.rating ? Math.round(item.show.rating * 2) : null;
 
       try {
+        let posterUrl: string | null = null;
+        if (ids.tmdb) {
+          posterUrl = await fetchTmdbPosterUrl('tv', ids.tmdb);
+          await delay(250);
+        }
+
         await prisma.tvShow.create({
           data: {
             title,
             traktId: ids.trakt ? String(ids.trakt) : null,
             tmdbId: ids.tmdb || null,
             imdbId: ids.imdb || null,
-            posterUrl: null,
+            posterUrl,
             firstAirDate: item.show.year ? String(item.show.year) : null,
             overview: null,
             status: showStatus,

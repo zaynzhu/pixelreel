@@ -4,7 +4,7 @@ import { prisma } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 
 // 延迟辅助函数，用于控制请求速率
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function fillTmdbCovers(limit?: number | null): Promise<ImportSummary> {
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
@@ -92,7 +92,7 @@ export async function fillTmdbCovers(limit?: number | null): Promise<ImportSumma
   return summary;
 }
 
-async function fetchTmdbPosterUrl(type: 'movie' | 'tv', tmdbId: number | bigint, retryCount = 0): Promise<string | null> {
+export async function fetchTmdbPosterUrl(type: 'movie' | 'tv', tmdbId: number | bigint, retryCount = 0): Promise<string | null> {
   try {
     const response = await axios.get(`${config.tmdb.baseUrl}/${type}/${tmdbId.toString()}`, {
       params: { api_key: config.tmdb.apiKey },
