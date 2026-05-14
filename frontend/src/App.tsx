@@ -5,6 +5,7 @@ import TvShowSearch from "./components/TvShowSearch";
 import AppShell from "./components/AppShell";
 import DashboardPage from "./pages/DashboardPage";
 import LibraryPage from "./pages/LibraryPage";
+import TimelinePage from "./pages/TimelinePage";
 import LoginPage from "./pages/LoginPage";
 import { useAuthStore } from "./stores/authStore";
 
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="games/search" element={<GameSearch />} />
           <Route path="tv-shows/search" element={<TvShowSearch />} />
           <Route path="library" element={<LibraryPage />} />
+          <Route path="timeline" element={<TimelinePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
