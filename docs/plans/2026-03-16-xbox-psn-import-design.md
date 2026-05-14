@@ -1,5 +1,7 @@
 # Xbox/PSN Player-Centric Import Design
 
+> **⚠️ STALE:** This design references Spring Boot / MyBatis. The backend has since migrated to Express + Prisma. The feature itself is already implemented in the Express backend (`express-backend/src/routes/import.ts` and `express-backend/src/services/import/`).
+
 ## Goal
 Add one-click import for Xbox and PlayStation based on player identities (Gamertag/PSN ID). Import saves basic game records and achievement/trophy counts (no per-achievement details). If a provider does not supply a cover image, fallback to RAWG by game name.
 

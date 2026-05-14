@@ -23,12 +23,14 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 - Xbox 已玩导入（OpenXBL）
 - PSN 已玩导入（PSNProfiles）
 - RAWG 封面补全
+- TMDB 封面补全（影视）
 - 平台 + 外部 ID 去重
 - 成就 / 奖杯总数与已解锁统计
 - JWT 登录鉴权 + 前端登录页
 - 个人主页统计接口与前端首页（含电视剧统计）
 - 记录库混合列表页：筛选、排序、状态编辑、评分和短评编辑（含电视剧）
 - 前端路由：主页 / 电影搜索 / 电视剧搜索 / 游戏搜索 / 记录库
+- 前端国际化（EN / ZH）
 
 ## 当前未完成
 
@@ -42,32 +44,24 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 
 | 层级 | 技术 |
 |------|------|
-| 后端（Java） | Spring Boot 3, MyBatis Plus |
-| 后端（Node） | Express 5, TypeScript, Prisma |
-| 数据库 | MySQL |
+| 后端（当前） | Express 5, TypeScript, Prisma 6 (MySQL) |
+| 后端（备选） | Spring Boot 3, MyBatis Plus (Java) |
 | 前端 | React 18, React Router, Zustand, TailwindCSS, Vite |
 | 影视数据 | TMDB, OMDb, Trakt, 豆瓣, IMDb |
 | 游戏数据 | RAWG, Steam Web API, OpenXBL, PSNProfiles |
 
 ## 本地启动
 
-### 方式一：Node.js Express 后端（推荐）
+### 方式一：Express 后端（当前默认）
 
 ```bash
-# 1. 初始化数据库
-# 执行根目录下的 schema.sql
-
-# 2. 配置 Express 后端
 cd express-backend
 npm install
 cp .env.example .env
 # 编辑 .env，填入数据库连接和 API Key
-
-# 3. 生成 Prisma Client
 npx prisma generate
-
-# 4. 启动 Express 后端（默认端口 18889）
-npm run dev
+npx prisma db push
+npm run dev        # 默认端口 18889
 ```
 
 ### 方式二：Java Spring Boot 后端
@@ -75,8 +69,10 @@ npm run dev
 ```bash
 # 在 src/main/resources/application-local.yml 中配置
 mvn clean spring-boot:run
-# 默认地址：http://localhost:8080
+# 默认端口 8080
 ```
+
+> 切换后端时，修改 `frontend/vite.config.ts` 中的 proxy target 指向对应端口。
 
 ### 启动前端
 
@@ -127,6 +123,7 @@ POST /api/import/steam/owned?steamId=xxx&status=WANT
 POST /api/import/xbox/owned?gamertag=xxx&status=UNSET
 POST /api/import/psn/owned?psnId=xxx&status=UNSET
 POST /api/import/covers/fill?limit=50
+POST /api/import/tmdb-covers/fill?limit=50
 POST /api/trakt/import/movies?status=WANT
 POST /api/trakt/import/shows?status=WANT
 ```

@@ -1,5 +1,7 @@
 # Xbox/PSN Import Implementation Plan
 
+> **⚠️ STALE:** This plan references Java/Spring Boot code paths. The feature has been reimplemented in Express + Prisma and is complete. This document is retained for reference only.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement player-centric Xbox/PSN import with OpenXBL + PSNProfiles, extend game schema, and add RAWG poster fallback.

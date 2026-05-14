@@ -1,5 +1,7 @@
 # Multi-User Auth And Data Isolation Design
 
+> **⚠️ NOTE:** This design references Spring Security and Java-specific patterns. The backend has since migrated to Express + Prisma. The product requirements and data model decisions remain valid, but the technical implementation sections (SecurityConfig, Spring Security, Java services) need to be rewritten for Express middleware + Prisma before implementation.
+
 ## Status
 Validated on 2026-04-08 through collaborative design review.
 
