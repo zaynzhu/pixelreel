@@ -37,6 +37,7 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
   const statusCol = pickHeader(headerMap, 'status', '状态', '标记');
   const commentCol = pickHeader(headerMap, 'comment', '短评', '评论', '备注', '感想');
   const linkCol = pickHeader(headerMap, 'link', 'url', '链接', '豆瓣链接');
+  const dateCol = pickHeader(headerMap, 'date', '标记日期', '看过日期', '时间', 'timestamp', '标记时间');
 
   // 批量查已有记录
   const doubanIds = rows
@@ -80,6 +81,9 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
       continue;
     }
 
+    const dateVal = dateCol ? record[dateCol] : null;
+    const parsedDate = parseDate(dateVal);
+
     toSave.push({
       title: title.trim(),
       doubanId: doubanId || null,
@@ -87,6 +91,7 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
       status: csvParseStatus(statusCol ? record[statusCol] : undefined, defaultStatus),
       rating: csvParseRating(ratingCol ? record[ratingCol] : undefined),
       shortReview: (commentCol ? record[commentCol] : null)?.trim() || null,
+      createdAt: parsedDate,
     });
   }
 
@@ -167,4 +172,21 @@ function csvParseRating(value: string | undefined): number | null {
   } catch {
     return null;
   }
+}
+
+function parseDate(value: string | null | undefined): string | undefined {
+  if (!value || !value.trim()) return undefined;
+  const trimmed = value.trim();
+  // 匹配 YYYY-MM-DD 或 YYYY/MM/DD
+  const match = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00.000Z`;
+  }
+  // 兜底：尝试原生解析
+  const d = new Date(trimmed);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toISOString();
+  }
+  return undefined;
 }
