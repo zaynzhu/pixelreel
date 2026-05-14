@@ -170,7 +170,17 @@ const dictionaries = {
     "global.cat.tvs": "TVS",
     "global.sort.latest": "LATEST",
     "global.sort.rating": "RATING",
-    "global.sort.az": "A-Z"
+    "global.sort.az": "A-Z",
+
+    // Timeline
+    "timeline.title": "TIMELINE",
+    "timeline.entries": "entries",
+    "timeline.avg": "avg",
+    "timeline.peak": "peak",
+    "timeline.done": "done",
+    "timeline.items": "items",
+    "timeline.all": "ALL",
+    "timeline.added": "Added",
   },
   zh: {
     // Nav
@@ -338,7 +348,17 @@ const dictionaries = {
     "global.cat.tvs": "剧集",
     "global.sort.latest": "最新",
     "global.sort.rating": "评分优先",
-    "global.sort.az": "A-Z"
+    "global.sort.az": "A-Z",
+
+    // Timeline
+    "timeline.title": "时间线",
+    "timeline.entries": "条记录",
+    "timeline.avg": "平均",
+    "timeline.peak": "最高",
+    "timeline.done": "完成",
+    "timeline.items": "条",
+    "timeline.all": "全部",
+    "timeline.added": "添加于",
   }
 };
 
