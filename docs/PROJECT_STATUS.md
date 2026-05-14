@@ -67,6 +67,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 
 ### Express 后端（当前默认）
 ```bash
+mysql -u root -p < db/init.sql    # 首次：建库（详见 db/setup.md）
 cd express-backend
 cp .env.example .env   # 编辑填入数据库连接和 API Key
 npx prisma generate     # 生成 Prisma Client

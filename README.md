@@ -56,6 +56,10 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 ### 方式一：Express 后端（当前默认）
 
 ```bash
+# 1. 创建数据库（首次）
+mysql -u root -p < db/init.sql
+
+# 2. 安装依赖 & 建表
 cd express-backend
 npm install
 cp .env.example .env
@@ -65,9 +69,12 @@ npx prisma db push
 npm run dev        # 默认端口 18889
 ```
 
-### 方式二：Java Spring Boot 后端
+> 完整搭建步骤见 `db/setup.md`。
+
+### 方式二：Java Spring Boot 后端（备选）
 
 ```bash
+# Java 后端建表 SQL 在 db/legacy/java-schema.sql
 # 在 src/main/resources/application-local.yml 中配置
 mvn clean spring-boot:run
 # 默认端口 8080

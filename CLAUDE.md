@@ -10,7 +10,7 @@
 | 前端 | React 18 + Vite + Zustand + TailwindCSS — 端口 18888 |
 | 数据库 | MySQL (Prisma ORM) |
 
-项目中还保留了一套 Java 后端（`src/`、`pom.xml`、`schema.sql`），基于 Spring Boot 3 + MyBatis Plus（端口 8080）。目前仍在仓库中但未启用。切换后端只需修改 Vite 代理目标（`frontend/vite.config.ts`）。
+项目中还保留了一套 Java 后端（`src/`、`pom.xml`），基于 Spring Boot 3 + MyBatis Plus（端口 8080）。建表 SQL 在 `db/legacy/java-schema.sql`。目前未启用，切换后端只需修改 Vite 代理目标（`frontend/vite.config.ts`）。
 
 ## 开发命令
 
