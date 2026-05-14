@@ -1,3 +1,9 @@
+-- ============================================================
+-- Java Spring Boot 后端专用建表 SQL
+-- Express + Prisma 后端不使用此文件，建表由 prisma db push 完成
+-- 仅作为历史留档保留
+-- ============================================================
+
 CREATE TABLE movie (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   tmdb_id BIGINT NULL,
