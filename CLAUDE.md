@@ -15,6 +15,10 @@
 ## 开发命令
 
 ```bash
+# 数据库初始化（新环境首次）
+mysql -u root -p < db/init.sql           # 建库，然后配置 .env
+cd express-backend && npx prisma db push  # 建表（从 schema.prisma 生成）
+
 # Express 后端（默认）
 cd express-backend && npm run dev        # tsx watch, 端口 18889
 
@@ -34,10 +38,15 @@ cd express-backend && npx prisma db push   # 将 schema 推送到数据库
 ## 项目结构
 
 ```
+db/                       ← 数据库初始化文件
+  init.sql                ← 建库 SQL（仅 CREATE DATABASE）
+  setup.md                ← 从零搭建手顺
+  legacy/java-schema.sql  ← Java 后端建表 SQL（留档，Prisma 不使用）
+
 src/                      ← Java Spring Boot 后端（遗留，仍在仓库中）
   main/java/com/pixelreel/
     controller/, config/, dto/, entity/, enums/, mapper/, service/
-  pom.xml, schema.sql     ← 位于项目根目录
+  pom.xml                    ← 位于项目根目录
 
 express-backend/src/
   config/         index.ts（环境配置）, db.ts（Prisma 单例）
@@ -82,6 +91,7 @@ frontend/src/
 
 - 架构与数据模型 → `docs/PROJECT_STATUS.md`
 - 认证设计 → `docs/plans/2026-04-08-multi-user-auth-design.md`（基于 Spring，需要重写为 Express 版本）
+- 开发环境搭建 → `db/setup.md`
 
 ## 常见陷阱
 
