@@ -40,6 +40,8 @@ export const config = {
   douban: {
     baseUrl: process.env.DOUBAN_BASE_URL || 'https://movie.douban.com',
     cookie: process.env.DOUBAN_COOKIE || '',
+    userId: process.env.DOUBAN_USER_ID || '',
+    dataDir: process.env.DOUBAN_DATA_DIR || 'data/douban',
   },
 
   rawg: {
