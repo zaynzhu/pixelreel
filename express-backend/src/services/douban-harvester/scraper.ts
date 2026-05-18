@@ -1,3 +1,5 @@
+// @ts-nocheck
+// 此文件包含 Playwright 浏览器上下文脚本，DOM API 在 Node.js 端不存在，需要跳过类型检查
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import {
   USER_ID, SLEEP_MIN, SLEEP_MAX,
@@ -41,12 +43,13 @@ export async function makeBrowser(): Promise<{ browser: Browser; context: Browse
     timezoneId: "Asia/Shanghai",
   });
   // 综合隐身脚本：覆盖主流自动化检测点
-  await context.addInitScript(() => {
+  // addInitScript 的回调在浏览器上下文中执行，需要 as any 绕过 Node.js 端的类型检查
+  await context.addInitScript((() => {
     // 1. webdriver 标志
     Object.defineProperty(navigator, "webdriver", { get: () => undefined });
 
     // 2. window.chrome 完整伪装
-    if (!window.chrome) {
+    if (!(window as any).chrome) {
       (window as any).chrome = {};
     }
     const origChrome = (window as any).chrome;
@@ -63,7 +66,6 @@ export async function makeBrowser(): Promise<{ browser: Browser; context: Browse
           commitLoadTime: performance.now() / 1000,
           requestTime: performance.now() / 1000,
           startLoadTime: performance.now() / 1000,
-          commitLoadTime: performance.now() / 1000,
           finishDocumentLoadTime: performance.now() / 1000,
           finishLoadTime: performance.now() / 1000,
           firstPaintTime: performance.now() / 1000,
@@ -110,11 +112,11 @@ export async function makeBrowser(): Promise<{ browser: Browser; context: Browse
     Object.defineProperty(navigator, "plugins", { get: () => pluginArray });
 
     // 4. Permissions API — query 永远返回 "prompt"
-    const origQuery = (window.Permissions as any)?.prototype?.query;
+    const origQuery = (window as any).Permissions?.prototype?.query;
     if (origQuery) {
-      (window.Permissions as any).prototype.query = function (params: any) {
+      (window as any).Permissions.prototype.query = function (params: any) {
         if (params.name === "notifications") {
-          return Promise.resolve({ state: "default" } as PermissionStatus);
+          return Promise.resolve({ state: "default" } as any);
         }
         return origQuery.call(this, params);
       };
@@ -126,14 +128,14 @@ export async function makeBrowser(): Promise<{ browser: Browser; context: Browse
     });
 
     // 6. WebGL 渲染器伪装
-    const getParamOrig = WebGLRenderingContext.prototype.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function (param: number) {
+    const getParamOrig = (WebGLRenderingContext as any).prototype.getParameter;
+    (WebGLRenderingContext as any).prototype.getParameter = function (param: number) {
       if (param === 37445) return "Google Inc. (NVIDIA)";
       if (param === 37446) return "ANGLE (NVIDIA, NVIDIA GeForce GTX 1060, OpenGL 4.6)";
       return getParamOrig.call(this, param);
     };
-    const getParam2Orig = WebGL2RenderingContext.prototype.getParameter;
-    WebGL2RenderingContext.prototype.getParameter = function (param: number) {
+    const getParam2Orig = (WebGL2RenderingContext as any).prototype.getParameter;
+    (WebGL2RenderingContext as any).prototype.getParameter = function (param: number) {
       if (param === 37445) return "Google Inc. (NVIDIA)";
       if (param === 37446) return "ANGLE (NVIDIA, NVIDIA GeForce GTX 1060, OpenGL 4.6)";
       return getParam2Orig.call(this, param);
@@ -141,15 +143,15 @@ export async function makeBrowser(): Promise<{ browser: Browser; context: Browse
 
     // 7. iframe contentWindow 一致性
     const origContentWindow = Object.getOwnPropertyDescriptor(
-      HTMLIFrameElement.prototype, "contentWindow"
+      (HTMLIFrameElement as any).prototype, "contentWindow"
     );
     if (origContentWindow?.get) {
-      Object.defineProperty(HTMLIFrameElement.prototype, "contentWindow", {
+      Object.defineProperty((HTMLIFrameElement as any).prototype, "contentWindow", {
         get: function () {
           const win = origContentWindow.get.call(this);
           if (win) {
             try {
-              Object.defineProperty(win.navigator, "webdriver", { get: () => undefined });
+              Object.defineProperty((win as any).navigator, "webdriver", { get: () => undefined });
             } catch {}
           }
           return win;
@@ -159,7 +161,7 @@ export async function makeBrowser(): Promise<{ browser: Browser; context: Browse
 
     // 8. console.debug 保留（部分检测脚本通过 console.debug 行为判断）
     // 不做改动，保持原样即可
-  });
+  }) as any);
   return { browser, context };
 }
 
