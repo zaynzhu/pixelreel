@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import path from 'path';
 dotenv.config();
 
 // 环境变量配置，与 Java 端各 Properties 类对齐
@@ -41,7 +42,7 @@ export const config = {
     baseUrl: process.env.DOUBAN_BASE_URL || 'https://movie.douban.com',
     cookie: process.env.DOUBAN_COOKIE || '',
     userId: process.env.DOUBAN_USER_ID || '',
-    dataDir: process.env.DOUBAN_DATA_DIR || 'data/douban',
+    dataDir: process.env.DOUBAN_DATA_DIR || path.resolve(__dirname, '../../data/douban-harvester'),
   },
 
   rawg: {
