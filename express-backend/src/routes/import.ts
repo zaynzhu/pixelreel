@@ -6,6 +6,9 @@ import { importPsnOwnedGames } from '../services/import/PsnProfilesImportService
 import { importDoubanCsv } from '../services/import/DoubanCsvImportService';
 import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
+import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
+import { getTask } from '../services/douban-harvester/task-manager';
+import { config } from '../config';
 
 const router = Router();
 
@@ -66,6 +69,61 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
   const limit = limitParam ? parseInt(limitParam, 10) : null;
   const result = await fillTmdbCovers(limit);
   res.json(result);
+});
+
+// POST /api/import/douban-harvest?mode=json|full|incremental
+router.post('/douban-harvest', async (req: Request, res: Response) => {
+  const mode = (req.query.mode as string) || 'json';
+
+  let task;
+  switch (mode) {
+    case 'full':
+      if (!config.douban.userId) {
+        res.status(400).json({ error: '缺少 DOUBAN_USER_ID 配置' });
+        return;
+      }
+      task = startFullHarvestTask();
+      break;
+    case 'incremental':
+      if (!config.douban.userId) {
+        res.status(400).json({ error: '缺少 DOUBAN_USER_ID 配置' });
+        return;
+      }
+      task = startIncrementalHarvestTask();
+      break;
+    case 'json':
+    default:
+      task = startJsonImportTask();
+      break;
+  }
+
+  res.json({
+    taskId: task.taskId,
+    status: task.status,
+    mode: task.mode,
+  });
+});
+
+// GET /api/import/douban-harvest/status?taskId=xxx
+router.get('/douban-harvest/status', (req: Request, res: Response) => {
+  const taskId = req.query.taskId as string;
+  if (!taskId) {
+    res.status(400).json({ error: '缺少 taskId 参数' });
+    return;
+  }
+  const task = getTask(taskId);
+  if (!task) {
+    res.status(404).json({ error: '任务不存在' });
+    return;
+  }
+  res.json({
+    taskId: task.taskId,
+    status: task.status,
+    mode: task.mode,
+    progress: task.progress,
+    result: task.result,
+    error: task.error,
+  });
 });
 
 export default router;
