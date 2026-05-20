@@ -7,6 +7,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LibraryPage from "./pages/LibraryPage";
 import TimelinePage from "./pages/TimelinePage";
 import LoginPage from "./pages/LoginPage";
+import SettingsPage from "./pages/SettingsPage";
 import { useAuthStore } from "./stores/authStore";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="tv-shows/search" element={<TvShowSearch />} />
           <Route path="library" element={<LibraryPage />} />
           <Route path="timeline" element={<TimelinePage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -8,6 +8,7 @@ import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
 import { getTask } from '../services/douban-harvester/task-manager';
+import { listTasks } from '../services/task-manager';
 import { config } from '../config';
 
 const router = Router();
@@ -71,9 +72,10 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
   res.json(result);
 });
 
-// POST /api/import/douban-harvest?mode=json|full|incremental
+// POST /api/import/douban-harvest?mode=json|full|incremental&maxPages=N
 router.post('/douban-harvest', async (req: Request, res: Response) => {
   const mode = (req.query.mode as string) || 'json';
+  const maxPages = req.query.maxPages ? parseInt(req.query.maxPages as string, 10) : undefined;
 
   let task;
   switch (mode) {
@@ -82,7 +84,7 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
         res.status(400).json({ error: '缺少 DOUBAN_USER_ID 配置' });
         return;
       }
-      task = startFullHarvestTask();
+      task = startFullHarvestTask(maxPages);
       break;
     case 'incremental':
       if (!config.douban.userId) {
@@ -100,8 +102,14 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
   res.json({
     taskId: task.taskId,
     status: task.status,
-    mode: task.mode,
+    type: task.type,
+    label: task.label,
   });
+});
+
+// GET /api/tasks — 所有任务列表
+router.get('/tasks', (_req: Request, res: Response) => {
+  res.json(listTasks());
 });
 
 // GET /api/import/douban-harvest/status?taskId=xxx
@@ -119,7 +127,8 @@ router.get('/douban-harvest/status', (req: Request, res: Response) => {
   res.json({
     taskId: task.taskId,
     status: task.status,
-    mode: task.mode,
+    type: task.type,
+    label: task.label,
     progress: task.progress,
     result: task.result,
     error: task.error,

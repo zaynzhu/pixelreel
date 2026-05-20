@@ -103,6 +103,12 @@
   }
 }
 
+@layer utilities {
+  .writing-vertical-rl {
+    writing-mode: vertical-rl;
+  }
+}
+
 /* Animations */
 @keyframes glitch {
   0% { transform: translate(0) }

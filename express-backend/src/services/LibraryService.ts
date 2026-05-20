@@ -15,14 +15,14 @@ export async function listRecords(): Promise<LibraryRecordResponse[]> {
     ...tvShows.map(toTvShowRecord),
   ];
 
-  // 按 updatedAt 降序，再按 createdAt 降序排序
+  // 按 createdAt 降序（豆瓣标记日期），再按 updatedAt 降序
   records.sort((a, b) => {
-    const ua = new Date(b.updatedAt).getTime() || 0;
-    const ub = new Date(a.updatedAt).getTime() || 0;
-    if (ua !== ub) return ua - ub;
     const ca = new Date(b.createdAt).getTime() || 0;
     const cb = new Date(a.createdAt).getTime() || 0;
-    return ca - cb;
+    if (ca !== cb) return ca - cb;
+    const ua = new Date(b.updatedAt).getTime() || 0;
+    const ub = new Date(a.updatedAt).getTime() || 0;
+    return ua - ub;
   });
 
   return records;
@@ -116,6 +116,22 @@ function toMovieRecord(movie: any): LibraryRecordResponse {
     createdAt: movie.createdAt,
     updatedAt: movie.updatedAt,
     importedAt: null,
+    doubanTitle: movie.doubanTitle ?? null,
+    doubanAltTitle: movie.doubanAltTitle ?? null,
+    doubanIntro: movie.doubanIntro ?? null,
+    doubanRating: movie.doubanRating ?? null,
+    doubanDate: movie.doubanDate ?? null,
+    doubanComment: movie.doubanComment ?? null,
+    doubanLink: movie.doubanLink ?? null,
+    doubanAvgRating: movie.doubanAvgRating != null ? Number(movie.doubanAvgRating) : null,
+    tmdbTitle: movie.tmdbTitle ?? null,
+    tmdbPosterUrl: movie.tmdbPosterUrl ?? null,
+    tmdbReleaseDate: movie.tmdbReleaseDate ?? null,
+    tmdbOverview: movie.tmdbOverview ?? null,
+    tmdbVoteAverage: movie.tmdbVoteAverage != null ? Number(movie.tmdbVoteAverage) : null,
+    tmdbPopularity: movie.tmdbPopularity != null ? Number(movie.tmdbPopularity) : null,
+    tmdbGenreIds: movie.tmdbGenreIds ?? null,
+    imdbRating: movie.imdbRating != null ? Number(movie.imdbRating) : null,
   };
 }
 
@@ -143,6 +159,13 @@ function toGameRecord(game: any): LibraryRecordResponse {
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
     importedAt: game.importedAt,
+    doubanTitle: null, doubanAltTitle: null, doubanIntro: null,
+    doubanRating: null, doubanDate: null, doubanComment: null,
+    doubanLink: null, doubanAvgRating: null,
+    tmdbTitle: null, tmdbPosterUrl: null, tmdbReleaseDate: null,
+    tmdbOverview: null, tmdbVoteAverage: null, tmdbPopularity: null,
+    tmdbGenreIds: null,
+    imdbRating: null,
   };
 }
 
@@ -165,6 +188,22 @@ function toTvShowRecord(show: any): LibraryRecordResponse {
     createdAt: show.createdAt,
     updatedAt: show.updatedAt,
     importedAt: null,
+    doubanTitle: show.doubanTitle ?? null,
+    doubanAltTitle: show.doubanAltTitle ?? null,
+    doubanIntro: show.doubanIntro ?? null,
+    doubanRating: show.doubanRating ?? null,
+    doubanDate: show.doubanDate ?? null,
+    doubanComment: show.doubanComment ?? null,
+    doubanLink: show.doubanLink ?? null,
+    doubanAvgRating: show.doubanAvgRating != null ? Number(show.doubanAvgRating) : null,
+    tmdbTitle: show.tmdbTitle ?? null,
+    tmdbPosterUrl: show.tmdbPosterUrl ?? null,
+    tmdbReleaseDate: show.tmdbReleaseDate ?? null,
+    tmdbOverview: show.tmdbOverview ?? null,
+    tmdbVoteAverage: show.tmdbVoteAverage != null ? Number(show.tmdbVoteAverage) : null,
+    tmdbPopularity: show.tmdbPopularity != null ? Number(show.tmdbPopularity) : null,
+    tmdbGenreIds: show.tmdbGenreIds ?? null,
+    imdbRating: show.imdbRating != null ? Number(show.imdbRating) : null,
   };
 }
 

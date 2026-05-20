@@ -3,6 +3,7 @@ import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import type { LibraryRecord, LibraryCategory, RecordStatus } from "../types/library";
 import TimelinePopup from "../components/TimelinePopup";
+import { StarRating } from "../components/StarRating";
 
 type YearFilter = number | "ALL";
 
@@ -336,7 +337,7 @@ function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () =>
           {hasRating ? (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">RTG</span>
-              <span className="text-xs sm:text-sm font-bold text-[var(--accent)]">{record.rating}</span>
+              <span className="text-xs sm:text-sm font-bold text-[var(--accent)]"><StarRating value={record.rating!} /></span>
             </div>
           ) : (
             <span className="text-[8px] text-[var(--muted)] uppercase tracking-widest">UNRATED</span>

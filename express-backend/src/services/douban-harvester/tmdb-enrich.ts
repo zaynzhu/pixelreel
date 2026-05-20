@@ -3,14 +3,25 @@ import { config } from '../../config';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// 代理配置（TMDB API 需要翻墙）
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axiosProxyOpts: any = proxyUrl
+  ? { proxy: false, httpsAgent: new HttpsProxyAgent(proxyUrl) }
+  : {};
+
 // TMDB 搜索结果
 export interface TmdbEnrichResult {
   type: 'movie' | 'tv' | 'unknown';
   tmdbId: number | null;
+  title: string | null;
   posterUrl: string | null;
-  releaseDate: string | null;   // 电影: release_date, 电视剧: first_air_date
+  releaseDate: string | null;
   overview: string | null;
-  title: string | null;          // TMDB 返回的原始标题
+  voteAverage: number | null;
+  popularity: number | null;
+  genreIds: number[];
 }
 
 // 标题相似度计算（简单的包含 + 长度比较）
@@ -33,7 +44,9 @@ interface TmdbSearchHit {
   posterUrl: string | null;
   releaseDate: string | null;
   overview: string | null;
+  voteAverage: number;
   popularity: number;
+  genreIds: number[];
   similarity: number;
 }
 
@@ -47,8 +60,9 @@ async function searchTmdb(
 
   try {
     const response = await axios.get(`${config.tmdb.baseUrl}${endpoint}`, {
-      params: { api_key: config.tmdb.apiKey, query, page: 1 },
+      params: { api_key: config.tmdb.apiKey, query, page: 1, language: 'zh-CN' },
       timeout: 10000,
+      ...axiosProxyOpts,
     });
 
     const items = response.data?.results ?? [];
@@ -60,7 +74,9 @@ async function searchTmdb(
         ? (item.release_date ?? null)
         : (item.first_air_date ?? null),
       overview: item.overview ?? null,
+      voteAverage: item.vote_average ?? 0,
       popularity: item.popularity ?? 0,
+      genreIds: item.genre_ids ?? [],
       similarity: titleSimilarity(query, item[titleField] ?? ''),
     }));
   } catch (err: any) {
@@ -81,7 +97,7 @@ async function searchTmdb(
  */
 export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
   if (!config.tmdb.apiKey) {
-    return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null };
+    return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
   }
 
   const [movieHits, tvHits] = await Promise.all([
@@ -108,7 +124,7 @@ export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
   const tvScore = bestTv ? bestTv.similarity * 10 + bestTv.popularity / 100 : 0;
 
   if (movieScore === 0 && tvScore === 0) {
-    return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null };
+    return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
   }
 
   if (movieScore >= tvScore && bestMovie) {
@@ -119,6 +135,9 @@ export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
       releaseDate: bestMovie.releaseDate,
       overview: bestMovie.overview,
       title: bestMovie.title,
+      voteAverage: bestMovie.voteAverage,
+      popularity: bestMovie.popularity,
+      genreIds: bestMovie.genreIds,
     };
   }
 
@@ -130,10 +149,13 @@ export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
       releaseDate: bestTv.releaseDate,
       overview: bestTv.overview,
       title: bestTv.title,
+      voteAverage: bestTv.voteAverage,
+      popularity: bestTv.popularity,
+      genreIds: bestTv.genreIds,
     };
   }
 
-  return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null };
+  return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
 }
 
 /**

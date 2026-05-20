@@ -2,45 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProfileStore } from "../stores/profileStore";
 import { useI18nStore } from "../stores/i18nStore";
-import { apiFetch } from "../api";
+import { StarRating } from "../components/StarRating";
 
 export default function DashboardPage() {
   const { summary, loading, error, fetchSummary } = useProfileStore();
   const { t } = useI18nStore();
-  const [syncingTrakt, setSyncingTrakt] = useState<"movies" | "shows" | "posters" | null>(null);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    void fetchSummary();
-  }, [fetchSummary]);
-
-  const handleTraktSync = async (type: "movies" | "shows") => {
-    setSyncingTrakt(type);
-    setSyncMsg(null);
-    try {
-      const res = await apiFetch<any>(`/trakt/import/${type}`, { method: "POST" });
-      setSyncMsg(t("dash.sync.success", res.skipped ?? 0));
-      void fetchSummary();
-    } catch (err: any) {
-      setSyncMsg(t("dash.sync.failed") + ": " + err.message);
-    } finally {
-      setSyncingTrakt(null);
-    }
-  };
-
-  const handleFillPosters = async () => {
-    setSyncingTrakt("posters");
-    setSyncMsg(null);
-    try {
-      const res = await apiFetch<any>(`/import/tmdb-covers/fill`, { method: "POST" });
-      setSyncMsg(`[POSTERS] FILLED: ${res.imported ?? 0}, SKIPPED: ${res.skipped ?? 0}`);
-      void fetchSummary();
-    } catch (err: any) {
-      setSyncMsg(t("dash.sync.failed") + ": " + err.message);
-    } finally {
-      setSyncingTrakt(null);
-    }
-  };
 
   const overview = summary?.overview;
 
@@ -171,49 +137,6 @@ export default function DashboardPage() {
               </div>
             </Link>
           ))}
-        </div>
-      </section>
-
-      <section className="dash-card">
-        <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
-        <p className="section-kicker">{t("dash.sync.trakt")}</p>
-        <h2 className="font-display mt-2 text-2xl text-white">TRAKT_SYNC</h2>
-        <div className="mt-6 space-y-3">
-          {syncMsg && (
-            <div className="border-l-4 border-yellow-500 bg-yellow-500/10 px-4 py-3 text-[10px] text-yellow-400 font-bold uppercase tracking-widest">
-              [SYS] {syncMsg}
-            </div>
-          )}
-          <button
-            onClick={() => void handleTraktSync("movies")}
-            disabled={syncingTrakt !== null}
-            className="w-full flex items-center justify-between gap-4 border border-[var(--line)] bg-[var(--surface-hover)] px-5 py-4 transition-all hover:border-[var(--accent)] disabled:opacity-50"
-          >
-            <div>
-              <h3 className="font-display text-lg text-white">{t("dash.sync.trakt_movies")}</h3>
-            </div>
-            <span className="neo-badge-accent">{syncingTrakt === "movies" ? t("dash.syncing") : t("dash.btn.exec")}</span>
-          </button>
-          <button
-            onClick={() => void handleTraktSync("shows")}
-            disabled={syncingTrakt !== null}
-            className="w-full flex items-center justify-between gap-4 border border-[var(--line)] bg-[var(--surface-hover)] px-5 py-4 transition-all hover:border-[var(--accent)] disabled:opacity-50"
-          >
-            <div>
-              <h3 className="font-display text-lg text-white">{t("dash.sync.trakt_shows")}</h3>
-            </div>
-            <span className="neo-badge-accent">{syncingTrakt === "shows" ? t("dash.syncing") : t("dash.btn.exec")}</span>
-          </button>
-          <button
-            onClick={() => void handleFillPosters()}
-            disabled={syncingTrakt !== null}
-            className="w-full flex items-center justify-between gap-4 border border-[var(--line)] bg-[var(--surface-hover)] px-5 py-4 transition-all hover:border-[var(--accent)] disabled:opacity-50"
-          >
-            <div>
-              <h3 className="font-display text-lg text-white">{t("dash.sync.fix_posters")}</h3>
-            </div>
-            <span className="neo-badge-accent">{syncingTrakt === "posters" ? t("dash.syncing") : t("dash.btn.exec")}</span>
-          </button>
         </div>
       </section>
 
@@ -366,7 +289,7 @@ export default function DashboardPage() {
                   <div className="mt-4 flex items-center justify-between text-[10px] text-[var(--muted)] uppercase">
                     <span>{formatDate(item.createdAt)}</span>
                     <span className={item.rating ? "text-[var(--accent-deep)] font-bold" : ""}>
-                      {item.rating == null ? t("dash.null") : `${item.rating}/10`}
+                      {item.rating == null ? t("dash.null") : <StarRating value={item.rating} />}
                     </span>
                   </div>
                 </div>

@@ -31,6 +31,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 记录库混合列表页：筛选、排序、评分和短评编辑
 - [x] 前端国际化（EN/ZH）
 - [x] 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
+- [x] 豆瓣数据导入（douban-harvester 集成：JSON 导入、全量/增量爬取、TMDB 丰富）
 
 ## 未完成 / 占位
 - [ ] 多用户登录与权限体系（设计文档在 docs/plans/，需重写为 Express 版）
@@ -45,6 +46,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `/games/search`：游戏搜索
 - `/library`：记录库列表 + 评分短评编辑
 - `/timeline`：时间线页面（按月份分组的海报墙）
+- `/settings`：系统设置页（环境变量配置，敏感字段遮罩）
 - `/login`：登录页
 
 ## 关键接口
@@ -62,6 +64,10 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `POST /api/import/psn/owned`：PSN 已玩导入
 - `POST /api/import/covers/fill`：RAWG 游戏封面补全
 - `POST /api/import/tmdb-covers/fill`：TMDB 影视封面补全
+- `POST /api/import/douban-harvest`：豆瓣数据导入/爬取（`?mode=json|full|incremental`）
+- `GET /api/import/douban-harvest/status`：豆瓣导入任务进度查询（`?taskId=xxx`）
+- `GET /api/settings`：获取环境变量配置（按分类返回）
+- `PUT /api/settings`：更新环境变量配置（写入 .env 文件）
 
 ## 本地启动方式
 
@@ -99,14 +105,18 @@ npm run dev              # 默认端口 18888
 - `TMDB_API_KEY`, `OMDB_API_KEY`, `TRAKT_CLIENT_ID/SECRET/ACCESS_TOKEN`
 - `STEAM_API_KEY`, `OPENXBL_API_KEY`, `PSNPROFILES_USER_AGENT/COOKIE`
 - `RAWG_API_KEY`
+- `DOUBAN_USER_ID` — 豆瓣用户 ID（用于爬取）
+- `DOUBAN_COOKIE` — 豆瓣登录 Cookie（仅搜索 Provider 使用，爬取不需要）
+- `DOUBAN_DATA_DIR` — 豆瓣数据目录（默认 `express-backend/data/douban-harvester/`）
+- `HTTPS_PROXY` — TMDB API 代理地址（国内必需，如 `http://127.0.0.1:7897`）
 
 ## 数据模型
-三张核心表，共享类似结构：
+三张核心表，字段按来源分组（豆瓣为主、TMDB 为辅）：
 
-| Model | 外部 ID | 特殊字段 |
-|-------|---------|---------|
-| Movie | tmdbId, imdbId, doubanId, traktId | title, posterUrl, status, rating, shortReview |
-| TvShow | tmdbId, imdbId, doubanId, traktId | title, posterUrl, firstAirDate, overview, status, rating, shortReview |
-| Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, platform, playtimeMinutes, achievementTotal, achievementUnlocked, status, rating, shortReview |
+| Model | 外部 ID | 显示字段 | 豆瓣原始字段 | TMDB 原始字段 |
+|-------|---------|---------|------------|-------------|
+| Movie | doubanId, tmdbId, imdbId, traktId | title, posterUrl, releaseDate, overview, rating(1-5星), shortReview | doubanTitle, doubanAltTitle, doubanIntro, doubanRating, doubanDate, doubanComment, doubanLink, doubanAvgRating | tmdbTitle, tmdbPosterUrl, tmdbReleaseDate, tmdbOverview, tmdbVoteAverage, tmdbPopularity, tmdbGenreIds |
+| TvShow | doubanId, tmdbId, imdbId, traktId | title, posterUrl, firstAirDate, overview, rating(1-5星), shortReview | 同 Movie | 同 Movie |
+| Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5星), shortReview, platform, playtimeMinutes | — | — |
 
 所有表使用 BigInt 自增主键，`createdAt`/`updatedAt` 由 MySQL 管理。

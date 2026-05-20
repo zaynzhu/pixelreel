@@ -26,7 +26,7 @@ async function longBreak(): Promise<void> {
 
 export async function makeBrowser(): Promise<{ browser: Browser; context: BrowserContext }> {
   const browser = await chromium.launch({
-    headless: false, // 调试期用有头；稳定后可改 true
+    headless: true,
     args: [
       "--disable-blink-features=AutomationControlled",
       "--no-sandbox",
@@ -219,7 +219,6 @@ export async function scrapeCollect(
   progress: Progress,
   cutoffDate?: string,
   maxPages?: number,
-  signal?: AbortSignal,
 ): Promise<{ ok: boolean; newItems: CollectItem[] }> {
   let data: CollectItem[] = cutoffDate === undefined ? loadData<CollectItem>("data/collect.json") : [];
   const newItems: CollectItem[] = [];
@@ -230,10 +229,6 @@ export async function scrapeCollect(
 
   try {
     while (true) {
-      if (signal?.aborted) {
-        console.log('⏹ 爬取被用户取消');
-        return { ok: false, newItems };
-      }
       const start = cutoffDate
         ? pageCount * 15
         : progress.collectDone
@@ -329,8 +324,9 @@ export async function scrapeCollect(
 
       pageCount++;
 
-      if (cutoffDate === undefined && pageCount >= MAX_PAGES_PER_RUN) {
-        console.log(`\n⏹ 本次运行已达 ${MAX_PAGES_PER_RUN} 页上限，进度已保存`);
+      const effectiveMaxPages = maxPages ?? MAX_PAGES_PER_RUN;
+      if (cutoffDate === undefined && pageCount >= effectiveMaxPages) {
+        console.log(`\n⏹ 本次运行已达 ${effectiveMaxPages} 页上限，进度已保存`);
         return { ok: true, newItems: [] };
       }
 
@@ -351,6 +347,7 @@ export async function scrapeReviews(
   context: BrowserContext,
   progress: Progress,
   cutoffDate?: string,
+  maxPages?: number,
 ): Promise<{ ok: boolean; newItems: ReviewItem[] }> {
   const data: ReviewItem[] = cutoffDate === undefined ? loadData<ReviewItem>("data/reviews.json") : [];
   const newItems: ReviewItem[] = [];
@@ -432,8 +429,9 @@ export async function scrapeReviews(
 
       pageCount++;
 
-      if (cutoffDate === undefined && pageCount >= MAX_PAGES_PER_RUN) {
-        console.log(`\n⏹ 本次运行已达 ${MAX_PAGES_PER_RUN} 页上限，进度已保存`);
+      const effectiveMaxPages = maxPages ?? MAX_PAGES_PER_RUN;
+      if (cutoffDate === undefined && pageCount >= effectiveMaxPages) {
+        console.log(`\n⏹ 本次运行已达 ${effectiveMaxPages} 页上限，进度已保存`);
         return { ok: true, newItems: [] };
       }
 

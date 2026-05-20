@@ -1,4 +1,4 @@
-// Library 记录响应：与 Java 端 LibraryRecordResponse record 完全对齐
+// Library 记录响应
 export interface LibraryRecordResponse {
   id: number;
   category: 'movie' | 'game' | 'tv_show';
@@ -16,9 +16,31 @@ export interface LibraryRecordResponse {
   createdAt: string;
   updatedAt: string;
   importedAt: string | null;
+
+  // 豆瓣原始字段
+  doubanTitle: string | null;
+  doubanAltTitle: string | null;
+  doubanIntro: string | null;
+  doubanRating: number | null;
+  doubanDate: string | null;
+  doubanComment: string | null;
+  doubanLink: string | null;
+  doubanAvgRating: number | null;
+
+  // TMDB 原始字段
+  tmdbTitle: string | null;
+  tmdbPosterUrl: string | null;
+  tmdbReleaseDate: string | null;
+  tmdbOverview: string | null;
+  tmdbVoteAverage: number | null;
+  tmdbPopularity: number | null;
+  tmdbGenreIds: string | null;
+
+  // IMDb 占位
+  imdbRating: number | null;
 }
 
-// Library 记录更新请求：与 Java 端 LibraryRecordUpdateRequest record 对齐
+// Library 记录更新请求
 export interface LibraryRecordUpdateRequest {
   status: string;
   rating?: number | null;

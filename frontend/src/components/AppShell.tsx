@@ -1,10 +1,16 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useI18nStore } from "../stores/i18nStore";
+import { useTaskStore } from "../stores/taskStore";
+import RightActionDrawer from "./RightActionDrawer";
+import TaskPanel from "./TaskPanel";
 
 export default function AppShell() {
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const logout = useAuthStore((s) => s.logout);
   const { lang, toggleLang, t } = useI18nStore();
+  const runningTasks = useTaskStore((s) => s.tasks.filter((t) => t.status === 'running').length);
 
   const NAV_ITEMS = [
     { to: "/", label: t("nav.overview") },
@@ -13,6 +19,7 @@ export default function AppShell() {
     { to: "/tv-shows/search", label: t("nav.tv") },
     { to: "/library", label: t("nav.library") },
     { to: "/timeline", label: t("timeline.title") },
+    { to: "/settings", label: t("nav.settings") },
   ];
 
   return (
@@ -47,6 +54,17 @@ export default function AppShell() {
                   {lang === "en" ? "中文" : "EN"}
                 </button>
                 <button
+                  onClick={() => setTaskPanelOpen(true)}
+                  className="brutal-btn relative"
+                >
+                  TASKS
+                  {runningTasks > 0 && (
+                    <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-deep)] text-[10px] font-bold text-white">
+                      {runningTasks}
+                    </span>
+                  )}
+                </button>
+                <button
                   onClick={logout}
                   className="brutal-btn"
                 >
@@ -78,6 +96,9 @@ export default function AppShell() {
         <main className="pt-6">
           <Outlet />
         </main>
+
+        <RightActionDrawer />
+        <TaskPanel open={taskPanelOpen} onClose={() => setTaskPanelOpen(false)} />
       </div>
     </div>
   );

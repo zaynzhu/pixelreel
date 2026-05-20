@@ -51,17 +51,18 @@ src/                      ← Java Spring Boot 后端（遗留，仍在仓库中
 express-backend/src/
   config/         index.ts（环境配置）, db.ts（Prisma 单例）
   routes/         index.ts（聚合器）, auth, trakt, search, searchTvShows,
-                  import, library, movie, game, tvShow, profile
+                  import, library, movie, game, tvShow, profile, settings
   services/       search/（TMDB、OMDb、豆瓣、Trakt、IMDb、RAWG、Steam 等）
                   import/（Steam、Xbox、PSN、豆瓣 CSV、RAWG 封面、TMDB 封面）
+                  douban-harvester/（爬虫核心、TMDB 丰富、导入服务、任务管理）
                   LibraryService, ProfileSummaryService, ExternalSearchService
   middlewares/    auth.ts（JWT，当前未启用）, errorHandler.ts
   enums/          RecordStatus.ts（UNSET|WANT|IN_PROGRESS|DONE|DROPPED）
   dto/            library.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
-  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage
-  components/     AppShell, MovieSearch, GameSearch, TvShowSearch, TimelinePopup
+  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage
+  components/     AppShell, RightActionDrawer, MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating
   stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore
   types/          library.ts, profile.ts, externalSearch.ts, movie.ts
   api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向）
@@ -78,6 +79,9 @@ frontend/src/
 | `/library` | `GET /api/library`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | 复用 `libraryStore`，纯客户端分组统计 |
 | `/login` | `POST /api/auth/login` |
+| `/settings` | `GET/PUT /api/settings` (环境变量配置) |
+| — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
+| — | `GET /api/import/douban-harvest/status` (任务进度) |
 
 ## 关键模式
 
@@ -85,6 +89,7 @@ frontend/src/
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。带速率限制（250ms 间隔，429 重试）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
+- **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
 - **赛博朋克主题：** CSS 自定义属性（`--accent: #d4ff00`，`--accent-deep: #ff4400`），Syne + JetBrains Mono 字体，扫描线遮罩。
 
 ## 深度文档
@@ -93,8 +98,21 @@ frontend/src/
 - 认证设计 → `docs/plans/2026-04-08-multi-user-auth-design.md`（基于 Spring，需要重写为 Express 版本）
 - 开发环境搭建 → `db/setup.md`
 
+## 豆瓣数据导入（douban-harvester）
+
+已集成到 `express-backend/src/services/douban-harvester/`，通过 API 触发，无需单独运行 CLI。
+
+- **导入已有数据：** `POST /api/import/douban-harvest?mode=json` — 读取 `express-backend/data/douban-harvester/collect.json`
+- **全量爬取：** `POST /api/import/douban-harvest?mode=full` — Playwright 爬豆瓣
+- **增量爬取：** `POST /api/import/douban-harvest?mode=incremental` — 只抓新数据
+- **查询进度：** `GET /api/import/douban-harvest/status?taskId=xxx`
+- 导入时自动查 TMDB 分类（movie/tv）并拉取海报，250ms 间隔防限速
+- 综艺归入 TvShow 表，不单独建表
+- 豆瓣评分 1-5 星直接存入 `douban_rating` 和 `rating`，不再 ×2 转换
+
 ## 常见陷阱
 
 - `$PID` 是 PowerShell 只读变量 — 改用 `$backendPid` 等自定义变量名。
 - 在 PowerShell 中用 `Stop-Process`，不要在 Git Bash 里用 `taskkill`（存在路径解析问题）。
 - Trakt 导入必须调用 `fetchTmdbPosterUrl()` 并间隔 250ms — 永远不要把 `posterUrl` 硬编码为 `null`。
+- TMDB API 需要代理访问 — 必须设置 `HTTPS_PROXY` 环境变量（如 `http://127.0.0.1:7897`），否则所有 TMDB 请求会超时返回空。

@@ -1,5 +1,6 @@
-// Prisma Schema - 从现有 MySQL 数据库反向生成
-// 与 Java 端共用同一个数据库，表结构与 schema.sql 完全对齐
+// Prisma Schema - PixelReel 影剧游记录平台
+// 数据原则：豆瓣数据为主，TMDB 补充，各平台原始字段带前缀（douban_ / tmdb_ / imdb_）
+// 显示字段（无前缀）供前端渲染，默认取豆瓣值、TMDB 补缺
 // 注意：updatedAt 不使用 @updatedAt，由 MySQL ON UPDATE CURRENT_TIMESTAMP 负责更新
 
 generator client {
@@ -13,17 +14,45 @@ datasource db {
 
 model Movie {
   id          BigInt   @id @default(autoincrement())
-  tmdbId      BigInt?  @map("tmdb_id")
-  imdbId      String?  @db.VarChar(20) @map("imdb_id")
-  doubanId    String?  @db.VarChar(20) @map("douban_id")
-  traktId     String?  @db.VarChar(20) @map("trakt_id")
-  title       String   @db.VarChar(255)
-  posterUrl   String?  @db.VarChar(500) @map("poster_url")
-  status      String   @db.VarChar(20)
-  rating      Int?
-  shortReview String?  @db.VarChar(1000) @map("short_review")
-  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime
-  updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime
+
+  // ── 显示字段（前端渲染用，豆瓣优先、TMDB 补缺） ──
+  title       String   @db.VarChar(255)                        /// 显示标题（默认取 douban_title）
+  posterUrl   String?  @db.VarChar(500) @map("poster_url")     /// 显示海报 URL（默认取 tmdb_poster_url）
+  releaseDate String?  @db.VarChar(20) @map("release_date")    /// 显示上映日期（默认取 tmdb_release_date）
+  overview    String?  @db.Text                                /// 显示简介（默认取 tmdb_overview）
+  status      String   @db.VarChar(20)                        /// 记录状态: UNSET|WANT|IN_PROGRESS|DONE|DROPPED
+  rating      Int?                                             /// PixelReel 个人评分（1-5 星，五星制）
+  shortReview String?  @db.VarChar(1000) @map("short_review") /// 显示短评（默认取 douban_comment）
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(0)
+
+  // ── 豆瓣原始字段 ──
+  doubanId        String?  @db.VarChar(20) @map("douban_id")         /// 豆瓣条目 ID（从 link 提取）
+  doubanTitle     String?  @db.VarChar(255) @map("douban_title")    /// 豆瓣中文片名（CollectItem.title）
+  doubanAltTitle  String?  @db.VarChar(255) @map("douban_alt_title") /// 豆瓣外文名（CollectItem.altTitle）
+  doubanIntro     String?  @db.Text @map("douban_intro")            /// 豆瓣简介原文（年份/导演/类型等，CollectItem.intro）
+  doubanRating    Int?     @map("douban_rating")                    /// 豆瓣个人评分（1-5 星，五星制，CollectItem.rating）
+  doubanDate      String?  @db.VarChar(20) @map("douban_date")     /// 豆瓣标记日期（YYYY-MM-DD，CollectItem.date）
+  doubanComment   String?  @db.VarChar(1000) @map("douban_comment") /// 豆瓣短评（CollectItem.comment）
+  doubanLink      String?  @db.VarChar(500) @map("douban_link")   /// 豆瓣条目 URL（CollectItem.link）
+  doubanAvgRating Decimal? @db.Decimal(3,1) @map("douban_avg_rating") /// 豆瓣条目均分（如 9.7，占位，需额外爬取）
+
+  // ── TMDB 原始字段 ──
+  tmdbId           BigInt?  @map("tmdb_id")                            /// TMDB 条目 ID
+  tmdbTitle        String?  @db.VarChar(255) @map("tmdb_title")       /// TMDB 原始标题（原文/英文）
+  tmdbPosterUrl    String?  @db.VarChar(500) @map("tmdb_poster_url")  /// TMDB 海报完整 URL
+  tmdbReleaseDate  String?  @db.VarChar(20) @map("tmdb_release_date") /// TMDB 上映日期（release_date）
+  tmdbOverview     String?  @db.Text @map("tmdb_overview")            /// TMDB 简介
+  tmdbVoteAverage  Decimal? @db.Decimal(3,1) @map("tmdb_vote_average") /// TMDB 条目评分（0.0-10.0）
+  tmdbPopularity   Float?   @map("tmdb_popularity")                   /// TMDB 热度值
+  tmdbGenreIds     String?  @db.VarChar(200) @map("tmdb_genre_ids")  /// TMDB 类型 ID（逗号分隔，如 "28,12,878"）
+
+  // ── IMDb 原始字段（占位） ──
+  imdbId      String?  @db.VarChar(20) @map("imdb_id")               /// IMDb 条目 ID
+  imdbRating  Decimal? @db.Decimal(3,1) @map("imdb_rating")         /// IMDb 条目评分（0.0-10.0，占位）
+
+  // ── Trakt ──
+  traktId     String?  @db.VarChar(20) @map("trakt_id")              /// Trakt 条目 ID
 
   @@index([tmdbId], map: "idx_movie_tmdb_id")
   @@index([imdbId], map: "idx_movie_imdb_id")
@@ -34,19 +63,45 @@ model Movie {
 
 model TvShow {
   id          BigInt   @id @default(autoincrement())
-  tmdbId      BigInt?  @map("tmdb_id")
-  imdbId      String?  @db.VarChar(20) @map("imdb_id")
-  doubanId    String?  @db.VarChar(20) @map("douban_id")
-  traktId     String?  @db.VarChar(20) @map("trakt_id")
-  title       String   @db.VarChar(255)
-  posterUrl   String?  @db.VarChar(500) @map("poster_url")
-  firstAirDate String?  @db.VarChar(20) @map("first_air_date")
-  overview    String?  @db.Text
-  status      String   @db.VarChar(20)
-  rating      Int?
-  shortReview String?  @db.VarChar(1000) @map("short_review")
-  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime
-  updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime
+
+  // ── 显示字段（前端渲染用，豆瓣优先、TMDB 补缺） ──
+  title       String   @db.VarChar(255)                        /// 显示标题（默认取 douban_title）
+  posterUrl   String?  @db.VarChar(500) @map("poster_url")     /// 显示海报 URL（默认取 tmdb_poster_url）
+  firstAirDate String?  @db.VarChar(20) @map("first_air_date") /// 显示首播日期（默认取 tmdb_release_date）
+  overview    String?  @db.Text                                /// 显示简介（默认取 tmdb_overview）
+  status      String   @db.VarChar(20)                        /// 记录状态: UNSET|WANT|IN_PROGRESS|DONE|DROPPED
+  rating      Int?                                             /// PixelReel 个人评分（1-5 星，五星制）
+  shortReview String?  @db.VarChar(1000) @map("short_review") /// 显示短评（默认取 douban_comment）
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(0)
+
+  // ── 豆瓣原始字段 ──
+  doubanId        String?  @db.VarChar(20) @map("douban_id")         /// 豆瓣条目 ID（从 link 提取）
+  doubanTitle     String?  @db.VarChar(255) @map("douban_title")    /// 豆瓣中文片名（CollectItem.title）
+  doubanAltTitle  String?  @db.VarChar(255) @map("douban_alt_title") /// 豆瓣外文名（CollectItem.altTitle）
+  doubanIntro     String?  @db.Text @map("douban_intro")            /// 豆瓣简介原文（年份/导演/类型等，CollectItem.intro）
+  doubanRating    Int?     @map("douban_rating")                    /// 豆瓣个人评分（1-5 星，五星制，CollectItem.rating）
+  doubanDate      String?  @db.VarChar(20) @map("douban_date")     /// 豆瓣标记日期（YYYY-MM-DD，CollectItem.date）
+  doubanComment   String?  @db.VarChar(1000) @map("douban_comment") /// 豆瓣短评（CollectItem.comment）
+  doubanLink      String?  @db.VarChar(500) @map("douban_link")    /// 豆瓣条目 URL（CollectItem.link）
+  doubanAvgRating Decimal? @db.Decimal(3,1) @map("douban_avg_rating") /// 豆瓣条目均分（如 9.7，占位，需额外爬取）
+
+  // ── TMDB 原始字段 ──
+  tmdbId           BigInt?  @map("tmdb_id")                            /// TMDB 条目 ID
+  tmdbTitle        String?  @db.VarChar(255) @map("tmdb_title")       /// TMDB 原始标题（原文/英文，TV 用 name 字段）
+  tmdbPosterUrl    String?  @db.VarChar(500) @map("tmdb_poster_url")  /// TMDB 海报完整 URL
+  tmdbReleaseDate  String?  @db.VarChar(20) @map("tmdb_release_date") /// TMDB 首播日期（first_air_date）
+  tmdbOverview     String?  @db.Text @map("tmdb_overview")            /// TMDB 简介
+  tmdbVoteAverage  Decimal? @db.Decimal(3,1) @map("tmdb_vote_average") /// TMDB 条目评分（0.0-10.0）
+  tmdbPopularity   Float?   @map("tmdb_popularity")                   /// TMDB 热度值
+  tmdbGenreIds     String?  @db.VarChar(200) @map("tmdb_genre_ids")  /// TMDB 类型 ID（逗号分隔，含 10764=综艺、10763=脱口秀）
+
+  // ── IMDb 原始字段（占位） ──
+  imdbId      String?  @db.VarChar(20) @map("imdb_id")               /// IMDb 条目 ID
+  imdbRating  Decimal? @db.Decimal(3,1) @map("imdb_rating")         /// IMDb 条目评分（0.0-10.0，占位）
+
+  // ── Trakt ──
+  traktId     String?  @db.VarChar(20) @map("trakt_id")              /// Trakt 条目 ID
 
   @@index([tmdbId], map: "idx_tv_show_tmdb_id")
   @@index([imdbId], map: "idx_tv_show_imdb_id")
@@ -56,23 +111,27 @@ model TvShow {
 }
 
 model Game {
-  id                  BigInt   @id @default(autoincrement())
-  rawgId              BigInt?  @map("rawg_id")
-  steamAppId          BigInt?  @map("steam_app_id")
-  xboxId              String?  @db.VarChar(50) @map("xbox_id")
-  psnId               String?  @db.VarChar(50) @map("psn_id")
-  platform            String?  @db.VarChar(20)
-  title               String   @db.VarChar(255)
-  posterUrl           String?  @db.VarChar(500) @map("poster_url")
-  playtimeMinutes     Int?     @map("playtime_minutes")
-  achievementTotal    Int?     @map("achievement_total")
-  achievementUnlocked Int?     @map("achievement_unlocked")
-  importedAt          DateTime? @map("imported_at") @db.DateTime
-  status              String   @db.VarChar(20)
-  rating              Int?
-  shortReview         String?  @db.VarChar(1000) @map("short_review")
-  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime
-  updatedAt           DateTime @default(now()) @map("updated_at") @db.DateTime
+  id          BigInt   @id @default(autoincrement())
+
+  // ── 显示字段 ──
+  title               String   @db.VarChar(255)                     /// 显示标题
+  posterUrl            String?  @db.VarChar(500) @map("poster_url") /// 显示封面 URL（默认取 RAWG）
+  platform            String?  @db.VarChar(20)                     /// 平台: steam|xbox|psn|switch
+  playtimeMinutes     Int?     @map("playtime_minutes")             /// 游玩时长（分钟）
+  achievementTotal    Int?     @map("achievement_total")            /// 成就总数
+  achievementUnlocked Int?     @map("achievement_unlocked")         /// 已解锁成就数
+  importedAt          DateTime? @map("imported_at") @db.DateTime(0)    /// 导入时间
+  status              String   @db.VarChar(20)                     /// 记录状态: UNSET|WANT|IN_PROGRESS|DONE|DROPPED
+  rating              Int?                                          /// PixelReel 个人评分（1-5 星）
+  shortReview         String?  @db.VarChar(1000) @map("short_review") /// 短评
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.DateTime(0)
+
+  // ── 外部平台 ID ──
+  rawgId     BigInt?  @map("rawg_id")                                /// RAWG 条目 ID
+  steamAppId BigInt?  @map("steam_app_id")                          /// Steam App ID
+  xboxId     String?  @db.VarChar(50) @map("xbox_id")              /// Xbox Title ID
+  psnId      String?  @db.VarChar(50) @map("psn_id")               /// PSN 游戏 ID
 
   @@index([rawgId], map: "idx_game_rawg_id")
   @@index([steamAppId], map: "idx_game_steam_app_id")

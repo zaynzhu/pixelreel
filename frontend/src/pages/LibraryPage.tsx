@@ -1,6 +1,7 @@
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
+import { StarRating } from "../components/StarRating";
 import type {
   LibraryCategory,
   LibraryRecord,
@@ -302,7 +303,7 @@ export default function LibraryPage() {
                           {t("lib.list.metric")}
                         </p>
                         <p className="font-display mt-1 text-xl text-white">
-                          {record.rating == null ? t("dash.null") : `${record.rating}`}
+                          {record.rating == null ? t("dash.null") : <StarRating value={record.rating} />}
                         </p>
                       </div>
                     </div>
@@ -396,9 +397,9 @@ export default function LibraryPage() {
                     className="tech-input"
                   >
                     <option value="">{t("dash.null")}</option>
-                    {Array.from({ length: 11 }, (_, index) => (
-                      <option key={index} value={index}>
-                        {index} / 10
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <option key={index + 1} value={index + 1}>
+                        {"★".repeat(index + 1)}{"☆".repeat(5 - index - 1)}
                       </option>
                     ))}
                   </select>
