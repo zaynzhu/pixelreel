@@ -1,5 +1,4 @@
 import path from 'path';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
@@ -22,11 +21,13 @@ function extractDoubanId(link: string): string | null {
   return tail || null;
 }
 
-// 豆瓣评分 1-5 → 直接存为 1-5（五星制，不再 ×2）
-function parseDoubanRating(rating: string): number | null {
+// 豆瓣 1-5 评分 → 2-10（与 DoubanCsvImportService 一致）
+function convertRating(rating: string): number | null {
   const n = parseFloat(rating);
   if (isNaN(n) || n <= 0) return null;
-  return Math.min(Math.round(n), 5);
+  const converted = n * 2;
+  const rounded = Math.round(converted);
+  return rounded > 10 ? 10 : rounded;
 }
 
 // 从 CollectItem 的 intro 中提取年份
@@ -48,6 +49,7 @@ function mightBeTvShow(item: CollectItem): boolean {
 export async function importFromJson(
   dataDir?: string,
   onProgress?: (processed: number, total: number, currentTitle: string) => void,
+  signal?: AbortSignal,
 ): Promise<ImportSummary> {
   const dir = dataDir || config.douban.dataDir;
   const collectPath = path.join(dir, 'collect.json');
@@ -75,6 +77,10 @@ export async function importFromJson(
   summary.total = items.length;
 
   for (let i = 0; i < items.length; i++) {
+    if (signal?.aborted) {
+      console.log(`⏹ 导入被用户取消，已处理 ${i}/${items.length}`);
+      break;
+    }
     const item = items[i];
     if (onProgress) onProgress(i, items.length, item.title);
 
@@ -92,43 +98,9 @@ export async function importFromJson(
       // TMDB 丰富
       const enrich = await enrichFromTmdb(item.title);
 
-      // 豆瓣评分（1-5 星，直接存）
-      const doubanRating = parseDoubanRating(item.rating);
+      // 评分转换
+      const rating = convertRating(item.rating);
       const watchedDate = item.date ? new Date(item.date + 'T00:00:00.000Z') : undefined;
-
-      // 豆瓣原始字段（所有 CollectItem 字段原样存入）
-      const doubanFields: any = {
-        doubanId,
-        doubanTitle: item.title,
-        doubanAltTitle: item.altTitle || null,
-        doubanIntro: item.intro || null,
-        doubanRating,
-        doubanDate: item.date || null,
-        doubanComment: item.comment || null,
-        doubanLink: item.link || null,
-      };
-
-      // TMDB 原始字段
-      const tmdbFields: any = {
-        tmdbId: enrich.tmdbId ?? undefined,
-        tmdbTitle: enrich.title,
-        tmdbPosterUrl: enrich.posterUrl,
-        tmdbReleaseDate: enrich.releaseDate,
-        tmdbOverview: enrich.overview,
-        tmdbVoteAverage: enrich.voteAverage != null ? new Prisma.Decimal(enrich.voteAverage) : null,
-        tmdbPopularity: enrich.popularity,
-        tmdbGenreIds: enrich.genreIds.length > 0 ? enrich.genreIds.join(',') : null,
-      };
-
-      // 显示字段（豆瓣优先、TMDB 补缺）
-      const displayFields: any = {
-        title: item.title,                          // 默认取豆瓣中文片名
-        posterUrl: enrich.posterUrl,                 // 海报来自 TMDB
-        status: RecordStatus.DONE,
-        rating: doubanRating,                         // 1-5 星
-        shortReview: item.comment || null,            // 默认取豆瓣短评
-        createdAt: watchedDate,
-      };
 
       // 判断类型并写入对应表
       if (enrich.type === 'tv' || (enrich.type === 'unknown' && mightBeTvShow(item))) {
@@ -136,6 +108,7 @@ export async function importFromJson(
         if (enrich.tmdbId) {
           const existing = await prisma.tvShow.findFirst({ where: { tmdbId: enrich.tmdbId } });
           if (existing) {
+            // 补充 doubanId
             if (!existing.doubanId && doubanId) {
               await prisma.tvShow.update({ where: { id: existing.id }, data: { doubanId } });
             }
@@ -146,11 +119,16 @@ export async function importFromJson(
 
         await prisma.tvShow.create({
           data: {
-            ...displayFields,
+            doubanId: doubanId,
+            tmdbId: enrich.tmdbId ?? undefined,
+            title: item.title,
+            posterUrl: enrich.posterUrl,
             firstAirDate: enrich.releaseDate ?? extractYear(item.intro),
             overview: enrich.overview,
-            ...doubanFields,
-            ...tmdbFields,
+            status: RecordStatus.DONE,
+            rating,
+            shortReview: item.comment || null,
+            createdAt: watchedDate,
           },
         });
       } else {
@@ -168,11 +146,14 @@ export async function importFromJson(
 
         await prisma.movie.create({
           data: {
-            ...displayFields,
-            releaseDate: enrich.releaseDate ?? extractYear(item.intro),
-            overview: enrich.overview,
-            ...doubanFields,
-            ...tmdbFields,
+            doubanId: doubanId,
+            tmdbId: enrich.tmdbId ?? undefined,
+            title: item.title,
+            posterUrl: enrich.posterUrl,
+            status: RecordStatus.DONE,
+            rating,
+            shortReview: item.comment || null,
+            createdAt: watchedDate,
           },
         });
       }
@@ -197,7 +178,7 @@ export function startJsonImportTask(dataDir?: string) {
     try {
       const result = await importFromJson(dataDir, (processed, total, currentTitle) => {
         updateProgress(task.taskId, { processed, total, currentTitle });
-      });
+      }, task.abortController.signal);
       completeTask(task.taskId, result);
     } catch (ex: any) {
       failTask(task.taskId, ex.message);
@@ -210,8 +191,9 @@ export function startJsonImportTask(dataDir?: string) {
 /**
  * mode=full: 全量爬取 + 写库
  */
-export function startFullHarvestTask(maxPages?: number) {
+export function startFullHarvestTask() {
   const task = createTask('full');
+  const signal = task.abortController.signal;
 
   (async () => {
     try {
@@ -225,7 +207,7 @@ export function startFullHarvestTask(maxPages?: number) {
       const { browser, context } = await makeBrowser();
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在爬取评分数据...' });
-        const collectResult = await scrapeCollect(context, progress, undefined, maxPages);
+        const collectResult = await scrapeCollect(context, progress, undefined, undefined, signal);
         if (!collectResult.ok) {
           failTask(task.taskId, '爬取被风控中止');
           return;
@@ -244,7 +226,10 @@ export function startFullHarvestTask(maxPages?: number) {
         updateProgress(task.taskId, { processed: 0, total: deduped.length, currentTitle: '正在导入数据...' });
         const result = await importFromJson(undefined, (processed, total, currentTitle) => {
           updateProgress(task.taskId, { processed, total, currentTitle });
-        });
+        }, signal);
+        if (signal.aborted) {
+          return;
+        }
         completeTask(task.taskId, result);
 
         saveProgress(progress);
@@ -268,6 +253,7 @@ export function startFullHarvestTask(maxPages?: number) {
  */
 export function startIncrementalHarvestTask() {
   const task = createTask('incremental');
+  const signal = task.abortController.signal;
 
   (async () => {
     try {
@@ -289,7 +275,7 @@ export function startIncrementalHarvestTask() {
       const { browser, context } = await makeBrowser();
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在增量爬取...' });
-        const collectResult = await scrapeCollect(context, progress, lastSync);
+        const collectResult = await scrapeCollect(context, progress, lastSync, undefined, signal);
         if (!collectResult.ok) {
           failTask(task.taskId, '爬取被风控中止');
           return;
@@ -308,7 +294,10 @@ export function startIncrementalHarvestTask() {
         updateProgress(task.taskId, { processed: 0, total: collectResult.newItems.length, currentTitle: '正在导入增量数据...' });
         const result = await importFromJson(undefined, (processed, total, currentTitle) => {
           updateProgress(task.taskId, { processed, total, currentTitle });
-        });
+        }, signal);
+        if (signal.aborted) {
+          return;
+        }
         completeTask(task.taskId, result);
         saveSyncState(todayStr());
       } finally {
@@ -324,4 +313,4 @@ export function startIncrementalHarvestTask() {
 }
 
 // 重新导出任务查询
-export { getTask, type HarvestTask } from './task-manager';
+export { getTask, cancelTask, type HarvestTask } from './task-manager';
