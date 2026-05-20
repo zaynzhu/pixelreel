@@ -8,7 +8,8 @@ import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
 import { getTask } from '../services/douban-harvester/task-manager';
-import { listTasks } from '../services/task-manager';
+import { listTasks, cancelTask } from '../services/task-manager';
+import { prisma } from '../config/db';
 import { config } from '../config';
 
 const router = Router();
@@ -107,9 +108,37 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
   });
 });
 
-// GET /api/tasks — 所有任务列表
+// GET /api/import/tasks — 所有任务列表
 router.get('/tasks', (_req: Request, res: Response) => {
   res.json(listTasks());
+});
+
+// DELETE /api/import/tasks/:taskId — 取消任务
+router.delete('/tasks/:taskId', (req: Request, res: Response) => {
+  const result = cancelTask(req.params.taskId);
+  if (!result.ok) {
+    res.status(result.error === '任务不存在' ? 404 : 400).json({ error: result.error });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+// POST /api/import/douban/clear-data — 清空豆瓣来源数据
+router.post('/douban/clear-data', async (_req: Request, res: Response) => {
+  try {
+    const deletedMovies = await prisma.movie.deleteMany({
+      where: { doubanId: { not: null } },
+    });
+    const deletedTvShows = await prisma.tvShow.deleteMany({
+      where: { doubanId: { not: null } },
+    });
+    res.json({
+      deletedMovies: deletedMovies.count,
+      deletedTvShows: deletedTvShows.count,
+    });
+  } catch (ex: any) {
+    res.status(500).json({ error: ex.message });
+  }
 });
 
 // GET /api/import/douban-harvest/status?taskId=xxx
