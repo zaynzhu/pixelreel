@@ -218,6 +218,8 @@ export async function scrapeCollect(
   context: BrowserContext,
   progress: Progress,
   cutoffDate?: string,
+  maxPages?: number,
+  signal?: AbortSignal,
 ): Promise<{ ok: boolean; newItems: CollectItem[] }> {
   let data: CollectItem[] = cutoffDate === undefined ? loadData<CollectItem>("data/collect.json") : [];
   const newItems: CollectItem[] = [];
@@ -228,6 +230,10 @@ export async function scrapeCollect(
 
   try {
     while (true) {
+      if (signal?.aborted) {
+        console.log('⏹ 爬取被用户取消');
+        return { ok: false, newItems };
+      }
       const start = cutoffDate
         ? pageCount * 15
         : progress.collectDone

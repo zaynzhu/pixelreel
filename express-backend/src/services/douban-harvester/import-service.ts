@@ -49,6 +49,7 @@ function mightBeTvShow(item: CollectItem): boolean {
 export async function importFromJson(
   dataDir?: string,
   onProgress?: (processed: number, total: number, currentTitle: string) => void,
+  signal?: AbortSignal,
 ): Promise<ImportSummary> {
   const dir = dataDir || config.douban.dataDir;
   const collectPath = path.join(dir, 'collect.json');
@@ -76,6 +77,10 @@ export async function importFromJson(
   summary.total = items.length;
 
   for (let i = 0; i < items.length; i++) {
+    if (signal?.aborted) {
+      console.log(`⏹ 导入被用户取消，已处理 ${i}/${items.length}`);
+      break;
+    }
     const item = items[i];
     if (onProgress) onProgress(i, items.length, item.title);
 
@@ -173,7 +178,7 @@ export function startJsonImportTask(dataDir?: string) {
     try {
       const result = await importFromJson(dataDir, (processed, total, currentTitle) => {
         updateProgress(task.taskId, { processed, total, currentTitle });
-      });
+      }, task.abortController.signal);
       completeTask(task.taskId, result);
     } catch (ex: any) {
       failTask(task.taskId, ex.message);
@@ -188,6 +193,7 @@ export function startJsonImportTask(dataDir?: string) {
  */
 export function startFullHarvestTask() {
   const task = createTask('full');
+  const signal = task.abortController.signal;
 
   (async () => {
     try {
@@ -201,7 +207,7 @@ export function startFullHarvestTask() {
       const { browser, context } = await makeBrowser();
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在爬取评分数据...' });
-        const collectResult = await scrapeCollect(context, progress);
+        const collectResult = await scrapeCollect(context, progress, undefined, undefined, signal);
         if (!collectResult.ok) {
           failTask(task.taskId, '爬取被风控中止');
           return;
@@ -220,7 +226,10 @@ export function startFullHarvestTask() {
         updateProgress(task.taskId, { processed: 0, total: deduped.length, currentTitle: '正在导入数据...' });
         const result = await importFromJson(undefined, (processed, total, currentTitle) => {
           updateProgress(task.taskId, { processed, total, currentTitle });
-        });
+        }, signal);
+        if (signal.aborted) {
+          return;
+        }
         completeTask(task.taskId, result);
 
         saveProgress(progress);
@@ -244,6 +253,7 @@ export function startFullHarvestTask() {
  */
 export function startIncrementalHarvestTask() {
   const task = createTask('incremental');
+  const signal = task.abortController.signal;
 
   (async () => {
     try {
@@ -265,7 +275,7 @@ export function startIncrementalHarvestTask() {
       const { browser, context } = await makeBrowser();
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在增量爬取...' });
-        const collectResult = await scrapeCollect(context, progress, lastSync);
+        const collectResult = await scrapeCollect(context, progress, lastSync, undefined, signal);
         if (!collectResult.ok) {
           failTask(task.taskId, '爬取被风控中止');
           return;
@@ -284,7 +294,10 @@ export function startIncrementalHarvestTask() {
         updateProgress(task.taskId, { processed: 0, total: collectResult.newItems.length, currentTitle: '正在导入增量数据...' });
         const result = await importFromJson(undefined, (processed, total, currentTitle) => {
           updateProgress(task.taskId, { processed, total, currentTitle });
-        });
+        }, signal);
+        if (signal.aborted) {
+          return;
+        }
         completeTask(task.taskId, result);
         saveSyncState(todayStr());
       } finally {
@@ -300,4 +313,4 @@ export function startIncrementalHarvestTask() {
 }
 
 // 重新导出任务查询
-export { getTask, type HarvestTask } from './task-manager';
+export { getTask, cancelTask, type HarvestTask } from './task-manager';

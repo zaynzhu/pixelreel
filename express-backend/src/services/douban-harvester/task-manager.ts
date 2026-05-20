@@ -1,7 +1,7 @@
 import { ImportSummary } from '../../dto/import-summary';
 
 export type TaskMode = 'json' | 'full' | 'incremental';
-export type TaskStatus = 'running' | 'completed' | 'failed';
+export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface TaskProgress {
   processed: number;
@@ -17,6 +17,7 @@ export interface HarvestTask {
   result: ImportSummary | null;
   error: string | null;
   startedAt: string;
+  abortController: AbortController;
 }
 
 // 内存任务存储（单实例足够）
@@ -35,6 +36,7 @@ export function createTask(mode: TaskMode): HarvestTask {
     result: null,
     error: null,
     startedAt: new Date().toISOString(),
+    abortController: new AbortController(),
   };
   tasks.set(taskId, task);
   return task;
@@ -66,4 +68,13 @@ export function failTask(taskId: string, error: string): void {
     task.status = 'failed';
     task.error = error;
   }
+}
+
+export function cancelTask(taskId: string): { ok: boolean; error?: string } {
+  const task = tasks.get(taskId);
+  if (!task) return { ok: false, error: '任务不存在' };
+  if (task.status !== 'running') return { ok: false, error: '任务非运行状态' };
+  task.status = 'cancelled';
+  task.abortController.abort();
+  return { ok: true };
 }
