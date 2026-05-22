@@ -3,13 +3,15 @@ import { listRecords, updateRecord } from '../services/LibraryService';
 
 const router = Router();
 
-// GET /api/library — 混合列表（movie + game）
-router.get('/', async (_req: Request, res: Response) => {
-  const records = await listRecords();
-  res.json(records);
+// GET /api/library — 游标分页混合列表
+router.get('/', async (req: Request, res: Response) => {
+  const cursor = req.query.cursor as string | undefined;
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  const result = await listRecords({ cursor, limit });
+  res.json(result);
 });
 
-// PATCH /api/library/:category/:id — 更新记录状态/评分/短评
+// PATCH /api/library/:category/:id — 更新记录状态/评分/短评（不变）
 router.patch('/:category/:id', async (req: Request, res: Response) => {
   const category = req.params.category as string;
   const id = Number(req.params.id);
