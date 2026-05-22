@@ -57,7 +57,7 @@ export async function listRecords(
   const records = allRecords.slice(0, limit);
   const lastRecord = records[records.length - 1];
   const nextCursor = hasMore && lastRecord
-    ? `${lastRecord.createdAt}__${lastRecord.id}`
+    ? `${new Date(lastRecord.createdAt).toISOString()}__${lastRecord.id}`
     : null;
 
   return { records, nextCursor };
