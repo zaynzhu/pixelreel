@@ -160,9 +160,11 @@ GET /api/profile/summary
 ### 记录库
 
 ```text
-GET   /api/library                  混合列表（movie + game + tv_show）
-PATCH /api/library/:category/:id    更新记录（category: movie/game/tv_show）
+GET   /api/library?cursor=&limit=50   混合列表（游标分页，movie + game + tv_show）
+PATCH /api/library/:category/:id      更新记录（category: movie/game/tv_show）
 ```
+
+> `cursor` 格式为 `{ISO日期}__{id}`，如 `2026-05-18T00:00:00.000Z__3`。返回 `{ records, nextCursor }`，`nextCursor` 为 null 表示无更多数据。
 
 ### 鉴权
 

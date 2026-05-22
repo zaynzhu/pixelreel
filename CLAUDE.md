@@ -61,7 +61,7 @@ express-backend/src/
   dto/            library.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
-  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage
+  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage（占位）
   components/     AppShell, RightActionDrawer, TaskPanel, Toast, MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating
   stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore, taskStore, toastStore
   types/          library.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts
@@ -76,8 +76,8 @@ frontend/src/
 | `/movies/search` | `GET /api/search/movies` |
 | `/tv-shows/search` | `GET /api/search/tv-shows` |
 | `/games/search` | `GET /api/search/games` |
-| `/library` | `GET /api/library`, `PATCH /api/library/:cat/:id` |
-| `/timeline` | 复用 `libraryStore`，纯客户端分组统计 |
+| `/library` | `GET /api/library?cursor=&limit=50`, `PATCH /api/library/:cat/:id` |
+| `/timeline` | 复用 `libraryStore`（游标分页 + IntersectionObserver 无限滚动） |
 | `/login` | `POST /api/auth/login` |
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
@@ -116,6 +116,18 @@ frontend/src/
 - 导入时自动查 TMDB 分类（movie/tv）并拉取海报，250ms 间隔防限速
 - 综艺归入 TvShow 表，不单独建表
 - 豆瓣评分 1-5 星直接存入 `douban_rating` 和 `rating`，不再 ×2 转换
+
+## 记录库分页
+
+- `GET /api/library` 支持游标分页：`?cursor=2026-05-18T00:00:00.000Z__3&limit=50`
+- cursor 格式：`{createdAt的ISO字符串}__{id}`，同一秒多条记录用 id 作 tiebreaker
+- 返回 `{ records: LibraryRecord[], nextCursor: string | null }`，`nextCursor` 为 null 表示无更多
+- 前端用 IntersectionObserver 实现无限滚动，滚到底部自动 `fetchMore()`
+
+## 数据库
+
+- MySQL 8.4 运行在 NAS Docker（192.168.50.233:13306），非本地
+- 豆瓣导入的 4286 条影视数据在 `movie` 和 `tv_show` 表，**不能动**（Trakt 数据可以操作）
 
 ## 常见陷阱
 

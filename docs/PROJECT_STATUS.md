@@ -32,6 +32,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 前端国际化（EN/ZH）
 - [x] 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
 - [x] 豆瓣数据导入（douban-harvester 集成：JSON 导入、全量/增量爬取、TMDB 丰富）
+- [x] 记录库与时间线游标分页 + 无限滚动（IntersectionObserver）
 
 ## 未完成 / 占位
 - [ ] 多用户登录与权限体系（设计文档在 docs/plans/，需重写为 Express 版）
@@ -52,7 +53,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 ## 关键接口
 - `POST /api/auth/login`：JWT 登录
 - `GET /api/profile/summary`：个人主页统计汇总
-- `GET /api/library`：混合记录库列表
+- `GET /api/library`：混合记录库列表（游标分页，`?cursor=&limit=50`）
 - `PATCH /api/library/:category/:id`：更新状态 / 评分 / 短评
 - `GET /api/search/movies`：电影搜索聚合
 - `GET /api/search/tv-shows`：电视剧搜索
