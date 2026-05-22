@@ -7,8 +7,7 @@ import { importDoubanCsv } from '../services/import/DoubanCsvImportService';
 import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
-import { getTask } from '../services/douban-harvester/task-manager';
-import { listTasks, cancelTask } from '../services/task-manager';
+import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { prisma } from '../config/db';
 import { config } from '../config';
 
@@ -73,10 +72,9 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
   res.json(result);
 });
 
-// POST /api/import/douban-harvest?mode=json|full|incremental&maxPages=N
+// POST /api/import/douban-harvest?mode=json|full|incremental
 router.post('/douban-harvest', async (req: Request, res: Response) => {
   const mode = (req.query.mode as string) || 'json';
-  const maxPages = req.query.maxPages ? parseInt(req.query.maxPages as string, 10) : undefined;
 
   let task;
   switch (mode) {
@@ -85,7 +83,7 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
         res.status(400).json({ error: '缺少 DOUBAN_USER_ID 配置' });
         return;
       }
-      task = startFullHarvestTask(maxPages);
+      task = startFullHarvestTask();
       break;
     case 'incremental':
       if (!config.douban.userId) {
@@ -114,7 +112,7 @@ router.get('/tasks', (_req: Request, res: Response) => {
 });
 
 // DELETE /api/import/tasks/:taskId — 取消任务
-router.delete('/tasks/:taskId', (req: Request, res: Response) => {
+router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response) => {
   const result = cancelTask(req.params.taskId);
   if (!result.ok) {
     res.status(result.error === '任务不存在' ? 404 : 400).json({ error: result.error });

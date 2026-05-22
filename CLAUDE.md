@@ -62,10 +62,10 @@ express-backend/src/
 
 frontend/src/
   pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage
-  components/     AppShell, RightActionDrawer, MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating
-  stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore
-  types/          library.ts, profile.ts, externalSearch.ts, movie.ts
-  api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向）
+  components/     AppShell, RightActionDrawer, TaskPanel, Toast, MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating
+  stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore, taskStore, toastStore
+  types/          library.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts
+  api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向，**已自动解析 JSON — 不要再调 .json()**）
 ```
 
 ## 路由
@@ -82,6 +82,9 @@ frontend/src/
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
 | — | `GET /api/import/douban-harvest/status` (任务进度) |
+| — | `GET /api/import/tasks` (所有任务列表) |
+| — | `DELETE /api/import/tasks/:taskId` (取消任务) |
+| — | `POST /api/import/douban/clear-data` (清空豆瓣来源数据) |
 
 ## 关键模式
 
@@ -102,10 +105,14 @@ frontend/src/
 
 已集成到 `express-backend/src/services/douban-harvester/`，通过 API 触发，无需单独运行 CLI。
 
-- **导入已有数据：** `POST /api/import/douban-harvest?mode=json` — 读取 `express-backend/data/douban-harvester/collect.json`
-- **全量爬取：** `POST /api/import/douban-harvest?mode=full` — Playwright 爬豆瓣
-- **增量爬取：** `POST /api/import/douban-harvest?mode=incremental` — 只抓新数据
+- **导入已有数据：** `POST /api/import/douban-harvest?mode=json` — 读取 `collect.json`
+- **全量数据同步：** `POST /api/import/douban-harvest?mode=full` — Playwright 爬豆瓣，**每次从0开始不续爬**
+- **增量数据导入：** `POST /api/import/douban-harvest?mode=incremental` — 只抓新数据（需先全量同步过）
 - **查询进度：** `GET /api/import/douban-harvest/status?taskId=xxx`
+- **取消任务：** `DELETE /api/import/tasks/:taskId`
+- **清空豆瓣数据：** `POST /api/import/douban/clear-data`
+- 任务管理统一使用 `services/task-manager.ts`（不再有专用 task-manager）
+- 爬虫返回具体错误信息（超时/风控/用户取消），不再统一报"爬取被风控中止"
 - 导入时自动查 TMDB 分类（movie/tv）并拉取海报，250ms 间隔防限速
 - 综艺归入 TvShow 表，不单独建表
 - 豆瓣评分 1-5 星直接存入 `douban_rating` 和 `rating`，不再 ×2 转换
@@ -116,3 +123,4 @@ frontend/src/
 - 在 PowerShell 中用 `Stop-Process`，不要在 Git Bash 里用 `taskkill`（存在路径解析问题）。
 - Trakt 导入必须调用 `fetchTmdbPosterUrl()` 并间隔 250ms — 永远不要把 `posterUrl` 硬编码为 `null`。
 - TMDB API 需要代理访问 — 必须设置 `HTTPS_PROXY` 环境变量（如 `http://127.0.0.1:7897`），否则所有 TMDB 请求会超时返回空。
+- `apiFetch` 已自动解析 JSON — 调用后直接用返回值，不要再调 `.json()`，否则 TypeError。

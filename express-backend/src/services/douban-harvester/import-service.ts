@@ -8,8 +8,13 @@ import { enrichFromTmdb } from './tmdb-enrich';
 import type { CollectItem } from './types';
 import {
   createTask, updateProgress, completeTask, failTask,
-  type TaskMode,
-} from './task-manager';
+} from '../task-manager';
+
+const LABELS: Record<string, string> = {
+  json: '豆瓣导入已有数据',
+  full: '豆瓣全量数据同步',
+  incremental: '豆瓣增量数据导入',
+};
 
 // 从豆瓣链接提取 doubanId
 function extractDoubanId(link: string): string | null {
@@ -172,7 +177,7 @@ export async function importFromJson(
  * 启动异步 JSON 导入任务
  */
 export function startJsonImportTask(dataDir?: string) {
-  const task = createTask('json');
+  const task = createTask('douban-harvest', LABELS['json']);
 
   (async () => {
     try {
@@ -192,7 +197,7 @@ export function startJsonImportTask(dataDir?: string) {
  * mode=full: 全量爬取 + 写库
  */
 export function startFullHarvestTask() {
-  const task = createTask('full');
+  const task = createTask('douban-harvest', LABELS['full']);
   const signal = task.abortController.signal;
 
   (async () => {
@@ -200,16 +205,22 @@ export function startFullHarvestTask() {
       const { makeBrowser } = await import('./scraper');
       const { scrapeCollect } = await import('./scraper');
       const { loadProgress, saveProgress, saveSyncState, todayStr, loadData, dedupByLink } = await import('./storage');
+      // 全量模式始终从0开始，不续爬
       const progress = loadProgress();
+      progress.collectStart = 0;
+      progress.collectDone = false;
+      saveProgress(progress);
 
       updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在启动浏览器...' });
 
       const { browser, context } = await makeBrowser();
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在爬取评分数据...' });
-        const collectResult = await scrapeCollect(context, progress, undefined, undefined, signal);
+        const collectResult = await scrapeCollect(context, progress, undefined, undefined, signal, (info) => {
+          updateProgress(task.taskId, { processed: info.total, total: 0, currentTitle: info.label });
+        });
         if (!collectResult.ok) {
-          failTask(task.taskId, '爬取被风控中止');
+          failTask(task.taskId, collectResult.error || '爬取失败');
           return;
         }
 
@@ -252,7 +263,7 @@ export function startFullHarvestTask() {
  * mode=incremental: 增量爬取 + 写库
  */
 export function startIncrementalHarvestTask() {
-  const task = createTask('incremental');
+  const task = createTask('douban-harvest', LABELS['incremental']);
   const signal = task.abortController.signal;
 
   (async () => {
@@ -275,9 +286,11 @@ export function startIncrementalHarvestTask() {
       const { browser, context } = await makeBrowser();
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在增量爬取...' });
-        const collectResult = await scrapeCollect(context, progress, lastSync, undefined, signal);
+        const collectResult = await scrapeCollect(context, progress, lastSync, undefined, signal, (info) => {
+          updateProgress(task.taskId, { processed: 0, total: info.total, currentTitle: info.label });
+        });
         if (!collectResult.ok) {
-          failTask(task.taskId, '爬取被风控中止');
+          failTask(task.taskId, collectResult.error || '爬取失败');
           return;
         }
 
@@ -312,5 +325,3 @@ export function startIncrementalHarvestTask() {
   return task;
 }
 
-// 重新导出任务查询
-export { getTask, cancelTask, type HarvestTask } from './task-manager';

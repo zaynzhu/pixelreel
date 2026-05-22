@@ -214,13 +214,16 @@ function isOlderThan(dateStr: string, cutoff: string): boolean {
   }
 }
 
+export type ScrapeProgressCallback = (info: { total: number; label: string }) => void;
+
 export async function scrapeCollect(
   context: BrowserContext,
   progress: Progress,
   cutoffDate?: string,
   maxPages?: number,
   signal?: AbortSignal,
-): Promise<{ ok: boolean; newItems: CollectItem[] }> {
+  onProgress?: ScrapeProgressCallback,
+): Promise<{ ok: boolean; newItems: CollectItem[]; error?: string }> {
   let data: CollectItem[] = cutoffDate === undefined ? loadData<CollectItem>("data/collect.json") : [];
   const newItems: CollectItem[] = [];
   let pageCount = 0;
@@ -232,7 +235,7 @@ export async function scrapeCollect(
     while (true) {
       if (signal?.aborted) {
         console.log('⏹ 爬取被用户取消');
-        return { ok: false, newItems };
+        return { ok: false, newItems, error: '用户取消' };
       }
       const start = cutoffDate
         ? pageCount * 15
@@ -247,12 +250,13 @@ export async function scrapeCollect(
         `?start=${start}&sort=time&rating=all&filter=all&mode=list`;
 
       console.log(`\n📄 评分页 offset=${start} | 已抓 ${data.length + newItems.length} 条`);
+      onProgress?.({ total: data.length + newItems.length, label: `正在爬取评分数据...` });
       console.log(`   正在加载 ${url}`);
       try {
         await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
       } catch (e: any) {
         console.log(`❌ 页面加载失败: ${e.message}`);
-        return { ok: false, newItems };
+        return { ok: false, newItems, error: '页面加载超时，可能是网络问题或 IP 被封' };
       }
       // 滚动页面触发懒加载
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -266,7 +270,7 @@ export async function scrapeCollect(
           saveData("data/collect.json", data);  // 先存数据
           saveProgress(progress);           // 再存进度
         }
-        return { ok: false, newItems };
+        return { ok: false, newItems, error: `被豆瓣风控: ${reason}` };
       }
 
       console.log("   正在解析页面...");
@@ -275,7 +279,7 @@ export async function scrapeCollect(
         items = await parseCollectPage(page);
       } catch (e: any) {
         console.log(`❌ 页面解析失败: ${e.message}`);
-        return { ok: false, newItems };
+        return { ok: false, newItems, error: `页面解析失败: ${e.message}` };
       }
 
       // 少条页重试：非末页应返回15条，少于15条可能是风控截断
@@ -309,6 +313,7 @@ export async function scrapeCollect(
         const fresh = items.filter((i) => !isOlderThan(i.date, cutoffDate));
         newItems.push(...fresh);
         console.log(`   本页新增 ${fresh.length} 条（共${items.length}条）`);
+        onProgress?.({ total: newItems.length, label: `增量爬取 ${newItems.length} 条新数据` });
         if (fresh.length < items.length) {
           console.log("   遇到旧数据，增量抓取完毕");
           break;
@@ -325,6 +330,7 @@ export async function scrapeCollect(
         progress.collectStart = start + 30;
         saveProgress(progress);          // 再推进 offset
         console.log(`   本页获取 ${items.length} 条，累计 ${data.length} 条`);
+        onProgress?.({ total: data.length + newItems.length, label: `已爬取 ${data.length + newItems.length} 条评分` });
       }
 
       pageCount++;
