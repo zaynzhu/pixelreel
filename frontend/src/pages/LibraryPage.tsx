@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
@@ -13,7 +13,7 @@ type CategoryFilter = "all" | LibraryCategory;
 type SelectedRecordKey = `${LibraryCategory}:${number}`;
 
 export default function LibraryPage() {
-  const { records, loading, saving, error, fetchRecords, updateRecord } = useLibraryStore();
+  const { records, loading, loadingMore, saving, error, fetchRecords, fetchMore, updateRecord, nextCursor } = useLibraryStore();
   const { t } = useI18nStore();
   
   const STATUS_OPTIONS: Array<{ value: RecordStatus; label: string }> = [
@@ -50,6 +50,23 @@ export default function LibraryPage() {
   useEffect(() => {
     void fetchRecords();
   }, [fetchRecords]);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !nextCursor) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
+          void fetchMore();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [nextCursor, loadingMore, fetchMore]);
 
   const sourceOptions = Array.from(
     new Map(records.map((record) => [record.sourceKey, record.sourceLabel])).entries()
@@ -316,6 +333,16 @@ export default function LibraryPage() {
             })
           ) : (
             <EmptyState loading={loading} t={t} />
+          )}
+
+          {/* 无限滚动哨兵 */}
+          {nextCursor && (
+            <div ref={sentinelRef} className="h-1" />
+          )}
+          {loadingMore && (
+            <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-8">
+              LOADING_MORE...
+            </div>
           )}
         </div>
       </section>
