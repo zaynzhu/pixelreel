@@ -46,3 +46,8 @@ export interface LibraryRecordUpdateRequest {
   rating?: number | null;
   shortReview?: string | null;
 }
+
+export interface PaginatedLibraryResponse {
+  records: LibraryRecordResponse[];
+  nextCursor: string | null;
+}
