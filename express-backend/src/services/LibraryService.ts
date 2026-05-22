@@ -4,28 +4,63 @@ import { RecordStatus, parseRecordStatus } from '../enums/RecordStatus';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
-export async function listRecords(): Promise<LibraryRecordResponse[]> {
-  const movies = await prisma.movie.findMany();
-  const games = await prisma.game.findMany();
-  const tvShows = await prisma.tvShow.findMany();
+export interface ListRecordsOptions {
+  cursor?: string;
+  limit?: number;
+}
 
-  const records: LibraryRecordResponse[] = [
+function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
+  const parts = cursor.split('__');
+  if (parts.length !== 2) return null;
+  const createdAt = new Date(parts[0]);
+  const id = Number(parts[1]);
+  if (isNaN(createdAt.getTime()) || isNaN(id)) return null;
+  return { createdAt, id };
+}
+
+export async function listRecords(
+  options?: ListRecordsOptions,
+): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null }> {
+  const limit = Math.min(options?.limit ?? 50, 200);
+  const cursorObj = options?.cursor ? parseCursor(options.cursor) : undefined;
+
+  const cursorFilter = cursorObj
+    ? {
+        OR: [
+          { createdAt: { lt: cursorObj.createdAt } },
+          { createdAt: { equals: cursorObj.createdAt }, id: { lt: cursorObj.id } },
+        ],
+      }
+    : {};
+
+  const [movies, games, tvShows] = await Promise.all([
+    prisma.movie.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+    prisma.game.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+    prisma.tvShow.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+  ]);
+
+  const allRecords: LibraryRecordResponse[] = [
     ...movies.map(toMovieRecord),
     ...games.map(toGameRecord),
     ...tvShows.map(toTvShowRecord),
   ];
 
-  // 按 createdAt 降序（豆瓣标记日期），再按 updatedAt 降序
-  records.sort((a, b) => {
-    const ca = new Date(b.createdAt).getTime() || 0;
-    const cb = new Date(a.createdAt).getTime() || 0;
-    if (ca !== cb) return ca - cb;
-    const ua = new Date(b.updatedAt).getTime() || 0;
-    const ub = new Date(a.updatedAt).getTime() || 0;
-    return ua - ub;
+  allRecords.sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime();
+    const tb = new Date(b.createdAt).getTime();
+    if (tb !== ta) return tb - ta;
+    return b.id - a.id;
   });
 
-  return records;
+  // 多取一条来判断是否有下一页
+  const hasMore = allRecords.length > limit;
+  const records = allRecords.slice(0, limit);
+  const lastRecord = records[records.length - 1];
+  const nextCursor = hasMore && lastRecord
+    ? `${lastRecord.createdAt}__${lastRecord.id}`
+    : null;
+
+  return { records, nextCursor };
 }
 
 export async function updateRecord(
