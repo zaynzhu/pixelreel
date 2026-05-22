@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import type { LibraryRecord, LibraryCategory, RecordStatus } from "../types/library";
@@ -68,7 +68,7 @@ function computeMonthStats(records: LibraryRecord[]) {
 }
 
 export default function TimelinePage() {
-  const { records, loading, error, fetchRecords } = useLibraryStore();
+  const { records, loading, error, fetchRecords, fetchMore, loadingMore, nextCursor } = useLibraryStore();
   const { t } = useI18nStore();
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
   const [popupRecord, setPopupRecord] = useState<LibraryRecord | null>(null);
@@ -76,6 +76,23 @@ export default function TimelinePage() {
   useEffect(() => {
     void fetchRecords();
   }, [fetchRecords]);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !nextCursor) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
+          void fetchMore();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [nextCursor, loadingMore, fetchMore]);
 
   const years = useMemo(() => {
     const ys = [...new Set(records.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
@@ -216,6 +233,16 @@ export default function TimelinePage() {
             );
           })}
         </div>
+
+        {/* 无限滚动哨兵 */}
+        {nextCursor && (
+          <div ref={sentinelRef} className="h-1" />
+        )}
+        {loadingMore && (
+          <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-8">
+            LOADING_MORE...
+          </div>
+        )}
       </div>
 
       {/* Floating Stats Pill (Glassmorphism + Tech) */}
