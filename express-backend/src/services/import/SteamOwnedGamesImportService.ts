@@ -57,6 +57,7 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
       posterUrl: owned.img_logo_url
         ? `https://media.steampowered.com/steamcommunity/public/images/apps/${owned.appid}/${owned.img_logo_url}.jpg`
         : null,
+      playtimeMinutes: owned.playtime_forever ?? null,
       status: effectiveStatus,
       rating: null,
       shortReview: '',

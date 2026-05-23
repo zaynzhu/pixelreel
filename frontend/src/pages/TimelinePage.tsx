@@ -369,6 +369,12 @@ function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () =>
           ) : (
             <span className="text-[8px] text-[var(--muted)] uppercase tracking-widest">UNRATED</span>
           )}
+          {record.playtimeMinutes && record.playtimeMinutes > 0 ? (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">PLAY</span>
+              <span className="text-xs sm:text-sm font-bold text-[var(--accent-deep)]">{Math.round(record.playtimeMinutes / 60)}h</span>
+            </div>
+          ) : null}
         </div>
       </div>
     </button>
