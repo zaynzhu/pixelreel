@@ -33,6 +33,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
 - [x] 豆瓣数据导入（douban-harvester 集成：JSON 导入、全量/增量爬取、TMDB 丰富）
 - [x] 记录库与时间线游标分页 + 无限滚动（IntersectionObserver）
+- [x] 操作日志（Prisma 扩展自动记录 CRUD，支持撤销，筛选与无限滚动）
 
 ## 未完成 / 占位
 - [ ] 多用户登录与权限体系（设计文档在 docs/plans/，需重写为 Express 版）
@@ -47,13 +48,14 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `/games/search`：游戏搜索
 - `/library`：记录库列表 + 评分短评编辑
 - `/timeline`：时间线页面（按月份分组的海报墙）
+- `/activity`：操作日志页（筛选、无限滚动、撤销）
 - `/settings`：系统设置页（环境变量配置，敏感字段遮罩）
 - `/login`：登录页
 
 ## 关键接口
 - `POST /api/auth/login`：JWT 登录
 - `GET /api/profile/summary`：个人主页统计汇总
-- `GET /api/library`：混合记录库列表（游标分页，`?cursor=&limit=50`）
+- `GET /api/library`：混合记录库列表（游标分页，`?cursor=&limit=50`），返回 `{ records, nextCursor, totals }`，`totals` 为全库统计
 - `PATCH /api/library/:category/:id`：更新状态 / 评分 / 短评
 - `GET /api/search/movies`：电影搜索聚合
 - `GET /api/search/tv-shows`：电视剧搜索
@@ -67,6 +69,8 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `POST /api/import/tmdb-covers/fill`：TMDB 影视封面补全
 - `POST /api/import/douban-harvest`：豆瓣数据导入/爬取（`?mode=json|full|incremental`）
 - `GET /api/import/douban-harvest/status`：豆瓣导入任务进度查询（`?taskId=xxx`）
+- `GET /api/activity`：操作日志列表（游标分页，`?cursor=&limit=50&action=&entityType=&from=&to=`）
+- `POST /api/activity/:id/undo`：撤销操作（CREATE→删除实体，UPDATE→恢复旧值，DELETE→重建实体）
 - `GET /api/settings`：获取环境变量配置（按分类返回）
 - `PUT /api/settings`：更新环境变量配置（写入 .env 文件）
 
@@ -120,4 +124,8 @@ npm run dev              # 默认端口 18888
 | TvShow | doubanId, tmdbId, imdbId, traktId | title, posterUrl, firstAirDate, overview, rating(1-5星), shortReview | 同 Movie | 同 Movie |
 | Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5星), shortReview, platform, playtimeMinutes | — | — |
 
+| ActivityLog | — | action, entityType, entityId, entityTitle, oldValues(JSON), newValues(JSON), metadata(JSON) | — | — |
+
 所有表使用 BigInt 自增主键，`createdAt`/`updatedAt` 由 MySQL 管理。
+
+ActivityLog 由 Prisma `$extends` 中间件自动写入，无需手动调用。支持按 entityType/entityId/action/from~to 筛选，游标分页与记录库相同格式。

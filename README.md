@@ -29,9 +29,10 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 - JWT 登录鉴权 + 前端登录页
 - 个人主页统计接口与前端首页（含电视剧统计）
 - 记录库混合列表页：筛选、排序、状态编辑、评分和短评编辑（含电视剧）
-- 前端路由：主页 / 电影搜索 / 电视剧搜索 / 游戏搜索 / 记录库 / 时间线
+- 前端路由：主页 / 电影搜索 / 电视剧搜索 / 游戏搜索 / 记录库 / 时间线 / 操作日志
 - 前端国际化（EN / ZH）
 - 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
+- 操作日志（自动记录 CRUD 操作，支持撤销，筛选与无限滚动）
 
 ## 当前未完成
 
@@ -164,7 +165,14 @@ GET   /api/library?cursor=&limit=50   混合列表（游标分页，movie + game
 PATCH /api/library/:category/:id      更新记录（category: movie/game/tv_show）
 ```
 
-> `cursor` 格式为 `{ISO日期}__{id}`，如 `2026-05-18T00:00:00.000Z__3`。返回 `{ records, nextCursor }`，`nextCursor` 为 null 表示无更多数据。
+> `cursor` 格式为 `{ISO日期}__{id}`，如 `2026-05-18T00:00:00.000Z__3`。返回 `{ records, nextCursor, totals }`，`nextCursor` 为 null 表示无更多数据。`totals` 为全库统计（total、rated、reviewed、completed），不受分页影响。
+
+### 操作日志
+
+```text
+GET  /api/activity             活动日志列表（游标分页，支持 ?action=&entityType=&from=&to= 筛选）
+POST /api/activity/:id/undo    撤销操作
+```
 
 ### 鉴权
 
@@ -181,6 +189,7 @@ POST /api/auth/login    登录获取 JWT Token
 /games/search       游戏搜索
 /library            记录库列表 + 评分短评工作台
 /timeline           时间线页面（按月份分组的海报墙）
+/activity           操作日志（筛选、无限滚动、撤销）
 /login              登录页
 ```
 
