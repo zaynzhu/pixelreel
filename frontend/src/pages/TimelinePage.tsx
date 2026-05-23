@@ -97,9 +97,16 @@ export default function TimelinePage() {
   }, [nextCursor, loadingMore, fetchMore]);
 
   const years = useMemo(() => {
-    const ys = [...new Set(records.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
+    const ys = [...new Set(filteredRecords.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
     return ys;
-  }, [records]);
+  }, [filteredRecords]);
+
+  // 切换分类后，如果已选年份不在新列表里，重置为 ALL
+  useEffect(() => {
+    if (selectedYear !== "ALL" && !years.includes(selectedYear)) {
+      setSelectedYear("ALL");
+    }
+  }, [years, selectedYear]);
 
   const filteredRecords = useMemo(() => {
     let result = records;
