@@ -1,29 +1,39 @@
 import { useActivityStore } from '../stores/activityStore'
+import { useI18nStore } from '../stores/i18nStore'
 
 interface TabOption {
   label: string
   value?: string
 }
 
-const entityTabs: TabOption[] = [
-  { label: '全部' },
-  { label: '电影', value: 'MOVIE' },
-  { label: '剧集', value: 'TV_SHOW' },
-  { label: '游戏', value: 'GAME' },
-]
+function useEntityTabs(): TabOption[] {
+  const { t } = useI18nStore()
+  return [
+    { label: t('activity.all') },
+    { label: t('activity.movie'), value: 'MOVIE' },
+    { label: t('activity.tv'), value: 'TV_SHOW' },
+    { label: t('activity.game'), value: 'GAME' },
+  ]
+}
 
-const actionTabs: TabOption[] = [
-  { label: '全部' },
-  { label: '数据变更', value: 'UPDATE' },
-  { label: '任务', value: 'TASK_DONE' },
-]
+function useActionTabs(): TabOption[] {
+  const { t } = useI18nStore()
+  return [
+    { label: t('activity.all') },
+    { label: t('activity.data_change'), value: 'UPDATE' },
+    { label: t('activity.task'), value: 'TASK_DONE' },
+  ]
+}
 
-const timeTabs: TabOption[] = [
-  { label: '全部' },
-  { label: '今天', value: 'today' },
-  { label: '7天', value: '7d' },
-  { label: '30天', value: '30d' },
-]
+function useTimeTabs(): TabOption[] {
+  const { t } = useI18nStore()
+  return [
+    { label: t('activity.all') },
+    { label: t('activity.today'), value: 'today' },
+    { label: t('activity.7d'), value: '7d' },
+    { label: t('activity.30d'), value: '30d' },
+  ]
+}
 
 function toFromTime(value?: string): string | undefined {
   if (!value) return undefined
@@ -75,6 +85,9 @@ function TabGroup({
 export default function ActivityFilters() {
   const filters = useActivityStore((s) => s.filters)
   const setFilters = useActivityStore((s) => s.setFilters)
+  const entityTabs = useEntityTabs()
+  const actionTabs = useActionTabs()
+  const timeTabs = useTimeTabs()
 
   // 从 filters.from 反推出 time tab 值
   const currentTimeValue = (() => {

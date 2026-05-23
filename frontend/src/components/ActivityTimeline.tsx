@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useActivityStore } from '../stores/activityStore'
+import { useI18nStore } from '../stores/i18nStore'
 import type { ActivityAction, ActivityRecord } from '../types/activity'
 
 interface ActivityTimelineProps {
@@ -17,16 +18,6 @@ const ACTION_COLORS: Record<ActivityAction, string> = {
   TASK_DONE: '#44aaff',
   TASK_FAIL: '#ff4444',
   UNDO: '#ff8800',
-}
-
-const ACTION_LABELS: Record<ActivityAction, string> = {
-  CREATE: 'CREATED',
-  UPDATE: 'UPDATED',
-  DELETE: 'DELETED',
-  TASK_START: 'TASK_START',
-  TASK_DONE: 'TASK_DONE',
-  TASK_FAIL: 'TASK_FAIL',
-  UNDO: 'UNDONE',
 }
 
 /** 格式化时间为 MM-DD HH:mm */
@@ -91,7 +82,7 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
   }
 
   if (action === 'TASK_START') {
-    return <span className="text-[10px] text-[var(--muted)]">任务启动</span>
+    return <span className="text-[10px] text-[var(--muted)]">TASK_START</span>
   }
 
   if (action === 'TASK_DONE' || action === 'TASK_FAIL') {
@@ -113,6 +104,7 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
 
 export default function ActivityTimeline({ entityId, compact }: ActivityTimelineProps) {
   const store = useActivityStore()
+  const { t } = useI18nStore()
   // entity-specific 模式用本地状态，不污染全局 store
   const [entityRecords, setEntityRecords] = useState<ActivityRecord[]>([])
   const [entityLoading, setEntityLoading] = useState(false)
@@ -180,14 +172,14 @@ export default function ActivityTimeline({ entityId, compact }: ActivityTimeline
       {loading && records.length === 0 && (
         <div className="border border-[var(--line)] p-6 text-center text-[10px] text-[var(--accent)] uppercase tracking-[0.3em] font-bold relative overflow-hidden">
           <div className="absolute inset-0 bg-[var(--accent)]/10 animate-pulse" />
-          <span className="relative z-10">LOADING_ACTIVITY...</span>
+          <span className="relative z-10">{t('activity.loading')}</span>
         </div>
       )}
 
       {/* 空状态 */}
       {!loading && records.length === 0 && (
         <div className="text-[10px] text-[var(--muted)] uppercase tracking-widest p-6 text-center">
-          NO_ACTIVITY_RECORDS
+          {t('activity.empty')}
         </div>
       )}
 
@@ -210,11 +202,22 @@ export default function ActivityTimeline({ entityId, compact }: ActivityTimeline
       {/* 加载更多提示 */}
       {!isEntityMode && store.loadingMore && (
         <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-4">
-          LOADING_MORE...
+          {t('activity.loading_more')}
         </div>
       )}
     </div>
   )
+}
+
+// action 到 i18n key 的映射
+const ACTION_I18N_MAP: Record<ActivityAction, string> = {
+  CREATE: 'activity.created',
+  UPDATE: 'activity.updated',
+  DELETE: 'activity.deleted',
+  TASK_START: 'activity.task_start',
+  TASK_DONE: 'activity.task_done',
+  TASK_FAIL: 'activity.task_fail',
+  UNDO: 'activity.undone',
 }
 
 /** 单条活动记录行 */
@@ -229,8 +232,9 @@ function ActivityRow({
   showUndo: boolean
   onUndo: (id: string) => void
 }) {
+  const { t } = useI18nStore()
   const actionColor = ACTION_COLORS[record.action]
-  const actionLabel = ACTION_LABELS[record.action]
+  const actionLabel = t(ACTION_I18N_MAP[record.action])
 
   return (
     <div
@@ -281,7 +285,7 @@ function ActivityRow({
           onClick={() => onUndo(record.id)}
           className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[var(--muted)] border border-[var(--line)] px-2 py-0.5 opacity-0 group-hover:opacity-100 hover:text-[var(--accent)] hover:border-[var(--accent)]/50 transition-all"
         >
-          UNDO
+          {t('activity.undo')}
         </button>
       )}
     </div>

@@ -19,7 +19,7 @@ export default function AppShell() {
     { to: "/tv-shows/search", label: t("nav.tv") },
     { to: "/library", label: t("nav.library") },
     { to: "/timeline", label: t("timeline.title") },
-    { to: "/activity", label: "ACTIVITY" },
+    { to: "/activity", label: t("nav.activity") },
     { to: "/settings", label: t("nav.settings") },
   ];
 
