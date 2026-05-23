@@ -9,7 +9,8 @@ import libraryRoutes from '../routes/library';
 import profileRoutes from '../routes/profile';
 import authRoutes from '../routes/auth';
 import traktRoutes from '../routes/trakt';
-import settingsRoutes from '../routes/settings';
+import activityRoutes from '../routes/activity';
+// import settingsRoutes from '../routes/settings';
 
 const router = Router();
 
@@ -28,8 +29,9 @@ router.use('/search', searchTvShowRoutes);
 router.use('/import', importRoutes);
 router.use('/library', libraryRoutes);
 router.use('/profile', profileRoutes);
+router.use('/activity', activityRoutes);
 
-// 系统设置路由
-router.use('/settings', settingsRoutes);
+// 系统设置路由（暂未实现）
+// router.use('/settings', settingsRoutes);
 
 export default router;
