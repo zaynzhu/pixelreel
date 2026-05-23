@@ -2,7 +2,7 @@ import { startTransition, useDeferredValue, useEffect, useRef, useState } from "
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
-import { ActivityTimeline } from "../components/ActivityTimeline";
+import ActivityTimeline from "../components/ActivityTimeline";
 import type {
   LibraryCategory,
   LibraryRecord,
@@ -14,7 +14,7 @@ type CategoryFilter = "all" | LibraryCategory;
 type SelectedRecordKey = `${LibraryCategory}:${number}`;
 
 export default function LibraryPage() {
-  const { records, loading, loadingMore, saving, error, fetchRecords, fetchMore, updateRecord, nextCursor } = useLibraryStore();
+  const { records, loading, loadingMore, saving, error, fetchRecords, fetchMore, updateRecord, nextCursor, totals } = useLibraryStore();
   const { t } = useI18nStore();
   
   const STATUS_OPTIONS: Array<{ value: RecordStatus; label: string }> = [
@@ -129,7 +129,7 @@ export default function LibraryPage() {
     setSaveMessage(null);
   }, [selectedRecord]);
 
-  const overview = buildOverview(filteredRecords);
+  const overview = totals;
 
   const saveRecord = async () => {
     if (!selectedRecord) {
@@ -502,7 +502,7 @@ export default function LibraryPage() {
                 <div className="mt-3 border border-[var(--line)] max-h-[300px] overflow-y-auto">
                   <ActivityTimeline
                     entityType={selectedRecord.category === 'tv_show' ? 'TV_SHOW' : selectedRecord.category.toUpperCase()}
-                    entityId={selectedRecord.id}
+                    entityId={String(selectedRecord.id)}
                     compact
                   />
                 </div>
@@ -594,15 +594,6 @@ function EmptyState({ loading, t }: { loading: boolean, t: any }) {
         : t("lib.list.zero")}
     </div>
   );
-}
-
-function buildOverview(records: LibraryRecord[]) {
-  return {
-    total: records.length,
-    rated: records.filter((record) => record.rating != null).length,
-    reviewed: records.filter((record) => Boolean(record.shortReview?.trim())).length,
-    completed: records.filter((record) => record.status === "DONE").length,
-  };
 }
 
 function compareRecords(left: LibraryRecord, right: LibraryRecord, sortBy: string) {

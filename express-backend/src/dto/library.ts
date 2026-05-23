@@ -50,4 +50,10 @@ export interface LibraryRecordUpdateRequest {
 export interface PaginatedLibraryResponse {
   records: LibraryRecordResponse[];
   nextCursor: string | null;
+  totals: {
+    total: number;
+    rated: number;
+    reviewed: number;
+    completed: number;
+  };
 }

@@ -5,11 +5,18 @@ import { apiFetch } from "../api";
 interface PaginatedResponse {
   records: LibraryRecord[];
   nextCursor: string | null;
+  totals: {
+    total: number;
+    rated: number;
+    reviewed: number;
+    completed: number;
+  };
 }
 
 type LibraryState = {
   records: LibraryRecord[];
   nextCursor: string | null;
+  totals: { total: number; rated: number; reviewed: number; completed: number };
   loading: boolean;
   loadingMore: boolean;
   saving: boolean;
@@ -26,6 +33,7 @@ type LibraryState = {
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   records: [],
   nextCursor: null,
+  totals: { total: 0, rated: 0, reviewed: 0, completed: 0 },
   loading: false,
   loadingMore: false,
   saving: false,
@@ -35,7 +43,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const payload = await apiFetch<PaginatedResponse>("/library");
-      set({ records: payload.records, nextCursor: payload.nextCursor, loading: false });
+      set({ records: payload.records, nextCursor: payload.nextCursor, totals: payload.totals, loading: false });
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "获取记录库失败",
