@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config';
+import { prisma } from './config/db';
+import { registerActivityLogMiddleware } from './middlewares/activity-log';
 import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 
@@ -8,6 +10,9 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 (BigInt.prototype as any).toJSON = function () {
   return Number(this);
 };
+
+// 注册活动日志 Prisma 扩展
+registerActivityLogMiddleware(prisma);
 
 const app = express();
 

@@ -1,4 +1,5 @@
 import { ImportSummary } from '../dto/import-summary';
+import { logActivity } from './activity-log';
 
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -53,6 +54,12 @@ export function createTask(type: string, label: string): Task {
     abortController: new AbortController(),
   };
   tasks.set(task.taskId, task);
+  logActivity({
+    action: 'TASK_START',
+    entityType: 'TASK',
+    entityTitle: label,
+    metadata: { taskId: task.taskId, taskType: type },
+  });
   return task;
 }
 
@@ -84,6 +91,12 @@ export function completeTask(taskId: string, result: ImportSummary): void {
     task.result = result;
     task.progress.currentTitle = '';
     task.completedAt = new Date().toISOString();
+    logActivity({
+      action: 'TASK_DONE',
+      entityType: 'TASK',
+      entityTitle: task.label,
+      metadata: { taskId, taskType: task.type, result },
+    });
   }
 }
 
@@ -93,6 +106,12 @@ export function failTask(taskId: string, error: string): void {
     task.status = 'failed';
     task.error = error;
     task.completedAt = new Date().toISOString();
+    logActivity({
+      action: 'TASK_FAIL',
+      entityType: 'TASK',
+      entityTitle: task.label,
+      metadata: { taskId, taskType: task.type, error },
+    });
   }
 }
 
