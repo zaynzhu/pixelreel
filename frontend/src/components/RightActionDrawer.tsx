@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { apiFetch } from '../api';
 
-type SyncTarget = 'douban-json' | 'douban-incremental' | 'douban-full' | 'trakt-movies' | 'trakt-shows' | 'posters' | null;
+type SyncTarget = 'douban-json' | 'douban-incremental' | 'douban-full' | 'trakt-movies' | 'trakt-shows' | 'steam-owned' | 'posters' | null;
 
 export default function RightActionDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -95,10 +95,24 @@ export default function RightActionDrawer() {
             />
           </div>
 
-          {/* 03: 媒体库维护 */}
+          {/* 03: Steam */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 border-b border-[var(--line)] pb-2">
               <span className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider">03 //</span>
+              <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Steam</span>
+            </div>
+            <ActionButton
+              label="导入 Steam 已购"
+              onClick={handleSteamImport}
+              disabled={!!syncing}
+              active={syncing === 'steam-owned'}
+            />
+          </div>
+
+          {/* 04: 媒体库维护 */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 border-b border-[var(--line)] pb-2">
+              <span className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider">04 //</span>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Library</span>
             </div>
             <ActionButton
@@ -177,6 +191,23 @@ export default function RightActionDrawer() {
       setStatusMsg(`Trakt ${type}: 导入${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
     } catch (err: any) {
       setStatusMsg(`Trakt 失败: ${err.message}`);
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  async function handleSteamImport() {
+    setSyncing('steam-owned');
+    setStatusMsg('Steam 已购导入中...');
+    try {
+      const res = await apiFetch<{ imported?: number; skipped?: number; errors?: string[] }>('/import/steam/owned', { method: 'POST' });
+      if (res.errors?.length) {
+        setStatusMsg(`Steam 失败: ${res.errors[0]}`);
+      } else {
+        setStatusMsg(`Steam: 导入${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
+      }
+    } catch (err: any) {
+      setStatusMsg(`Steam 失败: ${err.message}`);
     } finally {
       setSyncing(null);
     }
