@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { prisma } from '../config/db'
+import { getDb } from '../config/db'
 import { logActivity, EntityType } from '../services/activity-log'
 
 const router = Router()
@@ -31,10 +31,11 @@ function serializeLog(entry: any) {
 }
 
 function entityDelegate(entityType: string) {
+  const db = getDb()
   switch (entityType) {
-    case 'MOVIE': return prisma.movie
-    case 'TV_SHOW': return prisma.tvShow
-    case 'GAME': return prisma.game
+    case 'MOVIE': return db.movie
+    case 'TV_SHOW': return db.tvShow
+    case 'GAME': return db.game
     default: return null
   }
 }
@@ -68,7 +69,7 @@ router.get('/', async (req: Request, res: Response) => {
       ]
     }
 
-    const rows = await prisma.activityLog.findMany({
+    const rows = await getDb().activityLog.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
@@ -96,7 +97,7 @@ router.post('/:id/undo', async (req: Request, res: Response) => {
   try {
     const id = BigInt(req.params.id as string)
 
-    const entry = await prisma.activityLog.findUnique({ where: { id } })
+    const entry = await getDb().activityLog.findUnique({ where: { id } })
     if (!entry) {
       res.status(404).json({ error: '活动日志不存在' })
       return

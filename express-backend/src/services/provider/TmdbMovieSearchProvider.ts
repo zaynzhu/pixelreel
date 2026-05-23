@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { MovieSearchProvider } from '../provider/MovieSearchProvider';
 import {
   ExternalMovieSearchResult,
@@ -37,10 +37,10 @@ export class TmdbMovieSearchProvider implements MovieSearchProvider {
 
     const response = await axios.get(`${config.tmdb.baseUrl}/search/movie`, {
       params: {
-        api_key: config.tmdb.apiKey,
         query,
         page: normalizedPage,
       },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
     });
 
     const items = response.data?.results ?? [];
@@ -77,7 +77,7 @@ export class TmdbMovieSearchProvider implements MovieSearchProvider {
   }
 
   private async findExistingByTmdbId(ids: number[]): Promise<Map<any, any>> {
-    const movies = await prisma.movie.findMany({ where: { tmdbId: { in: ids } } });
+    const movies = await getDb().movie.findMany({ where: { tmdbId: { in: ids } } });
     return new Map(movies.map((m) => [m.tmdbId!, m]));
   }
 

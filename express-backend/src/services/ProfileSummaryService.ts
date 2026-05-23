@@ -1,4 +1,4 @@
-import { prisma } from '../config/db';
+import { getDb } from '../config/db';
 import { ProfileSummaryResponse, CountItem, RecentRecordItem } from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
 
@@ -7,9 +7,9 @@ import { RecordStatus } from '../enums/RecordStatus';
 const RECENT_LIMIT = 8;
 
 export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
-  const movies = await prisma.movie.findMany({ orderBy: { createdAt: 'desc' } });
-  const games = await prisma.game.findMany({ orderBy: { createdAt: 'desc' } });
-  const tvShows = await prisma.tvShow.findMany({ orderBy: { createdAt: 'desc' } });
+  const movies = await getDb().movie.findMany({ orderBy: { createdAt: 'desc' } });
+  const games = await getDb().game.findMany({ orderBy: { createdAt: 'desc' } });
+  const tvShows = await getDb().tvShow.findMany({ orderBy: { createdAt: 'desc' } });
 
   return {
     overview: buildOverview(movies, games, tvShows),

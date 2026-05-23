@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 
 // 延迟辅助函数，用于控制请求速率
@@ -20,7 +20,7 @@ export async function fillTmdbCovers(limit?: number | null): Promise<ImportSumma
   const effectiveLimit = limit == null || limit <= 0 ? 50 : limit;
 
   // 1. 处理电影
-  const targetMovies = await prisma.movie.findMany({
+  const targetMovies = await getDb().movie.findMany({
     where: { 
       posterUrl: null,
       tmdbId: { not: null }
@@ -37,7 +37,7 @@ export async function fillTmdbCovers(limit?: number | null): Promise<ImportSumma
       if (!posterUrl) {
         summary.skipped++;
       } else {
-        await prisma.movie.update({
+        await getDb().movie.update({
           where: { id: movie.id },
           data: { posterUrl },
         });
@@ -59,7 +59,7 @@ export async function fillTmdbCovers(limit?: number | null): Promise<ImportSumma
   const remainingLimit = effectiveLimit - summary.total;
   
   // 2. 处理电视剧
-  const targetShows = await prisma.tvShow.findMany({
+  const targetShows = await getDb().tvShow.findMany({
     where: { 
       posterUrl: null,
       tmdbId: { not: null }
@@ -76,7 +76,7 @@ export async function fillTmdbCovers(limit?: number | null): Promise<ImportSumma
       if (!posterUrl) {
         summary.skipped++;
       } else {
-        await prisma.tvShow.update({
+        await getDb().tvShow.update({
           where: { id: show.id },
           data: { posterUrl },
         });
@@ -95,7 +95,7 @@ export async function fillTmdbCovers(limit?: number | null): Promise<ImportSumma
 export async function fetchTmdbPosterUrl(type: 'movie' | 'tv', tmdbId: number | bigint, retryCount = 0): Promise<string | null> {
   try {
     const response = await axios.get(`${config.tmdb.baseUrl}/${type}/${tmdbId.toString()}`, {
-      params: { api_key: config.tmdb.apiKey },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
       timeout: 5000, // 设置 5s 超时，防止挂死
     });
 

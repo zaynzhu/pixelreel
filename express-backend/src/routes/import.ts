@@ -7,8 +7,9 @@ import { importDoubanCsv } from '../services/import/DoubanCsvImportService';
 import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
+import { startEnrichBackfillTask } from '../services/import/TmdbEnrichBackfillService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
-import { prisma } from '../config/db';
+import { getDb } from '../config/db';
 import { config } from '../config';
 
 const router = Router();
@@ -72,6 +73,19 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
   res.json(result);
 });
 
+// POST /api/import/tmdb-enrich/backfill?limit=50 — 为已有记录补充 TMDB 数据
+router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
+  const limitParam = req.query.limit as string | undefined;
+  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+  const task = startEnrichBackfillTask(limit);
+  res.json({
+    taskId: task.taskId,
+    status: task.status,
+    type: task.type,
+    label: task.label,
+  });
+});
+
 // POST /api/import/douban-harvest?mode=json|full|incremental
 router.post('/douban-harvest', async (req: Request, res: Response) => {
   const mode = (req.query.mode as string) || 'json';
@@ -124,10 +138,10 @@ router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response
 // POST /api/import/douban/clear-data — 清空豆瓣来源数据
 router.post('/douban/clear-data', async (_req: Request, res: Response) => {
   try {
-    const deletedMovies = await prisma.movie.deleteMany({
+    const deletedMovies = await getDb().movie.deleteMany({
       where: { doubanId: { not: null } },
     });
-    const deletedTvShows = await prisma.tvShow.deleteMany({
+    const deletedTvShows = await getDb().tvShow.deleteMany({
       where: { doubanId: { not: null } },
     });
     res.json({

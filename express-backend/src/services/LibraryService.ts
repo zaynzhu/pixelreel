@@ -1,4 +1,4 @@
-import { prisma } from '../config/db';
+import { getDb } from '../config/db';
 import { LibraryRecordResponse, LibraryRecordUpdateRequest } from '../dto/library';
 import { RecordStatus, parseRecordStatus } from '../enums/RecordStatus';
 
@@ -20,7 +20,7 @@ function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
 
 export async function listRecords(
   options?: ListRecordsOptions,
-): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null }> {
+): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null; totals: { total: number; rated: number; reviewed: number; completed: number } }> {
   const limit = Math.min(options?.limit ?? 50, 200);
   const cursorObj = options?.cursor ? parseCursor(options.cursor) : undefined;
 
@@ -33,10 +33,11 @@ export async function listRecords(
       }
     : {};
 
-  const [movies, games, tvShows] = await Promise.all([
-    prisma.movie.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-    prisma.game.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-    prisma.tvShow.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+  const [movies, games, tvShows, totals] = await Promise.all([
+    getDb().movie.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+    getDb().game.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+    getDb().tvShow.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+    fetchTotals(),
   ]);
 
   const allRecords: LibraryRecordResponse[] = [
@@ -60,7 +61,36 @@ export async function listRecords(
     ? `${new Date(lastRecord.createdAt).toISOString()}__${lastRecord.id}`
     : null;
 
-  return { records, nextCursor };
+  return { records, nextCursor, totals };
+}
+
+async function fetchTotals() {
+  const db = getDb();
+  const [
+    movieCount, tvCount, gameCount,
+    movieRated, tvRated, gameRated,
+    movieReviewed, tvReviewed, gameReviewed,
+    movieDone, tvDone, gameDone,
+  ] = await Promise.all([
+    db.movie.count(),
+    db.tvShow.count(),
+    db.game.count(),
+    db.movie.count({ where: { rating: { not: null } } }),
+    db.tvShow.count({ where: { rating: { not: null } } }),
+    db.game.count({ where: { rating: { not: null } } }),
+    db.movie.count({ where: { shortReview: { not: null } } }),
+    db.tvShow.count({ where: { shortReview: { not: null } } }),
+    db.game.count({ where: { shortReview: { not: null } } }),
+    db.movie.count({ where: { status: 'DONE' } }),
+    db.tvShow.count({ where: { status: 'DONE' } }),
+    db.game.count({ where: { status: 'DONE' } }),
+  ]);
+  return {
+    total: movieCount + tvCount + gameCount,
+    rated: movieRated + tvRated + gameRated,
+    reviewed: movieReviewed + tvReviewed + gameReviewed,
+    completed: movieDone + tvDone + gameDone,
+  };
 }
 
 export async function updateRecord(
@@ -82,10 +112,10 @@ export async function updateRecord(
 }
 
 async function updateMovie(id: number, request: LibraryRecordUpdateRequest): Promise<LibraryRecordResponse> {
-  const movie = await prisma.movie.findUnique({ where: { id } });
+  const movie = await getDb().movie.findUnique({ where: { id } });
   if (!movie) throw Object.assign(new Error('Movie record not found'), { status: 404 });
 
-  await prisma.movie.update({
+  await getDb().movie.update({
     where: { id },
     data: {
       status: request.status,
@@ -94,15 +124,15 @@ async function updateMovie(id: number, request: LibraryRecordUpdateRequest): Pro
     },
   });
 
-  const updated = await prisma.movie.findUnique({ where: { id } });
+  const updated = await getDb().movie.findUnique({ where: { id } });
   return toMovieRecord(updated!);
 }
 
 async function updateGame(id: number, request: LibraryRecordUpdateRequest): Promise<LibraryRecordResponse> {
-  const game = await prisma.game.findUnique({ where: { id } });
+  const game = await getDb().game.findUnique({ where: { id } });
   if (!game) throw Object.assign(new Error('Game record not found'), { status: 404 });
 
-  await prisma.game.update({
+  await getDb().game.update({
     where: { id },
     data: {
       status: request.status,
@@ -111,15 +141,15 @@ async function updateGame(id: number, request: LibraryRecordUpdateRequest): Prom
     },
   });
 
-  const updated = await prisma.game.findUnique({ where: { id } });
+  const updated = await getDb().game.findUnique({ where: { id } });
   return toGameRecord(updated!);
 }
 
 async function updateTvShow(id: number, request: LibraryRecordUpdateRequest): Promise<LibraryRecordResponse> {
-  const show = await prisma.tvShow.findUnique({ where: { id } });
+  const show = await getDb().tvShow.findUnique({ where: { id } });
   if (!show) throw Object.assign(new Error('TV Show record not found'), { status: 404 });
 
-  await prisma.tvShow.update({
+  await getDb().tvShow.update({
     where: { id },
     data: {
       status: request.status,
@@ -128,7 +158,7 @@ async function updateTvShow(id: number, request: LibraryRecordUpdateRequest): Pr
     },
   });
 
-  const updated = await prisma.tvShow.findUnique({ where: { id } });
+  const updated = await getDb().tvShow.findUnique({ where: { id } });
   return toTvShowRecord(updated!);
 }
 

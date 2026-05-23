@@ -1,5 +1,5 @@
 import path from 'path';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 import { config } from '../../config';
@@ -26,13 +26,11 @@ function extractDoubanId(link: string): string | null {
   return tail || null;
 }
 
-// 豆瓣 1-5 评分 → 2-10（与 DoubanCsvImportService 一致）
+// 豆瓣 1-5 评分，直接存储
 function convertRating(rating: string): number | null {
   const n = parseFloat(rating);
   if (isNaN(n) || n <= 0) return null;
-  const converted = n * 2;
-  const rounded = Math.round(converted);
-  return rounded > 10 ? 10 : rounded;
+  return Math.min(Math.round(n), 5);
 }
 
 // 从 CollectItem 的 intro 中提取年份
@@ -73,10 +71,10 @@ export async function importFromJson(
     .filter((id): id is string => id !== null);
 
   const existingDoubanMovies = doubanIds.length > 0
-    ? new Map((await prisma.movie.findMany({ where: { doubanId: { in: doubanIds } } })).map(m => [m.doubanId!, m]))
+    ? new Map((await getDb().movie.findMany({ where: { doubanId: { in: doubanIds } } })).map(m => [m.doubanId!, m]))
     : new Map<string, any>();
   const existingDoubanTvShows = doubanIds.length > 0
-    ? new Map((await prisma.tvShow.findMany({ where: { doubanId: { in: doubanIds } } })).map(s => [s.doubanId!, s]))
+    ? new Map((await getDb().tvShow.findMany({ where: { doubanId: { in: doubanIds } } })).map(s => [s.doubanId!, s]))
     : new Map<string, any>();
 
   summary.total = items.length;
@@ -111,18 +109,18 @@ export async function importFromJson(
       if (enrich.type === 'tv' || (enrich.type === 'unknown' && mightBeTvShow(item))) {
         // 检查 tmdbId 去重
         if (enrich.tmdbId) {
-          const existing = await prisma.tvShow.findFirst({ where: { tmdbId: enrich.tmdbId } });
+          const existing = await getDb().tvShow.findFirst({ where: { tmdbId: enrich.tmdbId } });
           if (existing) {
             // 补充 doubanId
             if (!existing.doubanId && doubanId) {
-              await prisma.tvShow.update({ where: { id: existing.id }, data: { doubanId } });
+              await getDb().tvShow.update({ where: { id: existing.id }, data: { doubanId } });
             }
             summary.skipped++;
             continue;
           }
         }
 
-        await prisma.tvShow.create({
+        await getDb().tvShow.create({
           data: {
             doubanId: doubanId,
             tmdbId: enrich.tmdbId ?? undefined,
@@ -132,6 +130,7 @@ export async function importFromJson(
             overview: enrich.overview,
             status: RecordStatus.DONE,
             rating,
+            doubanRating: rating,
             shortReview: item.comment || null,
             createdAt: watchedDate,
           },
@@ -139,17 +138,17 @@ export async function importFromJson(
       } else {
         // 默认归入 Movie 表
         if (enrich.tmdbId) {
-          const existing = await prisma.movie.findFirst({ where: { tmdbId: enrich.tmdbId } });
+          const existing = await getDb().movie.findFirst({ where: { tmdbId: enrich.tmdbId } });
           if (existing) {
             if (!existing.doubanId && doubanId) {
-              await prisma.movie.update({ where: { id: existing.id }, data: { doubanId } });
+              await getDb().movie.update({ where: { id: existing.id }, data: { doubanId } });
             }
             summary.skipped++;
             continue;
           }
         }
 
-        await prisma.movie.create({
+        await getDb().movie.create({
           data: {
             doubanId: doubanId,
             tmdbId: enrich.tmdbId ?? undefined,
@@ -157,6 +156,7 @@ export async function importFromJson(
             posterUrl: enrich.posterUrl,
             status: RecordStatus.DONE,
             rating,
+            doubanRating: rating,
             shortReview: item.comment || null,
             createdAt: watchedDate,
           },

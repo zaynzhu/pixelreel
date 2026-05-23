@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { TvShowSearchProvider } from '../provider/TvShowSearchProvider';
 import {
   ExternalTvShowSearchResult,
@@ -37,10 +37,10 @@ export class TmdbTvShowSearchProvider implements TvShowSearchProvider {
 
     const response = await axios.get(`${config.tmdb.baseUrl}/search/tv`, {
       params: {
-        api_key: config.tmdb.apiKey,
         query,
         page: normalizedPage,
       },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
     });
 
     const items = response.data?.results ?? [];
@@ -77,7 +77,7 @@ export class TmdbTvShowSearchProvider implements TvShowSearchProvider {
   }
 
   private async findExistingByTmdbId(ids: number[]): Promise<Map<any, any>> {
-    const shows = await prisma.tvShow.findMany({ where: { tmdbId: { in: ids } } });
+    const shows = await getDb().tvShow.findMany({ where: { tmdbId: { in: ids } } });
     return new Map(shows.map((s) => [s.tmdbId!, s]));
   }
 

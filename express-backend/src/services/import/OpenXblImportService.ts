@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
@@ -69,7 +69,7 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
   // 批量查已有记录
   const xboxIds = titleHistory.map((t) => t.titleId).filter(Boolean);
   const existingMap = xboxIds.length > 0
-    ? new Map((await prisma.game.findMany({ where: { xboxId: { in: xboxIds } } })).map((g) => [g.xboxId!, g]))
+    ? new Map((await getDb().game.findMany({ where: { xboxId: { in: xboxIds } } })).map((g) => [g.xboxId!, g]))
     : new Map<any, any>();
 
   const toSave: any[] = [];
@@ -106,7 +106,7 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
   }
 
   if (toSave.length > 0) {
-    await prisma.game.createMany({ data: toSave });
+    await getDb().game.createMany({ data: toSave });
     summary.imported = toSave.length;
   }
 

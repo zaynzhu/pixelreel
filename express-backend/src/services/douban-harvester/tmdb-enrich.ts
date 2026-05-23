@@ -11,6 +11,11 @@ const axiosProxyOpts: any = proxyUrl
   ? { proxy: false, httpsAgent: new HttpsProxyAgent(proxyUrl) }
   : {};
 
+// TMDB v4 Bearer Token 认证头
+const tmdbAuthHeaders: Record<string, string> = config.tmdb.apiKey
+  ? { Authorization: `Bearer ${config.tmdb.apiKey}` }
+  : {};
+
 // TMDB 搜索结果
 export interface TmdbEnrichResult {
   type: 'movie' | 'tv' | 'unknown';
@@ -38,6 +43,38 @@ function titleSimilarity(a: string, b: string): number {
   return match / Math.max(na.length, nb.length);
 }
 
+// 清理标题：去掉季数、集数等干扰搜索的信息
+function cleanTitle(title: string): string {
+  return title
+    .replace(/第[一二三四五六七八九十百千\d]+季/g, '')
+    .replace(/第[一二三四五六七八九十百千\d]+部/g, '')
+    .replace(/Season\s*\d+/gi, '')
+    .replace(/S\d+/gi, '')
+    .replace(/剧场版|电影版|特别篇|番外篇/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// 从复杂标题中提取搜索候选词
+// 例: "怪奇物语 第五季 / Stranger Things Season 5" → ["怪奇物语", "Stranger Things"]
+function extractSearchCandidates(title: string): string[] {
+  const candidates: string[] = []
+  const parts = title.split('/').map(p => cleanTitle(p.trim())).filter(Boolean)
+
+  if (parts.length >= 2) {
+    // 有中英文分离，优先用中文短标题
+    candidates.push(parts[0])
+    candidates.push(parts[parts.length - 1])
+  } else {
+    // 没有分隔符，用清理后的完整标题
+    const cleaned = cleanTitle(title)
+    if (cleaned && cleaned !== title.trim()) candidates.push(cleaned)
+  }
+  // 原始标题作为最后兜底
+  candidates.push(title.trim())
+  return candidates
+}
+
 interface TmdbSearchHit {
   tmdbId: number;
   title: string;
@@ -59,8 +96,10 @@ async function searchTmdb(
   const titleField = type === 'movie' ? 'title' : 'name';
 
   try {
-    const response = await axios.get(`${config.tmdb.baseUrl}${endpoint}`, {
-      params: { api_key: config.tmdb.apiKey, query, page: 1, language: 'zh-CN' },
+    const url = `${config.tmdb.baseUrl}${endpoint}`;
+    const response = await axios.get(url, {
+      params: { query, page: 1, language: 'zh-CN' },
+      headers: tmdbAuthHeaders,
       timeout: 10000,
       ...axiosProxyOpts,
     });
@@ -86,32 +125,22 @@ async function searchTmdb(
       await delay(waitTime);
       return searchTmdb(query, type, retryCount + 1);
     }
+    console.error(`[TMDB] searchTmdb error for "${query}" (${type}):`, err.message);
     return [];
   }
 }
 
 /**
- * 用片名搜索 TMDB，返回最佳匹配及类型判断。
- * 同时搜索 movie 和 tv，选相似度 + popularity 最高的。
- * 间隔 250ms 防限速。
+ * 从 movie/tv 搜索结果中选出最佳匹配。
+ * 相似度阈值 0.4，同类型内按 similarity * 10 + popularity 排序。
  */
-export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
-  if (!config.tmdb.apiKey) {
-    return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
-  }
-
-  const [movieHits, tvHits] = await Promise.all([
-    searchTmdb(title, 'movie'),
-    searchTmdb(title, 'tv'),
-  ]);
-
-  await delay(250);
-
-  // 过滤低相似度结果（阈值 0.4）
+function pickBestHit(
+  movieHits: TmdbSearchHit[],
+  tvHits: TmdbSearchHit[],
+): { hit: TmdbSearchHit; type: 'movie' | 'tv' } | null {
   const goodMovies = movieHits.filter(h => h.similarity >= 0.4);
   const goodTvs = tvHits.filter(h => h.similarity >= 0.4);
 
-  // 各取最佳
   const bestMovie = goodMovies.length > 0
     ? goodMovies.reduce((a, b) => (a.similarity * 10 + a.popularity) > (b.similarity * 10 + b.popularity) ? a : b)
     : null;
@@ -119,43 +148,51 @@ export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
     ? goodTvs.reduce((a, b) => (a.similarity * 10 + a.popularity) > (b.similarity * 10 + b.popularity) ? a : b)
     : null;
 
-  // 比较 movie 和 tv 的最佳匹配
   const movieScore = bestMovie ? bestMovie.similarity * 10 + bestMovie.popularity / 100 : 0;
   const tvScore = bestTv ? bestTv.similarity * 10 + bestTv.popularity / 100 : 0;
 
-  if (movieScore === 0 && tvScore === 0) {
-    return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
+  if (movieScore === 0 && tvScore === 0) return null;
+  if (movieScore >= tvScore && bestMovie) return { hit: bestMovie, type: 'movie' };
+  if (bestTv) return { hit: bestTv, type: 'tv' };
+  return null;
+}
+
+/**
+ * 用片名搜索 TMDB，返回最佳匹配及类型判断。
+ * 从标题中提取多个候选词（中文/英文/去季数），逐个尝试直到命中。
+ * 每次搜索间隔 250ms 防限速。
+ */
+export async function enrichFromTmdb(title: string): Promise<TmdbEnrichResult> {
+  const empty: TmdbEnrichResult = { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
+  if (!config.tmdb.apiKey) return empty;
+
+  const candidates = extractSearchCandidates(title);
+
+  for (const query of candidates) {
+    const [movieHits, tvHits] = await Promise.all([
+      searchTmdb(query, 'movie'),
+      searchTmdb(query, 'tv'),
+    ]);
+    await delay(250);
+
+    const result = pickBestHit(movieHits, tvHits);
+    if (result) {
+      const { hit, type } = result;
+      return {
+        type,
+        tmdbId: hit.tmdbId,
+        posterUrl: hit.posterUrl,
+        releaseDate: hit.releaseDate,
+        overview: hit.overview,
+        title: hit.title,
+        voteAverage: hit.voteAverage,
+        popularity: hit.popularity,
+        genreIds: hit.genreIds,
+      };
+    }
   }
 
-  if (movieScore >= tvScore && bestMovie) {
-    return {
-      type: 'movie',
-      tmdbId: bestMovie.tmdbId,
-      posterUrl: bestMovie.posterUrl,
-      releaseDate: bestMovie.releaseDate,
-      overview: bestMovie.overview,
-      title: bestMovie.title,
-      voteAverage: bestMovie.voteAverage,
-      popularity: bestMovie.popularity,
-      genreIds: bestMovie.genreIds,
-    };
-  }
-
-  if (bestTv) {
-    return {
-      type: 'tv',
-      tmdbId: bestTv.tmdbId,
-      posterUrl: bestTv.posterUrl,
-      releaseDate: bestTv.releaseDate,
-      overview: bestTv.overview,
-      title: bestTv.title,
-      voteAverage: bestTv.voteAverage,
-      popularity: bestTv.popularity,
-      genreIds: bestTv.genreIds,
-    };
-  }
-
-  return { type: 'unknown', tmdbId: null, posterUrl: null, releaseDate: null, overview: null, title: null, voteAverage: null, popularity: null, genreIds: [] };
+  return empty;
 }
 
 /**

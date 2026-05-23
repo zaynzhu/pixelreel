@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { MovieSearchProvider } from '../provider/MovieSearchProvider';
 import {
   ExternalMovieSearchResult,
@@ -103,13 +103,13 @@ export class TraktMovieSearchProvider implements MovieSearchProvider {
 
   private async findByField(field: string, values: string[]): Promise<Map<string, any>> {
     const where: any = { [field]: { in: values } };
-    const movies = await prisma.movie.findMany({ where });
+    const movies = await getDb().movie.findMany({ where });
     return new Map(movies.map((m: any) => [m[field], m]));
   }
 
   private async findByFieldBigInt(field: string, values: number[]): Promise<Map<any, any>> {
     const where: any = { [field]: { in: values } };
-    const movies = await prisma.movie.findMany({ where });
+    const movies = await getDb().movie.findMany({ where });
     return new Map(movies.map((m: any) => [m[field], m]));
   }
 

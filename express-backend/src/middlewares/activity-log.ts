@@ -18,17 +18,16 @@ function extractTitle(data: Record<string, unknown>): string {
 }
 
 /**
- * 注册 Prisma 客户端扩展，自动捕获 Movie/TvShow/Game 的增删改操作并写入 activity_log。
- *
- * @param prismaInstance - 原始 PrismaClient 实例，用于在 update/delete 前查询旧记录
+ * 创建活动日志 Prisma 扩展。
+ * 返回扩展定义，由 registerExtensions() 统一注册。
+ * 内部查询通过 getDb() 获取扩展后的客户端。
  */
-export function registerActivityLogMiddleware(prismaInstance: any) {
-  return prismaInstance.$extends(
-    Prisma.defineExtension({
-      name: 'activity-log',
-      query: {
-        $allModels: {
-          async $allOperations({ model, operation, args, query }: any) {
+export function createActivityLogExtension() {
+  return Prisma.defineExtension({
+    name: 'activity-log',
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }: any) {
             // 仅追踪目标模型的增删改操作
             if (!model || !TRACKED_MODELS.has(model)) {
               return query(args)
@@ -62,7 +61,10 @@ export function registerActivityLogMiddleware(prismaInstance: any) {
 
                 if (entityId != null) {
                   try {
-                    oldRecord = await prismaInstance[model].findUnique({
+                    // 用延迟 import 避免循环依赖
+                    const { getDb } = await import('../config/db')
+                    const db = getDb()
+                    oldRecord = await (db as any)[model].findUnique({
                       where: { id: entityId },
                     })
                   } catch {
@@ -111,7 +113,9 @@ export function registerActivityLogMiddleware(prismaInstance: any) {
 
                 if (entityId != null) {
                   try {
-                    oldRecord = await prismaInstance[model].findUnique({
+                    const { getDb } = await import('../config/db')
+                    const db = getDb()
+                    oldRecord = await (db as any)[model].findUnique({
                       where: { id: entityId },
                     })
                   } catch {
@@ -148,8 +152,7 @@ export function registerActivityLogMiddleware(prismaInstance: any) {
                 return query(args)
             }
           },
-        },
       },
-    }),
-  )
+    },
+  })
 }

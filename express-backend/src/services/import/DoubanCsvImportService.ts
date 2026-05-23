@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
@@ -48,10 +48,10 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
     .filter((v): v is string => !!v);
 
   const existingByDouban = doubanIds.length > 0
-    ? new Map((await prisma.movie.findMany({ where: { doubanId: { in: doubanIds } } })).map((m) => [m.doubanId!, m]))
+    ? new Map((await getDb().movie.findMany({ where: { doubanId: { in: doubanIds } } })).map((m) => [m.doubanId!, m]))
     : new Map<string, any>();
   const existingByImdb = imdbIds.length > 0
-    ? new Map((await prisma.movie.findMany({ where: { imdbId: { in: imdbIds } } })).map((m) => [m.imdbId!, m]))
+    ? new Map((await getDb().movie.findMany({ where: { imdbId: { in: imdbIds } } })).map((m) => [m.imdbId!, m]))
     : new Map<string, any>();
 
   const toSave: any[] = [];
@@ -96,7 +96,7 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
   }
 
   if (toSave.length > 0) {
-    await prisma.movie.createMany({ data: toSave });
+    await getDb().movie.createMany({ data: toSave });
     summary.imported = toSave.length;
   }
 
@@ -166,9 +166,7 @@ function csvParseRating(value: string | undefined): number | null {
   try {
     let parsed = parseFloat(value.trim());
     if (parsed <= 0) return null;
-    if (parsed <= 5) parsed = parsed * 2;
-    const rounded = Math.round(parsed);
-    return rounded > 10 ? 10 : rounded;
+    return Math.min(Math.round(parsed), 5);
   } catch {
     return null;
   }

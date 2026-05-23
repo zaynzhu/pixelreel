@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config';
-import { prisma } from './config/db';
-import { registerActivityLogMiddleware } from './middlewares/activity-log';
+import { registerExtensions } from './config/db';
+import { createActivityLogExtension } from './middlewares/activity-log';
 import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 
@@ -11,8 +11,8 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
   return Number(this);
 };
 
-// 注册活动日志 Prisma 扩展
-registerActivityLogMiddleware(prisma);
+// 注册活动日志 Prisma 扩展（必须在路由挂载前）
+registerExtensions(createActivityLogExtension());
 
 const app = express();
 

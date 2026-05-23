@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { config } from '../config';
-import { prisma } from '../config/db';
+import { getDb } from '../config/db';
 import { RecordStatus } from '../enums/RecordStatus';
 import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
 
@@ -114,13 +114,13 @@ router.post('/import/movies', async (req: Request, res: Response) => {
     const imdbIds = allMovies.map((m: any) => m.movie?.ids?.imdb).filter(Boolean);
 
     const existingTrakt = traktIds.length > 0
-      ? new Map((await prisma.movie.findMany({ where: { traktId: { in: traktIds } } })).map((m) => [m.traktId!, m]))
+      ? new Map((await getDb().movie.findMany({ where: { traktId: { in: traktIds } } })).map((m) => [m.traktId!, m]))
       : new Map<string, any>();
     const existingTmdb = tmdbIds.length > 0
-      ? new Map((await prisma.movie.findMany({ where: { tmdbId: { in: tmdbIds } } })).map((m) => [m.tmdbId!, m]))
+      ? new Map((await getDb().movie.findMany({ where: { tmdbId: { in: tmdbIds } } })).map((m) => [m.tmdbId!, m]))
       : new Map<any, any>();
     const existingImdb = imdbIds.length > 0
-      ? new Map((await prisma.movie.findMany({ where: { imdbId: { in: imdbIds } } })).map((m) => [m.imdbId!, m]))
+      ? new Map((await getDb().movie.findMany({ where: { imdbId: { in: imdbIds } } })).map((m) => [m.imdbId!, m]))
       : new Map<string, any>();
 
     let imported = 0;
@@ -152,7 +152,7 @@ router.post('/import/movies', async (req: Request, res: Response) => {
           await delay(250);
         }
 
-        await prisma.movie.create({
+        await getDb().movie.create({
           data: {
             title,
             traktId: ids.trakt ? String(ids.trakt) : null,
@@ -219,13 +219,13 @@ router.post('/import/shows', async (req: Request, res: Response) => {
     const imdbIds = allShows.map((s: any) => s.show?.ids?.imdb).filter(Boolean);
 
     const existingTrakt = traktIds.length > 0
-      ? new Map((await prisma.tvShow.findMany({ where: { traktId: { in: traktIds } } })).map((s) => [s.traktId!, s]))
+      ? new Map((await getDb().tvShow.findMany({ where: { traktId: { in: traktIds } } })).map((s) => [s.traktId!, s]))
       : new Map<string, any>();
     const existingTmdb = tmdbIds.length > 0
-      ? new Map((await prisma.tvShow.findMany({ where: { tmdbId: { in: tmdbIds } } })).map((s) => [s.tmdbId!, s]))
+      ? new Map((await getDb().tvShow.findMany({ where: { tmdbId: { in: tmdbIds } } })).map((s) => [s.tmdbId!, s]))
       : new Map<any, any>();
     const existingImdb = imdbIds.length > 0
-      ? new Map((await prisma.tvShow.findMany({ where: { imdbId: { in: imdbIds } } })).map((s) => [s.imdbId!, s]))
+      ? new Map((await getDb().tvShow.findMany({ where: { imdbId: { in: imdbIds } } })).map((s) => [s.imdbId!, s]))
       : new Map<string, any>();
 
     let imported = 0;
@@ -256,7 +256,7 @@ router.post('/import/shows', async (req: Request, res: Response) => {
           await delay(250);
         }
 
-        await prisma.tvShow.create({
+        await getDb().tvShow.create({
           data: {
             title,
             traktId: ids.trakt ? String(ids.trakt) : null,

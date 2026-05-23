@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
@@ -42,7 +42,7 @@ export async function importPsnOwnedGames(psnId: string, status?: string | null)
 
   const psnIds = games.map((g) => g.psnId).filter(Boolean) as string[];
   const existingMap = psnIds.length > 0
-    ? new Map((await prisma.game.findMany({ where: { psnId: { in: psnIds } } })).map((g) => [g.psnId!, g]))
+    ? new Map((await getDb().game.findMany({ where: { psnId: { in: psnIds } } })).map((g) => [g.psnId!, g]))
     : new Map<string, any>();
 
   const effectiveStatus = status || RecordStatus.UNSET;
@@ -80,7 +80,7 @@ export async function importPsnOwnedGames(psnId: string, status?: string | null)
   }
 
   if (toSave.length > 0) {
-    await prisma.game.createMany({ data: toSave });
+    await getDb().game.createMany({ data: toSave });
     summary.imported = toSave.length;
   }
 

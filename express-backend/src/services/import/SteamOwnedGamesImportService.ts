@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
@@ -39,7 +39,7 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
   // 批量查已有记录
   const steamAppIds = games.map((g: any) => g.appid).filter(Boolean);
   const existingMap = steamAppIds.length > 0
-    ? new Map((await prisma.game.findMany({ where: { steamAppId: { in: steamAppIds } } })).map((g) => [g.steamAppId!, g]))
+    ? new Map((await getDb().game.findMany({ where: { steamAppId: { in: steamAppIds } } })).map((g) => [g.steamAppId!, g]))
     : new Map<any, any>();
 
   const effectiveStatus = status || RecordStatus.WANT;
@@ -64,7 +64,7 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
   }
 
   if (toSave.length > 0) {
-    await prisma.game.createMany({ data: toSave });
+    await getDb().game.createMany({ data: toSave });
     summary.imported = toSave.length;
   }
 

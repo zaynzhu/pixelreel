@@ -1,4 +1,4 @@
-import { prisma } from '../config/db'
+import { getDb } from '../config/db'
 import { Prisma } from '@prisma/client'
 
 // 排除的系统字段，不记录到变更详情
@@ -19,7 +19,7 @@ interface LogActivityParams {
 
 export async function logActivity(params: LogActivityParams): Promise<void> {
   try {
-    await prisma.activityLog.create({
+    await getDb().activityLog.create({
       data: {
         action: params.action,
         entityType: params.entityType,

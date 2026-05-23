@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 
 // RAWG 封面补全服务，与 Java 端 RawgCoverFillService 完全对齐
@@ -13,7 +13,7 @@ export async function fillMissingCovers(limit?: number | null): Promise<ImportSu
   }
 
   const effectiveLimit = limit == null || limit <= 0 ? undefined : limit;
-  const targets = await prisma.game.findMany({
+  const targets = await getDb().game.findMany({
     where: { posterUrl: null },
     orderBy: { id: 'asc' },
     ...(effectiveLimit ? { take: effectiveLimit } : {}),
@@ -34,7 +34,7 @@ export async function fillMissingCovers(limit?: number | null): Promise<ImportSu
         continue;
       }
 
-      await prisma.game.update({
+      await getDb().game.update({
         where: { id: game.id },
         data: { posterUrl },
       });

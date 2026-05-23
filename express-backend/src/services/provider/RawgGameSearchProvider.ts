@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { GameSearchProvider } from '../provider/GameSearchProvider';
 import {
   ExternalGameSearchResult,
@@ -88,7 +88,7 @@ export class RawgGameSearchProvider implements GameSearchProvider {
   }
 
   private async findExistingByRawgId(ids: number[]): Promise<Map<any, any>> {
-    const games = await prisma.game.findMany({ where: { rawgId: { in: ids } } });
+    const games = await getDb().game.findMany({ where: { rawgId: { in: ids } } });
     return new Map(games.map((g) => [g.rawgId!, g]));
   }
 

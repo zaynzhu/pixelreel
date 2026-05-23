@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { prisma } from '../../config/db';
+import { getDb } from '../../config/db';
 import { MovieSearchProvider } from '../provider/MovieSearchProvider';
 import {
   ExternalMovieSearchResult,
@@ -80,7 +80,7 @@ export class DoubanMovieSearchProvider implements MovieSearchProvider {
   }
 
   private async findExistingByDoubanId(ids: string[]): Promise<Map<string, any>> {
-    const movies = await prisma.movie.findMany({ where: { doubanId: { in: ids } } });
+    const movies = await getDb().movie.findMany({ where: { doubanId: { in: ids } } });
     return new Map(movies.map((m) => [m.doubanId!, m]));
   }
 
