@@ -5,6 +5,11 @@ src/main/resources/application-local.yml
 target/
 frontend/dist/
 frontend/node_modules/
+express-backend/node_modules/
+
+# Data files (user-specific)
+collect.json
+express-backend/data/
 
 # IDE
 .idea/
