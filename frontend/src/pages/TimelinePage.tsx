@@ -6,6 +6,7 @@ import TimelinePopup from "../components/TimelinePopup";
 import { StarRating } from "../components/StarRating";
 
 type YearFilter = number | "ALL";
+type CategoryFilter = "media" | "game" | "all";
 
 interface MonthGroup {
   key: string; // "2025-03"
@@ -71,6 +72,7 @@ export default function TimelinePage() {
   const { records, loading, error, fetchRecords, fetchMore, loadingMore, nextCursor } = useLibraryStore();
   const { t } = useI18nStore();
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("media");
   const [popupRecord, setPopupRecord] = useState<LibraryRecord | null>(null);
 
   useEffect(() => {
@@ -100,9 +102,17 @@ export default function TimelinePage() {
   }, [records]);
 
   const filteredRecords = useMemo(() => {
-    if (selectedYear === "ALL") return records;
-    return records.filter((r) => getYear(r.createdAt) === selectedYear);
-  }, [records, selectedYear]);
+    let result = records;
+    if (selectedCategory === "media") {
+      result = result.filter((r) => r.category === "movie" || r.category === "tv_show");
+    } else if (selectedCategory === "game") {
+      result = result.filter((r) => r.category === "game");
+    }
+    if (selectedYear !== "ALL") {
+      result = result.filter((r) => getYear(r.createdAt) === selectedYear);
+    }
+    return result;
+  }, [records, selectedCategory, selectedYear]);
 
   const stats = useMemo(() => computeStats(filteredRecords), [filteredRecords]);
 
@@ -137,7 +147,20 @@ export default function TimelinePage() {
       {/* Floating Filter Menu (Top Right) */}
       <div className="absolute top-8 right-8 z-50 hidden md:flex flex-col items-end gap-2">
         <div className="text-[10px] font-bold text-[var(--accent)] tracking-[0.2em] mb-2 uppercase">
-          [ FILTERS ]
+          [ CATEGORY ]
+        </div>
+        <CategoryFilterBtn active={selectedCategory === "media"} onClick={() => setSelectedCategory("media")}>
+          MOVIE + TV
+        </CategoryFilterBtn>
+        <CategoryFilterBtn active={selectedCategory === "game"} onClick={() => setSelectedCategory("game")}>
+          GAMES
+        </CategoryFilterBtn>
+        <CategoryFilterBtn active={selectedCategory === "all"} onClick={() => setSelectedCategory("all")}>
+          ALL
+        </CategoryFilterBtn>
+
+        <div className="text-[10px] font-bold text-[var(--accent)] tracking-[0.2em] mt-4 mb-2 uppercase">
+          [ YEAR ]
         </div>
         <YearFilterBtn active={selectedYear === "ALL"} onClick={() => setSelectedYear("ALL")}>
           ALL_TIME
@@ -249,9 +272,23 @@ export default function TimelinePage() {
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] sm:w-auto">
         <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-4 sm:gap-8 rounded-full border border-white/10 bg-[rgba(5,5,5,0.7)] px-6 py-3 sm:px-10 sm:py-4 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] mx-auto">
           
-          {/* Mobile Year Switcher inside pill */}
+          {/* Mobile Category Switcher */}
           <div className="md:hidden flex items-center border-r border-[var(--line)] pr-4 relative">
-             <select 
+             <select
+               className="bg-transparent text-[10px] text-[var(--accent)] uppercase font-bold outline-none tracking-widest appearance-none pr-4 w-full cursor-pointer"
+               value={selectedCategory}
+               onChange={(e) => setSelectedCategory(e.target.value as CategoryFilter)}
+             >
+               <option value="media">MOVIE+TV</option>
+               <option value="game">GAMES</option>
+               <option value="all">ALL</option>
+             </select>
+             <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--accent)] pointer-events-none">▼</span>
+          </div>
+
+          {/* Mobile Year Switcher */}
+          <div className="md:hidden flex items-center border-r border-[var(--line)] pr-4 relative">
+             <select
                className="bg-transparent text-[10px] text-[var(--accent)] uppercase font-bold outline-none tracking-widest appearance-none pr-4 w-full cursor-pointer"
                value={selectedYear}
                onChange={(e) => setSelectedYear(e.target.value === "ALL" ? "ALL" : parseInt(e.target.value, 10))}
@@ -290,6 +327,21 @@ function StatItem({ label, value, highlight, highlightDeep }: { label: string; v
         {value}
       </span>
     </div>
+  );
+}
+
+function CategoryFilterBtn({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${
+        active
+          ? "text-black text-[var(--page-bg)] bg-[var(--accent-deep)] px-3 py-1 scale-105 shadow-[0_0_10px_var(--accent-deep)]"
+          : "text-[var(--muted)] hover:text-white px-3 py-1 hover:translate-x-[-4px]"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
