@@ -2,6 +2,7 @@ import { startTransition, useDeferredValue, useEffect, useRef, useState } from "
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
+import { ActivityTimeline } from "../components/ActivityTimeline";
 import type {
   LibraryCategory,
   LibraryRecord,
@@ -44,6 +45,7 @@ export default function LibraryPage() {
     shortReview: "",
   });
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -487,6 +489,25 @@ export default function LibraryPage() {
             >
               {saving ? t("lib.edit.committing") : t("lib.edit.commit")}
             </button>
+
+            {/* 变更历史 */}
+            <div className="mt-6 border-t border-[var(--line)] pt-4">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="text-xs text-[var(--accent)] border border-[var(--accent)]/30 px-3 py-1.5 hover:bg-[var(--accent)]/10 transition-colors uppercase tracking-wider"
+              >
+                {showHistory ? '收起历史' : '变更历史'}
+              </button>
+              {showHistory && selectedRecord && (
+                <div className="mt-3 border border-[var(--line)] max-h-[300px] overflow-y-auto">
+                  <ActivityTimeline
+                    entityType={selectedRecord.category === 'tv_show' ? 'TV_SHOW' : selectedRecord.category.toUpperCase()}
+                    entityId={selectedRecord.id}
+                    compact
+                  />
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <div className="mt-6 border border-dashed border-[var(--line)] px-4 py-8 text-[10px] uppercase tracking-widest text-[var(--muted)] flex items-center justify-center text-center whitespace-pre-line leading-relaxed">

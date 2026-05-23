@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useActivityStore } from '../stores/activityStore'
 import type { ActivityAction, ActivityRecord } from '../types/activity'
 
@@ -112,38 +112,63 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
 }
 
 export default function ActivityTimeline({ entityId, compact }: ActivityTimelineProps) {
-  const { records, loading, loadingMore, nextCursor, fetchRecords, fetchMore, undo } =
-    useActivityStore()
+  const store = useActivityStore()
+  // entity-specific 模式用本地状态，不污染全局 store
+  const [entityRecords, setEntityRecords] = useState<ActivityRecord[]>([])
+  const [entityLoading, setEntityLoading] = useState(false)
 
-  // 初始加载
+  const isEntityMode = !!entityId
+  const records = isEntityMode ? entityRecords : store.records
+  const loading = isEntityMode ? entityLoading : store.loading
+
+  // entity 模式：加载特定条目历史
   useEffect(() => {
-    void fetchRecords()
-  }, [fetchRecords])
+    if (!entityId) return
+    setEntityLoading(true)
+    store
+      .fetchEntityHistory('', entityId)
+      .then((r) => setEntityRecords(r))
+      .finally(() => setEntityLoading(false))
+  }, [entityId])
+
+  // 全局模式：初始加载
+  useEffect(() => {
+    if (!isEntityMode) void store.fetchRecords()
+  }, [store.fetchRecords, isEntityMode])
 
   // 无限滚动哨兵
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (isEntityMode) return
     const sentinel = sentinelRef.current
-    if (!sentinel || !nextCursor) return
+    if (!sentinel || !store.nextCursor) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
-          void fetchMore()
+        if (entries[0].isIntersecting && store.nextCursor && !store.loadingMore) {
+          void store.fetchMore()
         }
       },
       { rootMargin: '200px' }
     )
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [nextCursor, loadingMore, fetchMore])
+  }, [store.nextCursor, store.loadingMore, store.fetchMore, isEntityMode])
 
   // 处理撤销
   const handleUndo = async (id: string) => {
     try {
-      await undo(id)
+      if (isEntityMode) {
+        await store.undo(id)
+        // 重新加载实体历史
+        if (entityId) {
+          store.fetchEntityHistory('', entityId).then((r) => setEntityRecords(r))
+        }
+      } else {
+        await store.undo(id)
+      }
     } catch {
-      // undo 失败静默处理，store 已处理错误状态
+      // undo 失败静默处理
     }
   }
 
@@ -180,10 +205,10 @@ export default function ActivityTimeline({ entityId, compact }: ActivityTimeline
       </div>
 
       {/* 无限滚动哨兵 */}
-      {nextCursor && <div ref={sentinelRef} className="h-1" />}
+      {!isEntityMode && store.nextCursor && <div ref={sentinelRef} className="h-1" />}
 
       {/* 加载更多提示 */}
-      {loadingMore && (
+      {!isEntityMode && store.loadingMore && (
         <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-4">
           LOADING_MORE...
         </div>
