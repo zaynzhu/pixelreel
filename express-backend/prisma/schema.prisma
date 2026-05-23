@@ -139,3 +139,19 @@ model Game {
   @@index([psnId], map: "idx_game_psn_id")
   @@map("game")
 }
+
+model ActivityLog {
+  id           BigInt   @id @default(autoincrement())
+  action       String   @db.VarChar(20)
+  entityType   String   @db.VarChar(20) @map("entity_type")
+  entityId     BigInt?  @map("entity_id")
+  entityTitle  String   @db.VarChar(255) @map("entity_title")
+  oldValues    Json?    @map("old_values")
+  newValues    Json?    @map("new_values")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@index([createdAt], map: "idx_activity_created")
+  @@index([entityType, entityId], map: "idx_activity_entity")
+  @@map("activity_log")
+}
