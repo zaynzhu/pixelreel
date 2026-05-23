@@ -1,0 +1,264 @@
+import { useEffect, useRef } from 'react'
+import { useActivityStore } from '../stores/activityStore'
+import type { ActivityAction, ActivityRecord } from '../types/activity'
+
+interface ActivityTimelineProps {
+  /** 只展示特定实体的活动记录 */
+  entityId?: string
+  /** 紧凑模式：更小的间距和字号 */
+  compact?: boolean
+}
+
+const ACTION_COLORS: Record<ActivityAction, string> = {
+  CREATE: '#66ff66',
+  UPDATE: '#d4ff00',
+  DELETE: '#ff4444',
+  TASK_START: '#888888',
+  TASK_DONE: '#44aaff',
+  TASK_FAIL: '#ff4444',
+  UNDO: '#ff8800',
+}
+
+const ACTION_LABELS: Record<ActivityAction, string> = {
+  CREATE: 'CREATED',
+  UPDATE: 'UPDATED',
+  DELETE: 'DELETED',
+  TASK_START: 'TASK_START',
+  TASK_DONE: 'TASK_DONE',
+  TASK_FAIL: 'TASK_FAIL',
+  UNDO: 'UNDONE',
+}
+
+/** 格式化时间为 MM-DD HH:mm */
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${mm}-${dd} ${hh}:${mi}`
+}
+
+/** 截断过长的值 */
+function truncate(val: unknown, max = 30): string {
+  const s = String(val ?? '')
+  return s.length > max ? s.slice(0, max) + '...' : s
+}
+
+/** 渲染变更摘要 */
+function renderChangeSummary(record: ActivityRecord): React.ReactNode {
+  const { action, oldValues, newValues, metadata } = record
+
+  if (action === 'UPDATE' || action === 'UNDO') {
+    if (!oldValues || !newValues) return null
+    const keys = [...new Set([...Object.keys(oldValues), ...Object.keys(newValues)])]
+    return (
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {keys.map((key) => (
+          <span key={key} className="text-[10px]">
+            <span className="text-[var(--muted)]">{key}</span>{' '}
+            <span className="text-red-400 line-through">{truncate(oldValues[key])}</span>
+            <span className="text-[var(--muted)]"> → </span>
+            <span className="text-[var(--accent)]">{truncate(newValues[key])}</span>
+          </span>
+        ))}
+      </div>
+    )
+  }
+
+  if (action === 'CREATE') {
+    if (!newValues) return null
+    const parts: string[] = []
+    if (newValues.status) parts.push(`status: ${newValues.status}`)
+    if (newValues.rating != null) parts.push(`rating: ${newValues.rating}`)
+    return (
+      <span className="text-[10px] text-[var(--muted)]">
+        {parts.join(' | ') || '-'}
+      </span>
+    )
+  }
+
+  if (action === 'DELETE') {
+    if (!oldValues) return null
+    const parts: string[] = []
+    if (oldValues.rating != null) parts.push(`rating: ${oldValues.rating}`)
+    if (oldValues.shortReview) parts.push(`review: ${truncate(oldValues.shortReview, 20)}`)
+    return (
+      <span className="text-[10px] text-[var(--muted)]">
+        {parts.join(' | ') || '-'}
+      </span>
+    )
+  }
+
+  if (action === 'TASK_START') {
+    return <span className="text-[10px] text-[var(--muted)]">任务启动</span>
+  }
+
+  if (action === 'TASK_DONE' || action === 'TASK_FAIL') {
+    if (!metadata) return null
+    const parts: string[] = []
+    if (metadata.total != null) parts.push(`total: ${metadata.total}`)
+    if (metadata.imported != null) parts.push(`imported: ${metadata.imported}`)
+    if (metadata.skipped != null) parts.push(`skipped: ${metadata.skipped}`)
+    if (metadata.error) parts.push(`error: ${truncate(metadata.error, 40)}`)
+    return (
+      <span className="text-[10px] text-[var(--muted)]">
+        {parts.join(' | ') || '-'}
+      </span>
+    )
+  }
+
+  return null
+}
+
+export default function ActivityTimeline({ entityId, compact }: ActivityTimelineProps) {
+  const { records, loading, loadingMore, nextCursor, fetchRecords, fetchMore, undo } =
+    useActivityStore()
+
+  // 初始加载
+  useEffect(() => {
+    void fetchRecords()
+  }, [fetchRecords])
+
+  // 无限滚动哨兵
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !nextCursor) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
+          void fetchMore()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [nextCursor, loadingMore, fetchMore])
+
+  // 处理撤销
+  const handleUndo = async (id: string) => {
+    try {
+      await undo(id)
+    } catch {
+      // undo 失败静默处理，store 已处理错误状态
+    }
+  }
+
+  const showUndo = !entityId
+
+  return (
+    <div className="font-['JetBrains_Mono',monospace]">
+      {/* 加载状态 */}
+      {loading && records.length === 0 && (
+        <div className="border border-[var(--line)] p-6 text-center text-[10px] text-[var(--accent)] uppercase tracking-[0.3em] font-bold relative overflow-hidden">
+          <div className="absolute inset-0 bg-[var(--accent)]/10 animate-pulse" />
+          <span className="relative z-10">LOADING_ACTIVITY...</span>
+        </div>
+      )}
+
+      {/* 空状态 */}
+      {!loading && records.length === 0 && (
+        <div className="text-[10px] text-[var(--muted)] uppercase tracking-widest p-6 text-center">
+          NO_ACTIVITY_RECORDS
+        </div>
+      )}
+
+      {/* 记录列表 */}
+      <div className={compact ? 'space-y-1' : 'space-y-2'}>
+        {records.map((record) => (
+          <ActivityRow
+            key={record.id}
+            record={record}
+            compact={compact}
+            showUndo={showUndo}
+            onUndo={handleUndo}
+          />
+        ))}
+      </div>
+
+      {/* 无限滚动哨兵 */}
+      {nextCursor && <div ref={sentinelRef} className="h-1" />}
+
+      {/* 加载更多提示 */}
+      {loadingMore && (
+        <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-4">
+          LOADING_MORE...
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** 单条活动记录行 */
+function ActivityRow({
+  record,
+  compact,
+  showUndo,
+  onUndo,
+}: {
+  record: ActivityRecord
+  compact?: boolean
+  showUndo: boolean
+  onUndo: (id: string) => void
+}) {
+  const actionColor = ACTION_COLORS[record.action]
+  const actionLabel = ACTION_LABELS[record.action]
+
+  return (
+    <div
+      className={`group flex items-start gap-3 border border-[var(--line)] bg-[var(--surface)] transition-colors hover:bg-[var(--surface-hover)] ${
+        compact ? 'px-3 py-2' : 'px-4 py-3'
+      }`}
+    >
+      {/* 时间 */}
+      <span
+        className={`shrink-0 text-[var(--muted)] tabular-nums ${
+          compact ? 'text-[9px]' : 'text-[10px]'
+        }`}
+      >
+        {formatTime(record.createdAt)}
+      </span>
+
+      {/* 操作徽章 */}
+      <span
+        className={`shrink-0 font-bold uppercase tracking-wider border ${
+          compact ? 'text-[8px] px-1.5 py-0.5' : 'text-[9px] px-2 py-0.5'
+        }`}
+        style={{
+          color: actionColor,
+          borderColor: `${actionColor}4d`,
+          background: `${actionColor}1a`,
+        }}
+      >
+        {actionLabel}
+      </span>
+
+      {/* 实体标题 */}
+      <span
+        className={`shrink-0 font-bold text-white truncate max-w-[200px] ${
+          compact ? 'text-[10px]' : 'text-[11px]'
+        }`}
+      >
+        {record.entityTitle}
+      </span>
+
+      {/* 变更摘要 */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {renderChangeSummary(record)}
+      </div>
+
+      {/* 撤销按钮 */}
+      {showUndo && record.undoable && (
+        <button
+          onClick={() => onUndo(record.id)}
+          className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[var(--muted)] border border-[var(--line)] px-2 py-0.5 opacity-0 group-hover:opacity-100 hover:text-[var(--accent)] hover:border-[var(--accent)]/50 transition-all"
+        >
+          UNDO
+        </button>
+      )}
+    </div>
+  )
+}
