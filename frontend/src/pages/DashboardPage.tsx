@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useProfileStore } from "../stores/profileStore";
 import { useI18nStore } from "../stores/i18nStore";
@@ -7,6 +7,10 @@ import { StarRating } from "../components/StarRating";
 export default function DashboardPage() {
   const { summary, loading, error, fetchSummary } = useProfileStore();
   const { t } = useI18nStore();
+
+  useEffect(() => {
+    void fetchSummary();
+  }, [fetchSummary]);
 
   const overview = summary?.overview;
 
@@ -341,7 +345,7 @@ function MetricStrip({
         <span className="font-display text-3xl text-white">
           {value == null ? "--" : value.toFixed(1)}
         </span>
-        <span className="pb-1 text-[10px] text-[var(--accent)] font-bold">/ 10</span>
+        <span className="pb-1 text-[10px] text-[var(--accent)] font-bold">/ 5</span>
       </div>
       <p className="mt-2 text-[10px] uppercase tracking-widest text-[var(--muted)]">{note}</p>
     </div>
