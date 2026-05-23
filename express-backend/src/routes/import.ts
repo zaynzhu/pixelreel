@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { importSteamOwnedGames } from '../services/import/SteamOwnedGamesImportService';
+import { importSteamOwnedGames, backfillSteamData } from '../services/import/SteamOwnedGamesImportService';
 import { importXboxOwnedGames } from '../services/import/OpenXblImportService';
 import { importPsnOwnedGames } from '../services/import/PsnProfilesImportService';
 import { importDoubanCsv } from '../services/import/DoubanCsvImportService';
@@ -22,6 +22,12 @@ router.post('/steam/owned', async (req: Request, res: Response) => {
   const steamId = req.query.steamId as string | undefined;
   const status = req.query.status as string | undefined;
   const result = await importSteamOwnedGames(steamId || null, status || null);
+  res.json(result);
+});
+
+// POST /api/import/steam/backfill — 回填已有 Steam 游戏的海报和游玩时间
+router.post('/steam/backfill', async (_req: Request, res: Response) => {
+  const result = await backfillSteamData();
   res.json(result);
 });
 
