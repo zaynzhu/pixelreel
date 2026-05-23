@@ -96,18 +96,6 @@ export default function TimelinePage() {
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, fetchMore]);
 
-  const years = useMemo(() => {
-    const ys = [...new Set(filteredRecords.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
-    return ys;
-  }, [filteredRecords]);
-
-  // 切换分类后，如果已选年份不在新列表里，重置为 ALL
-  useEffect(() => {
-    if (selectedYear !== "ALL" && !years.includes(selectedYear)) {
-      setSelectedYear("ALL");
-    }
-  }, [years, selectedYear]);
-
   const filteredRecords = useMemo(() => {
     let result = records;
     if (selectedCategory === "media") {
@@ -120,6 +108,18 @@ export default function TimelinePage() {
     }
     return result;
   }, [records, selectedCategory, selectedYear]);
+
+  const years = useMemo(() => {
+    const ys = [...new Set(filteredRecords.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
+    return ys;
+  }, [filteredRecords]);
+
+  // 切换分类后，如果已选年份不在新列表里，重置为 ALL
+  useEffect(() => {
+    if (selectedYear !== "ALL" && !years.includes(selectedYear)) {
+      setSelectedYear("ALL");
+    }
+  }, [years, selectedYear]);
 
   const stats = useMemo(() => computeStats(filteredRecords), [filteredRecords]);
 
