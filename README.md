@@ -135,6 +135,7 @@ POST /api/import/covers/fill?limit=50
 POST /api/import/tmdb-covers/fill?limit=50
 POST /api/trakt/import/movies?status=WANT
 POST /api/trakt/import/shows?status=WANT
+POST /api/import/steam/backfill          回填已有 Steam 游戏的海报和游玩时间
 ```
 
 ### Trakt OAuth

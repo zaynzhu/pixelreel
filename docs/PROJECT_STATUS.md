@@ -63,6 +63,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `POST /api/trakt/import/movies`：Trakt 电影导入
 - `POST /api/trakt/import/shows`：Trakt 电视剧导入
 - `POST /api/import/steam/owned`：Steam 已购导入
+- `POST /api/import/steam/backfill`：回填已有 Steam 游戏的海报和游玩时间
 - `POST /api/import/xbox/owned`：Xbox 已玩导入
 - `POST /api/import/psn/owned`：PSN 已玩导入
 - `POST /api/import/covers/fill`：RAWG 游戏封面补全

@@ -87,6 +87,7 @@ frontend/src/
 | — | `DELETE /api/import/tasks/:taskId` (取消任务) |
 | — | `POST /api/import/douban/clear-data` (清空豆瓣来源数据) |
 | — | `POST /api/import/tmdb-enrich/backfill?limit=50` (批量为已有记录补充 TMDB 数据) |
+| — | `POST /api/import/steam/backfill` (回填已有 Steam 游戏的海报和游玩时间) |
 
 ## 关键模式
 
@@ -146,3 +147,4 @@ frontend/src/
 - `apiFetch` 已自动解析 JSON — 调用后直接用返回值，不要再调 `.json()`，否则 TypeError。
 - Prisma `$extends()` 返回新客户端 — 必须用 `getDb()` 获取扩展后的实例，不能直接 import 原始 `prisma`。所有路由和服务统一用 `getDb()`。
 - 新组件必须做 i18n — 在 `i18nStore.ts` 的 `dictionaries.en` 和 `dictionaries.zh` 中添加 key，组件中用 `t('key')` 渲染。
+- Prisma `BigInt` 字段（如 `steamAppId`）与 JavaScript `number` 不兼容 — Map 查找和比较时必须用 `Number()` 转换，否则 `20n !== 20`。
