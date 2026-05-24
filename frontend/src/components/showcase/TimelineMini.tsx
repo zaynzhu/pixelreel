@@ -35,24 +35,26 @@ export function TimelineMini({ items, compact }: TimelineMiniProps) {
 
         <div className="flex-1 min-h-[60px] flex items-end gap-1">
           {yearData.map((d, i) => {
-            const height = (d.count / maxCount) * 100
+            const pct = (d.count / maxCount) * 100
             const isLatest = i === yearData.length - 1
             return (
-              <div key={d.year} className="flex-1 flex flex-col items-center gap-1">
-                <div className="text-[10px] font-display font-bold" style={{ color: isLatest ? "var(--accent-deep)" : "var(--accent)" }}>
+              <div key={d.year} className="flex-1 relative flex flex-col items-center" style={{ height: "100%" }}>
+                <div className="text-[10px] font-display font-bold mb-1 shrink-0" style={{ color: isLatest ? "var(--accent-deep)" : "var(--accent)" }}>
                   {d.count}
                 </div>
-                <div
-                  className="w-full transition-all duration-500"
-                  style={{
-                    height: `${height}%`,
-                    background: isLatest ? "var(--accent-deep)" : "var(--accent)",
-                    opacity: isLatest ? 1 : 0.6,
-                    boxShadow: isLatest
-                      ? "0 0 15px rgba(255,68,0,0.5), 0 0 30px rgba(255,68,0,0.2)"
-                      : "0 0 8px rgba(212,255,0,0.15)",
-                  }}
-                />
+                <div className="flex-1 w-full relative">
+                  <div
+                    className="absolute bottom-0 w-full transition-all duration-500"
+                    style={{
+                      height: `${pct}%`,
+                      background: isLatest ? "var(--accent-deep)" : "var(--accent)",
+                      opacity: isLatest ? 1 : 0.6,
+                      boxShadow: isLatest
+                        ? "0 0 15px rgba(255,68,0,0.5), 0 0 30px rgba(255,68,0,0.2)"
+                        : "0 0 8px rgba(212,255,0,0.15)",
+                    }}
+                  />
+                </div>
               </div>
             )
           })}
