@@ -29,10 +29,12 @@ PixelReel 是一个面向个人使用的影视与游戏记录项目。
 - JWT 登录鉴权 + 前端登录页
 - 个人主页统计接口与前端首页（含电视剧统计）
 - 记录库混合列表页：筛选、排序、状态编辑、评分和短评编辑（含电视剧）
-- 前端路由：主页 / 电影搜索 / 电视剧搜索 / 游戏搜索 / 记录库 / 时间线 / 操作日志
+- 前端路由：主页 / 电影搜索 / 电视剧搜索 / 游戏搜索 / 记录库 / 时间线 / 操作日志 / 大屏展示 / 数据分析
 - 前端国际化（EN / ZH）
 - 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
 - 操作日志（自动记录 CRUD 操作，支持撤销，筛选与无限滚动）
+- 大屏展示页 Showcase（网格模式 + 全屏轮播模式，统计数据/海报轮播/时间线概览/随机推荐）
+- 数据分析页（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
 
 ## 当前未完成
 
@@ -123,6 +125,16 @@ DELETE /api/tv-shows/:id        删除电视剧
 GET /api/search/movies?query=xxx&page=1&providers=tmdb
 GET /api/search/tv-shows?query=xxx&page=1&providers=tmdb
 GET /api/search/games?query=xxx&page=1&providers=rawg
+
+# 详情接口（展开搜索结果时调用）
+GET /api/search/imdb/:imdbId        IMDb/OMDb 影视详情
+GET /api/search/tmdb/:tmdbId        TMDB 影视详情 + credits
+GET /api/search/douban/:doubanId    豆瓣影视详情
+GET /api/search/rawg/:rawgId        RAWG 游戏详情
+GET /api/search/steam/:steamAppId   Steam 游戏详情
+
+# 图片代理（解决豆瓣防盗链）
+GET /api/search/proxy/image?url=xxx
 ```
 
 ### 导入
@@ -136,6 +148,11 @@ POST /api/import/tmdb-covers/fill?limit=50
 POST /api/trakt/import/movies?status=WANT
 POST /api/trakt/import/shows?status=WANT
 POST /api/import/steam/backfill          回填已有 Steam 游戏的海报和游玩时间
+POST /api/import/douban-harvest          豆瓣数据导入/爬取（?mode=json|full|incremental）
+GET  /api/import/douban-harvest/status   豆瓣导入任务进度（?taskId=xxx）
+DELETE /api/import/tasks/:taskId         取消任务
+POST /api/import/douban/clear-data       清空豆瓣来源数据
+POST /api/import/tmdb-enrich/backfill    批量补充 TMDB 数据（?limit=50）
 ```
 
 ### Trakt OAuth
@@ -157,16 +174,24 @@ GET /api/profile/summary
 - 各类已完成数量、评分均值
 - 电影 / 游戏 / 电视剧状态分布
 - 电影 / 游戏 / 电视剧来源/平台分布
-- 最近新增记录（混合排序）
+- 最近新增记录（混合排序，上限 15 条）
+- 按年统计记录数量（`yearlyTimeline`，用于 Showcase 时间线折线图）
 
 ### 记录库
 
 ```text
 GET   /api/library?cursor=&limit=50   混合列表（游标分页，movie + game + tv_show）
 PATCH /api/library/:category/:id      更新记录（category: movie/game/tv_show）
+GET   /api/library/random?limit=N      随机返回记录（N 最大 20，默认 1，库空返回 404）
 ```
 
 > `cursor` 格式为 `{ISO日期}__{id}`，如 `2026-05-18T00:00:00.000Z__3`。返回 `{ records, nextCursor, totals }`，`nextCursor` 为 null 表示无更多数据。`totals` 为全库统计（total、rated、reviewed、completed），不受分页影响。
+
+### 数据分析
+
+```text
+GET /api/analytics?year=2026   年度分析数据（总览、月度趋势、评分分布、来源占比、跨平台评分、Top 评分榜）
+```
 
 ### 操作日志
 
@@ -181,6 +206,13 @@ POST /api/activity/:id/undo    撤销操作
 POST /api/auth/login    登录获取 JWT Token
 ```
 
+### 系统设置
+
+```text
+GET  /api/settings      获取环境变量配置（按分类返回）
+PUT  /api/settings      更新环境变量配置（写入 .env 文件）
+```
+
 ## 当前前端路由
 
 ```text
@@ -191,6 +223,8 @@ POST /api/auth/login    登录获取 JWT Token
 /library            记录库列表 + 评分短评工作台
 /timeline           时间线页面（按月份分组的海报墙）
 /activity           操作日志（筛选、无限滚动、撤销）
+/showcase           大屏展示（网格 + 全屏轮播）
+/analytics          数据分析（年度报告 + 习惯洞察）
 /login              登录页
 ```
 

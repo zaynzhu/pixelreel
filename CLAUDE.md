@@ -52,7 +52,9 @@ express-backend/src/
   config/         index.ts（环境配置）, db.ts（Prisma 客户端 + getDb() + registerExtensions()）
   routes/         index.ts（聚合器）, auth, trakt, search, searchTvShows,
                   import, library, movie, game, tvShow, profile, settings, activity
-  services/       search/（TMDB、OMDb、豆瓣、Trakt、IMDb、RAWG、Steam 等）
+  services/       provider/（TmdbMovieSearchProvider, OmdbMovieSearchProvider, TraktMovieSearchProvider,
+                          DoubanMovieSearchProvider, ImdbMovieSearchProvider, DoubanTvShowSearchProvider,
+                          TmdbTvShowSearchProvider, RawgGameSearchProvider, SteamGameSearchProvider 等）
                   import/（Steam、Xbox、PSN、豆瓣 CSV、RAWG 封面、TMDB 封面、TMDB 回填）
                   douban-harvester/（爬虫核心、TMDB 丰富、导入服务、任务管理）
                   LibraryService, ProfileSummaryService, ExternalSearchService, activity-log
@@ -61,10 +63,11 @@ express-backend/src/
   dto/            library.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
-  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage（占位）, ActivityPage
+  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage（占位）, ActivityPage, ShowcasePage, AnalyticsPage
   components/     AppShell, RightActionDrawer, TaskPanel, Toast, MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating, ActivityFilters, ActivityTimeline
+                  showcase/（StatsPanel, PosterCarousel, TimelineMini, RandomPick, ShowcaseControls）
   stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore
-  types/          library.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts
+  types/          library.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts
   api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向，**已自动解析 JSON — 不要再调 .json()**）
 ```
 
@@ -73,12 +76,20 @@ frontend/src/
 | 前端 | 后端 |
 |------|------|
 | `/` 仪表盘 | `GET /api/profile/summary` |
-| `/movies/search` | `GET /api/search/movies` |
-| `/tv-shows/search` | `GET /api/search/tv-shows` |
-| `/games/search` | `GET /api/search/games` |
+| `/movies/search` | `GET /api/search/movies?query=&providers=omdb,tmdb,douban,imdb,trakt` |
+| `/tv-shows/search` | `GET /api/search/tv-shows?query=&providers=tmdb,douban` |
+| `/games/search` | `GET /api/search/games?query=&providers=rawg,steam` |
+| — | `GET /api/search/imdb/:imdbId` (OMDb 详情) |
+| — | `GET /api/search/tmdb/:tmdbId` (TMDB 详情 + credits) |
+| — | `GET /api/search/douban/:doubanId` (豆瓣详情) |
+| — | `GET /api/search/rawg/:rawgId` (RAWG 游戏详情：评分、开发商、类型等) |
+| — | `GET /api/search/steam/:steamAppId` (Steam 游戏详情：Metacritic、开发商、类型等) |
+| — | `GET /api/search/proxy/image?url=` (图片代理，解决豆瓣防盗链) |
 | `/library` | `GET /api/library?cursor=&limit=50`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | 复用 `libraryStore`（游标分页 + IntersectionObserver 无限滚动） |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
+| `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
+| `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
 | `/login` | `POST /api/auth/login` |
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
@@ -95,9 +106,14 @@ frontend/src/
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。带速率限制（250ms 间隔，429 重试）。
+- **搜索 Provider：** 电影搜索支持 OMDb/TMDB/豆瓣/IMDb/Trakt；剧集支持 TMDB/豆瓣；游戏支持 RAWG/Steam。IMDb Provider 复用 OMDb API。OMDb/IMDb 搜索中文关键词时自动通过 TMDB 获取英文原名回退（按 vote_count 排序）。RAWG 和 Steam 搜索中文关键词时通过 MyMemory API 翻译为英文再搜索。Steam 海报使用 CDN 地址 `cdn.akamai.steamstatic.com`。豆瓣搜索使用公开接口 `/j/subject_suggest`，不需要 Cookie。
+- **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。
+- **海报图片：** Steam 海报有两种 CDN 格式——旧格式 `cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg`（大部分游戏可用）和新格式 `shared.akamai.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`（新游戏必须用这个）。图片加载失败时自动显示赛博朋克占位符（`ImgWithFallback` 组件）。
+- **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）的游戏不显示"想玩"状态标签——已玩过的游戏不应标记为 WANT。
+- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
-- **赛博朋克主题：** CSS 自定义属性（`--accent: #d4ff00`，`--accent-deep: #ff4400`），Syne + JetBrains Mono 字体，扫描线遮罩。
+- **赛博朋克主题：** CSS 自定义属性（`--accent: #d4ff00`，`--accent-deep: #ff4400`），Syne + JetBrains Mono 字体，扫描线遮罩。Showcase 专用类（`@layer components`）：`.showcase-panel`（发光边框面板）、`.showcase-number`（脉冲发光数字）、`.showcase-poster`（扫描线海报 + hover 发光）、`.showcase-bg`（动态径向渐变背景）。
 
 ## 深度文档
 
@@ -111,7 +127,7 @@ frontend/src/
 
 - **导入已有数据：** `POST /api/import/douban-harvest?mode=json` — 读取 `collect.json`，不需要 Playwright
 - **全量数据同步：** `POST /api/import/douban-harvest?mode=full` — Playwright 爬豆瓣，**每次从0开始不续爬**，需要 `DOUBAN_USER_ID` + `npx playwright install chromium`
-- **增量数据导入：** `POST /api/import/douban-harvest?mode=incremental` — 只抓新数据（需先全量同步过，或手动创建 `sync_state.json`）
+- **增量数据导入：** `POST /api/import/douban-harvest?mode=incremental` — 只抓新数据（需先全量同步过，或手动创建 `sync_state.json`）。日期比较用 `<`（严格小于），同一天的数据不会被过滤。
 - **查询进度：** `GET /api/import/douban-harvest/status?taskId=xxx`
 - **取消任务：** `DELETE /api/import/tasks/:taskId`
 - **清空豆瓣数据：** `POST /api/import/douban/clear-data`
@@ -148,3 +164,4 @@ frontend/src/
 - Prisma `$extends()` 返回新客户端 — 必须用 `getDb()` 获取扩展后的实例，不能直接 import 原始 `prisma`。所有路由和服务统一用 `getDb()`。
 - 新组件必须做 i18n — 在 `i18nStore.ts` 的 `dictionaries.en` 和 `dictionaries.zh` 中添加 key，组件中用 `t('key')` 渲染。
 - Prisma `BigInt` 字段（如 `steamAppId`）与 JavaScript `number` 不兼容 — Map 查找和比较时必须用 `Number()` 转换，否则 `20n !== 20`。
+- 不要用 Playwright 截图让模型分析页面效果 — 模型不支持图片输入，截图白费。需要理解页面时读代码或用 `browser_snapshot` 获取 DOM。

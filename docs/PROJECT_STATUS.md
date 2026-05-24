@@ -19,7 +19,9 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 统一外部搜索聚合接口（影视 / 游戏 / 电视剧）
 - [x] 影视搜索 Provider：TMDB / OMDb / Trakt / 豆瓣 / IMDb
 - [x] 电视剧搜索 Provider：TMDB
-- [x] 游戏搜索 Provider：RAWG / Steam
+- [x] 游戏搜索 Provider：RAWG / Steam（支持中文关键词自动翻译，Steam 改用 Store Search API）
+- [x] 搜索详情展开（影视：评分/类型/导演/演员/片长/剧情；游戏：评分/Metacritic/开发商/平台/ESRB）
+- [x] 搜索详情接口：`/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId`
 - [x] Trakt 影视导入（电影 + 电视剧，自动分页，TMDB 封面填充）
 - [x] Steam 已购导入
 - [x] Xbox 已玩导入（OpenXBL）
@@ -34,6 +36,8 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 豆瓣数据导入（douban-harvester 集成：JSON 导入、全量/增量爬取、TMDB 丰富）
 - [x] 记录库与时间线游标分页 + 无限滚动（IntersectionObserver）
 - [x] 操作日志（Prisma 扩展自动记录 CRUD，支持撤销，筛选与无限滚动）
+- [x] Showcase 大屏展示页面（网格模式 + 全屏轮播模式，统计数据/海报轮播/时间线概览/随机推荐）
+- [x] 数据分析页面（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
 
 ## 未完成 / 占位
 - [ ] 多用户登录与权限体系（设计文档在 docs/plans/，需重写为 Express 版）
@@ -49,6 +53,8 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `/library`：记录库列表 + 评分短评编辑
 - `/timeline`：时间线页面（按月份分组的海报墙）
 - `/activity`：操作日志页（筛选、无限滚动、撤销）
+- `/showcase`：大屏展示页（网格模式 + 全屏轮播模式）
+- `/analytics`：数据分析页（年度报告 + 习惯洞察）
 - `/settings`：系统设置页（环境变量配置，敏感字段遮罩）
 - `/login`：登录页
 
@@ -57,9 +63,15 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `GET /api/profile/summary`：个人主页统计汇总
 - `GET /api/library`：混合记录库列表（游标分页，`?cursor=&limit=50`），返回 `{ records, nextCursor, totals }`，`totals` 为全库统计
 - `PATCH /api/library/:category/:id`：更新状态 / 评分 / 短评
+- `GET /api/library/random?limit=N`：随机返回记录（N 最大 20，默认 1，库空返回 404）
 - `GET /api/search/movies`：电影搜索聚合
 - `GET /api/search/tv-shows`：电视剧搜索
 - `GET /api/search/games`：游戏搜索聚合
+- `GET /api/search/imdb/:imdbId`：IMDb/OMDb 影视详情（评分、导演、演员、片长、剧情）
+- `GET /api/search/tmdb/:tmdbId`：TMDB 影视详情 + credits
+- `GET /api/search/douban/:doubanId`：豆瓣影视详情
+- `GET /api/search/rawg/:rawgId`：RAWG 游戏详情（评分、Metacritic、开发商、平台、ESRB）
+- `GET /api/search/steam/:steamAppId`：Steam 游戏详情（Metacritic、开发商、类型、简介）
 - `POST /api/trakt/import/movies`：Trakt 电影导入
 - `POST /api/trakt/import/shows`：Trakt 电视剧导入
 - `POST /api/import/steam/owned`：Steam 已购导入
@@ -74,6 +86,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `POST /api/activity/:id/undo`：撤销操作（CREATE→删除实体，UPDATE→恢复旧值，DELETE→重建实体）
 - `GET /api/settings`：获取环境变量配置（按分类返回）
 - `PUT /api/settings`：更新环境变量配置（写入 .env 文件）
+- `GET /api/analytics?year=2026`：年度分析数据（总览、月度趋势、评分分布、来源占比、跨平台评分、Top 评分榜）
 
 ## 本地启动方式
 
