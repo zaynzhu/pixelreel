@@ -21,6 +21,7 @@ export default function AppShell() {
     { to: "/timeline", label: t("timeline.title") },
     { to: "/activity", label: t("nav.activity") },
     { to: "/showcase", label: t("nav.showcase") },
+    { to: "/analytics", label: t("nav.analytics") },
     { to: "/settings", label: t("nav.settings") },
   ];
 

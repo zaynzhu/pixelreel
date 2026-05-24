@@ -10,6 +10,7 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import ShowcasePage from "./pages/ShowcasePage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { useAuthStore } from "./stores/authStore";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="timeline" element={<TimelinePage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="showcase" element={<ShowcasePage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
