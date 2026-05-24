@@ -110,7 +110,7 @@ export default function ShowcasePage() {
           <div className="absolute inset-0 transition-all duration-500" style={{ opacity: 1, transform: "scale(1)" }}>
             {SLIDES[currentSlide] === "stats" && <StatsPanel summary={summary} compact />}
             {SLIDES[currentSlide] === "posters" && <PosterCarousel items={summary.recentItems} compact />}
-            {SLIDES[currentSlide] === "timeline" && <TimelineMini items={summary.recentItems} />}
+            {SLIDES[currentSlide] === "timeline" && <TimelineMini items={summary.recentItems} compact />}
             {SLIDES[currentSlide] === "random" && <RandomPick compact />}
           </div>
         </div>
