@@ -20,7 +20,6 @@ export default function ShowcasePage() {
     void fetchSummary()
   }, [fetchSummary])
 
-  // 全屏轮播定时器
   useEffect(() => {
     if (mode !== "slideshow") return
     const timer = setInterval(() => {
@@ -29,7 +28,6 @@ export default function ShowcasePage() {
     return () => clearInterval(timer)
   }, [mode])
 
-  // Esc 退出轮播
   useEffect(() => {
     if (mode !== "slideshow") return
     const handler = (e: KeyboardEvent) => {
@@ -65,9 +63,9 @@ export default function ShowcasePage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="showcase-bg flex flex-col h-[calc(100vh-80px)]">
       {/* 顶部控制栏 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 relative z-10">
         <div>
           <div className="section-kicker">{t("showcase.kicker")}</div>
           <h1 className="text-2xl font-display font-bold tracking-tight" style={{ color: "var(--ink)" }}>
@@ -85,15 +83,30 @@ export default function ShowcasePage() {
 
       {/* 内容区域 */}
       {mode === "grid" ? (
-        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-4 min-h-0">
+        <div className="flex-1 flex flex-col gap-4 min-h-0 relative z-10">
+          {/* 顶部：统计横条 */}
           <StatsPanel summary={summary} />
-          <PosterCarousel items={summary.recentItems} />
-          <TimelineMini items={summary.recentItems} />
-          <RandomPick />
+
+          {/* 底部：海报 + 时间线/随机 */}
+          <div className="flex-1 flex gap-4 min-h-0">
+            {/* 左侧海报墙 60% */}
+            <div className="w-[60%] min-w-0">
+              <PosterCarousel items={summary.recentItems} />
+            </div>
+
+            {/* 右侧 40%：时间线 + 随机推荐堆叠 */}
+            <div className="w-[40%] min-w-0 flex flex-col gap-4">
+              <div className="flex-1 min-h-0">
+                <TimelineMini items={summary.recentItems} />
+              </div>
+              <div className="h-[200px]">
+                <RandomPick />
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="flex-1 relative min-h-0">
-          {/* 全屏轮播内容 */}
+        <div className="flex-1 relative min-h-0 z-10">
           <div className="absolute inset-0 transition-all duration-500" style={{ opacity: 1, transform: "scale(1)" }}>
             {SLIDES[currentSlide] === "stats" && <StatsPanel summary={summary} compact />}
             {SLIDES[currentSlide] === "posters" && <PosterCarousel items={summary.recentItems} />}
