@@ -15,9 +15,9 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
   const [batchIndex, setBatchIndex] = useState(0)
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
 
-  const batchSize = compact ? 6 : 15
-  const cols = compact ? 3 : 5
-  const rows = compact ? 2 : 3
+  const batchSize = compact ? 15 : 8
+  const cols = compact ? 5 : 4
+  const rows = compact ? 3 : 2
   const totalBatches = Math.ceil(items.length / batchSize) || 1
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
 
   return (
     <>
-      <div className="dash-card h-full flex flex-col p-5 relative overflow-hidden">
+      <div className="showcase-panel h-full flex flex-col p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="section-kicker">{t("showcase.posters.kicker")}</div>
           <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
@@ -63,8 +63,7 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
           {batch.map((item) => (
             <div
               key={`${item.category}-${item.id}`}
-              className="relative overflow-hidden cursor-pointer group"
-              style={{ border: "1px solid var(--line)" }}
+              className="showcase-poster group"
               onClick={() => handlePosterClick(item)}
             >
               {item.posterUrl ? (
@@ -77,12 +76,6 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
               ) : (
                 <PosterPlaceholder title={item.title} />
               )}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px)",
-                }}
-              />
             </div>
           ))}
         </div>
