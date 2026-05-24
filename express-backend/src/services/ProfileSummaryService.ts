@@ -4,7 +4,7 @@ import { RecordStatus } from '../enums/RecordStatus';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
 
-const RECENT_LIMIT = 8;
+const RECENT_LIMIT = 20;
 
 export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
   const movies = await getDb().movie.findMany({ orderBy: { createdAt: 'desc' } });

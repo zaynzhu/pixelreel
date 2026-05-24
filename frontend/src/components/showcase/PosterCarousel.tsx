@@ -15,9 +15,9 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
   const [batchIndex, setBatchIndex] = useState(0)
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
 
-  const batchSize = compact ? 15 : 8
-  const cols = compact ? 5 : 4
-  const rows = compact ? 3 : 2
+  const batchSize = 15
+  const cols = 5
+  const rows = 3
   const totalBatches = Math.ceil(items.length / batchSize) || 1
 
   useEffect(() => {
