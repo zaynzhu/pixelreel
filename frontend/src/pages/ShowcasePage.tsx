@@ -97,7 +97,7 @@ export default function ShowcasePage() {
             {/* 右侧 40%：时间线 + 随机推荐堆叠 */}
             <div className="w-[40%] min-w-0 flex flex-col gap-4">
               <div className="flex-1 min-h-0">
-                <TimelineMini items={summary.recentItems} />
+                <TimelineMini items={summary.recentItems} yearlyTimeline={summary.yearlyTimeline} />
               </div>
               <div className="h-[200px]">
                 <RandomPick />
@@ -110,7 +110,7 @@ export default function ShowcasePage() {
           <div className="absolute inset-0 transition-all duration-500" style={{ opacity: 1, transform: "scale(1)" }}>
             {SLIDES[currentSlide] === "stats" && <StatsPanel summary={summary} compact />}
             {SLIDES[currentSlide] === "posters" && <PosterCarousel items={summary.recentItems} compact />}
-            {SLIDES[currentSlide] === "timeline" && <TimelineMini items={summary.recentItems} compact />}
+            {SLIDES[currentSlide] === "timeline" && <TimelineMini items={summary.recentItems} yearlyTimeline={summary.yearlyTimeline} compact />}
             {SLIDES[currentSlide] === "random" && <RandomPick compact />}
           </div>
         </div>

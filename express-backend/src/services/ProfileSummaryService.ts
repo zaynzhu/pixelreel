@@ -1,5 +1,5 @@
 import { getDb } from '../config/db';
-import { ProfileSummaryResponse, CountItem, RecentRecordItem } from '../dto/profile';
+import { ProfileSummaryResponse, CountItem, RecentRecordItem, YearlyTimelineItem } from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
@@ -21,6 +21,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
     gamePlatforms: buildGamePlatformCounts(games),
     tvShowSources: buildTvShowSourceCounts(tvShows),
     recentItems: buildRecentItems(movies, games, tvShows),
+    yearlyTimeline: buildYearlyTimeline(movies, games, tvShows),
   };
 }
 
@@ -247,4 +248,31 @@ function avg(nums: number[]): number {
 
 function countItem(key: string, label: string, count: number): CountItem {
   return { key, label, count };
+}
+
+function buildYearlyTimeline(movies: any[], games: any[], tvShows: any[]): YearlyTimelineItem[] {
+  const counts: Record<string, number> = {};
+
+  for (const m of movies) {
+    if (m.createdAt) {
+      const year = new Date(m.createdAt).getFullYear().toString();
+      counts[year] = (counts[year] || 0) + 1;
+    }
+  }
+  for (const g of games) {
+    if (g.createdAt) {
+      const year = new Date(g.createdAt).getFullYear().toString();
+      counts[year] = (counts[year] || 0) + 1;
+    }
+  }
+  for (const s of tvShows) {
+    if (s.createdAt) {
+      const year = new Date(s.createdAt).getFullYear().toString();
+      counts[year] = (counts[year] || 0) + 1;
+    }
+  }
+
+  return Object.entries(counts)
+    .map(([year, count]) => ({ year, count }))
+    .sort((a, b) => a.year.localeCompare(b.year));
 }

@@ -25,6 +25,12 @@ export interface ProfileSummaryResponse {
   gamePlatforms: CountItem[];
   tvShowSources: CountItem[];
   recentItems: RecentRecordItem[];
+  yearlyTimeline: YearlyTimelineItem[];
+}
+
+export interface YearlyTimelineItem {
+  year: string;
+  count: number;
 }
 
 export interface CountItem {

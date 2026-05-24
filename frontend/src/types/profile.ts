@@ -17,6 +17,11 @@ export type RecentRecordItem = {
   createdAt: string;
 };
 
+export type YearlyTimelineItem = {
+  year: string;
+  count: number;
+};
+
 export type ProfileSummary = {
   overview: {
     totalRecords: number;
@@ -43,4 +48,5 @@ export type ProfileSummary = {
   gamePlatforms: CountItem[];
   tvShowSources: CountItem[];
   recentItems: RecentRecordItem[];
+  yearlyTimeline: YearlyTimelineItem[];
 };
