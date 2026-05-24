@@ -25,7 +25,7 @@ export function TimelineMini({ items, compact }: TimelineMiniProps) {
   const maxCount = Math.max(...yearData.map((d) => d.count), 1)
 
   return (
-    <div className="dash-card h-full flex flex-col p-5 relative overflow-hidden">
+    <div className="showcase-panel h-full flex flex-col p-5">
       <div className="section-kicker mb-3">{t("showcase.timeline.kicker")}</div>
 
       <div className="flex-1 flex flex-col justify-center">
@@ -48,7 +48,9 @@ export function TimelineMini({ items, compact }: TimelineMiniProps) {
                     height: `${height}%`,
                     background: isLatest ? "var(--accent-deep)" : "var(--accent)",
                     opacity: isLatest ? 1 : 0.6,
-                    boxShadow: isLatest ? "0 0 10px rgba(255,68,0,0.4)" : "none",
+                    boxShadow: isLatest
+                      ? "0 0 15px rgba(255,68,0,0.5), 0 0 30px rgba(255,68,0,0.2)"
+                      : "0 0 8px rgba(212,255,0,0.15)",
                   }}
                 />
               </div>
