@@ -8,6 +8,7 @@ import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
 import { startEnrichBackfillTask } from '../services/import/TmdbEnrichBackfillService';
+import { startTmdbDetailBackfillTask } from '../services/import/TmdbDetailBackfillService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { getDb } from '../config/db';
 import { config } from '../config';
@@ -84,6 +85,19 @@ router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
   const limitParam = req.query.limit as string | undefined;
   const limit = limitParam ? parseInt(limitParam, 10) : 50;
   const task = startEnrichBackfillTask(limit);
+  res.json({
+    taskId: task.taskId,
+    status: task.status,
+    type: task.type,
+    label: task.label,
+  });
+});
+
+// POST /api/import/tmdb-detail/backfill?limit=50
+router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
+  const limitParam = req.query.limit as string | undefined;
+  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+  const task = startTmdbDetailBackfillTask(limit);
   res.json({
     taskId: task.taskId,
     status: task.status,

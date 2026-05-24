@@ -7,12 +7,12 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const axiosProxyOpts: any = proxyUrl
+export const axiosProxyOpts: any = proxyUrl
   ? { proxy: false, httpsAgent: new HttpsProxyAgent(proxyUrl) }
   : {};
 
 // TMDB v4 Bearer Token 认证头
-const tmdbAuthHeaders: Record<string, string> = config.tmdb.apiKey
+export const tmdbAuthHeaders: Record<string, string> = config.tmdb.apiKey
   ? { Authorization: `Bearer ${config.tmdb.apiKey}` }
   : {};
 
