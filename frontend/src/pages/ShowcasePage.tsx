@@ -68,8 +68,12 @@ export default function ShowcasePage() {
       <div className="flex items-center justify-between mb-4 relative z-10">
         <div>
           <div className="section-kicker">{t("showcase.kicker")}</div>
-          <h1 className="text-2xl font-display font-bold tracking-tight" style={{ color: "var(--ink)" }}>
+          <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3" style={{ color: "var(--ink)" }}>
             {t("showcase.title")}
+            <span className="inline-block w-16 h-px" style={{
+              background: "linear-gradient(to right, var(--accent), transparent)",
+              boxShadow: "0 0 8px rgba(212,255,0,0.3)",
+            }} />
           </h1>
         </div>
         <ShowcaseControls

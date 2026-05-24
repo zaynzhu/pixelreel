@@ -13,16 +13,17 @@ export function RandomPick({ compact }: RandomPickProps) {
   const { t } = useI18nStore()
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const fetchRandom = useCallback(async () => {
     try {
-      const limit = compact ? 5 : 5
-      const data = await apiFetch<LibraryRecord[] | LibraryRecord>(`/library/random?limit=${limit}`)
+      const data = await apiFetch<LibraryRecord[] | LibraryRecord>("/library/random?limit=5")
       setRecords(Array.isArray(data) ? data : [data])
+      setRefreshKey((k) => k + 1)
     } catch {
       setRecords([])
     }
-  }, [compact])
+  }, [])
 
   useEffect(() => {
     void fetchRandom()
@@ -43,8 +44,21 @@ export function RandomPick({ compact }: RandomPickProps) {
         <div className="flex items-center justify-between mb-3">
           <div className="section-kicker">{t("showcase.random.kicker")}</div>
           <button
-            className="text-[10px] uppercase tracking-wider hover:underline cursor-pointer"
-            style={{ color: "var(--accent)" }}
+            className="text-[10px] uppercase tracking-wider cursor-pointer px-2 py-0.5"
+            style={{
+              color: "var(--accent)",
+              border: "1px solid rgba(212,255,0,0.3)",
+              background: "rgba(212,255,0,0.05)",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(212,255,0,0.15)"
+              e.currentTarget.style.borderColor = "rgba(212,255,0,0.6)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(212,255,0,0.05)"
+              e.currentTarget.style.borderColor = "rgba(212,255,0,0.3)"
+            }}
             onClick={fetchRandom}
           >
             {t("showcase.random.btn")}
@@ -52,11 +66,12 @@ export function RandomPick({ compact }: RandomPickProps) {
         </div>
 
         {records.length > 0 ? (
-          <div className="flex-1 flex items-center gap-3 min-h-0">
-            {records.map((record) => (
+          <div className="flex-1 flex items-center gap-2 min-h-0" key={refreshKey}>
+            {records.map((record, i) => (
               <div
                 key={`${record.category}-${record.id}`}
-                className="flex-1 flex flex-col items-center gap-2 min-w-0"
+                className="flex-1 flex flex-col items-center gap-1.5 min-w-0"
+                style={{ animation: `poster-enter 0.35s ease-out ${i * 60}ms both` }}
               >
                 <div
                   className="showcase-poster group w-full"
@@ -70,7 +85,7 @@ export function RandomPick({ compact }: RandomPickProps) {
                     <ImgWithFallback
                       src={record.posterUrl}
                       alt={record.title}
-                      className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                      className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300 group-hover:scale-105"
                       fallback={<PosterPlaceholder title={record.title} />}
                     />
                   ) : (
@@ -79,11 +94,11 @@ export function RandomPick({ compact }: RandomPickProps) {
                 </div>
 
                 <div className="text-center w-full">
-                  <div className="text-[11px] font-display font-bold truncate" style={{ color: "var(--ink)" }}>
+                  <div className="text-[10px] font-display font-bold truncate" style={{ color: "var(--ink)" }}>
                     {record.title}
                   </div>
                   {record.rating != null && (
-                    <div className="text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>
+                    <div className="text-[9px] mt-0.5" style={{ color: "var(--accent)" }}>
                       {record.rating}/5
                     </div>
                   )}
