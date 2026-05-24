@@ -94,6 +94,11 @@ async function fetchTotals() {
 }
 
 export async function getRandomRecord(): Promise<LibraryRecordResponse | null> {
+  const results = await getRandomRecords(1);
+  return results[0] ?? null;
+}
+
+export async function getRandomRecords(count: number): Promise<LibraryRecordResponse[]> {
   const db = getDb();
 
   const [movieCount, gameCount, tvCount] = await Promise.all([
@@ -103,20 +108,39 @@ export async function getRandomRecord(): Promise<LibraryRecordResponse | null> {
   ]);
 
   const total = movieCount + gameCount + tvCount;
-  if (total === 0) return null;
+  if (total === 0) return [];
 
-  const offset = Math.floor(Math.random() * total);
+  const seen = new Set<string>();
+  const results: LibraryRecordResponse[] = [];
+  const maxAttempts = count * 5;
+  let attempts = 0;
 
-  if (offset < movieCount) {
-    const movie = (await db.movie.findMany({ skip: offset, take: 1 }))[0];
-    return movie ? toMovieRecord(movie) : null;
-  } else if (offset < movieCount + gameCount) {
-    const game = (await db.game.findMany({ skip: offset - movieCount, take: 1 }))[0];
-    return game ? toGameRecord(game) : null;
-  } else {
-    const show = (await db.tvShow.findMany({ skip: offset - movieCount - gameCount, take: 1 }))[0];
-    return show ? toTvShowRecord(show) : null;
+  while (results.length < count && attempts < maxAttempts) {
+    attempts++;
+    const offset = Math.floor(Math.random() * total);
+
+    let record: LibraryRecordResponse | null = null;
+    if (offset < movieCount) {
+      const movie = (await db.movie.findMany({ skip: offset, take: 1 }))[0];
+      record = movie ? toMovieRecord(movie) : null;
+    } else if (offset < movieCount + gameCount) {
+      const game = (await db.game.findMany({ skip: offset - movieCount, take: 1 }))[0];
+      record = game ? toGameRecord(game) : null;
+    } else {
+      const show = (await db.tvShow.findMany({ skip: offset - movieCount - gameCount, take: 1 }))[0];
+      record = show ? toTvShowRecord(show) : null;
+    }
+
+    if (record) {
+      const key = `${record.category}-${record.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push(record);
+      }
+    }
   }
+
+  return results;
 }
 
 export async function updateRecord(
