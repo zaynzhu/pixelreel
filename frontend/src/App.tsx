@@ -9,6 +9,7 @@ import TimelinePage from "./pages/TimelinePage";
 import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage";
 import { ActivityPage } from "./pages/ActivityPage";
+import ShowcasePage from "./pages/ShowcasePage";
 import { useAuthStore } from "./stores/authStore";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="library" element={<LibraryPage />} />
           <Route path="timeline" element={<TimelinePage />} />
           <Route path="activity" element={<ActivityPage />} />
+          <Route path="showcase" element={<ShowcasePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
