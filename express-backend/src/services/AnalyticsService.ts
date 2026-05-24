@@ -18,7 +18,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
   const inYear = (d: Date | null) => d != null && d >= yearStart && d < yearEnd
   const inLastYear = (d: Date | null) => d != null && d >= lastYearStart && d < lastYearEnd
 
-  // 本年完成的记录
+  // 本年完成的记录（updatedAt 是"完成时间"的最佳近似——状态改为 DONE 时 Prisma 自动刷新）
   const doneMoviesThisYear = movies.filter(m => m.status === RecordStatus.DONE && inYear(m.updatedAt))
   const doneGamesThisYear = games.filter(g => g.status === RecordStatus.DONE && inYear(g.updatedAt))
   const doneTvShowsThisYear = tvShows.filter(s => s.status === RecordStatus.DONE && inYear(s.updatedAt))
@@ -31,10 +31,11 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
   const completedThisYear = doneMoviesThisYear.length + doneGamesThisYear.length + doneTvShowsThisYear.length
   const completedLastYear = doneMoviesLastYear.length + doneGamesLastYear.length + doneTvShowsLastYear.length
 
-  // 本年有评分的记录（updatedAt 在该年且 rating 不为 null）
-  const ratedMoviesThisYear = movies.filter(m => m.rating != null && inYear(m.updatedAt))
-  const ratedGamesThisYear = games.filter(g => g.rating != null && inYear(g.updatedAt))
-  const ratedTvShowsThisYear = tvShows.filter(s => s.rating != null && inYear(s.updatedAt))
+  // 本年入库且有评分的记录（用 createdAt 而非 updatedAt，避免编辑短评导致误算）
+  const inYearCreated = (d: Date | null) => inYear(d)
+  const ratedMoviesThisYear = movies.filter(m => m.rating != null && inYearCreated(m.createdAt))
+  const ratedGamesThisYear = games.filter(g => g.rating != null && inYearCreated(g.createdAt))
+  const ratedTvShowsThisYear = tvShows.filter(s => s.rating != null && inYearCreated(s.createdAt))
   const ratedThisYear = ratedMoviesThisYear.length + ratedGamesThisYear.length + ratedTvShowsThisYear.length
 
   // 本年评分均值
@@ -47,10 +48,10 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     ? Math.round((allRatingsThisYear.reduce((s, r) => s + r, 0) / allRatingsThisYear.length) * 10) / 10
     : null
 
-  // 本年有短评的记录
-  const reviewedMoviesThisYear = movies.filter(m => m.shortReview?.trim() && inYear(m.updatedAt))
-  const reviewedGamesThisYear = games.filter(g => g.shortReview?.trim() && inYear(g.updatedAt))
-  const reviewedTvShowsThisYear = tvShows.filter(s => s.shortReview?.trim() && inYear(s.updatedAt))
+  // 本年入库且有短评的记录
+  const reviewedMoviesThisYear = movies.filter(m => m.shortReview?.trim() && inYearCreated(m.createdAt))
+  const reviewedGamesThisYear = games.filter(g => g.shortReview?.trim() && inYearCreated(g.createdAt))
+  const reviewedTvShowsThisYear = tvShows.filter(s => s.shortReview?.trim() && inYearCreated(s.createdAt))
   const reviewedThisYear = reviewedMoviesThisYear.length + reviewedGamesThisYear.length + reviewedTvShowsThisYear.length
 
   return {
@@ -65,7 +66,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     },
     monthlyCompletion: buildMonthlyCompletion(doneMoviesThisYear, doneGamesThisYear, doneTvShowsThisYear),
     ratingDistribution: buildRatingDistribution(ratedMoviesThisYear, ratedGamesThisYear, ratedTvShowsThisYear),
-    sourceBreakdown: buildSourceBreakdown(movies, games, tvShows),
+    sourceBreakdown: buildSourceBreakdown(movies, games, tvShows, yearStart, yearEnd),
     crossPlatformRatings: buildCrossPlatformRatings(movies),
     topRated: buildTopRated(movies, games, tvShows, yearStart, yearEnd),
   }
@@ -101,8 +102,13 @@ function buildRatingDistribution(
 }
 
 function buildSourceBreakdown(
-  movies: any[], games: any[], tvShows: any[]
+  movies: any[], games: any[], tvShows: any[],
+  yearStart: Date, yearEnd: Date
 ): AnalyticsResponse['sourceBreakdown'] {
+  const inYear = (d: Date | null) => d != null && d >= yearStart && d < yearEnd
+  movies = movies.filter(m => inYear(m.createdAt))
+  games = games.filter(g => inYear(g.createdAt))
+  tvShows = tvShows.filter(s => inYear(s.createdAt))
   const countBy = (items: any[], fn: (item: any) => string) => {
     const counts: Record<string, number> = {}
     for (const item of items) {
@@ -150,7 +156,7 @@ function buildTopRated(
   const inYear = (d: Date | null) => d != null && d >= yearStart && d < yearEnd
 
   const items: AnalyticsResponse['topRated'] = [
-    ...movies.filter(m => m.rating != null && inYear(m.updatedAt)).map(m => ({
+    ...movies.filter(m => m.rating != null && inYear(m.createdAt)).map(m => ({
       category: 'movie' as const,
       id: Number(m.id),
       title: m.title,
@@ -159,7 +165,7 @@ function buildTopRated(
       shortReview: m.shortReview,
       source: inferMovieSource(m),
     })),
-    ...games.filter(g => g.rating != null && inYear(g.updatedAt)).map(g => ({
+    ...games.filter(g => g.rating != null && inYear(g.createdAt)).map(g => ({
       category: 'game' as const,
       id: Number(g.id),
       title: g.title,
@@ -168,7 +174,7 @@ function buildTopRated(
       shortReview: g.shortReview,
       source: inferGamePlatform(g),
     })),
-    ...tvShows.filter(s => s.rating != null && inYear(s.updatedAt)).map(s => ({
+    ...tvShows.filter(s => s.rating != null && inYear(s.createdAt)).map(s => ({
       category: 'tv_show' as const,
       id: Number(s.id),
       title: s.title,
