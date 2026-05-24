@@ -39,18 +39,17 @@ export function RandomPick({ compact }: RandomPickProps) {
 
   return (
     <>
-      <div className="dash-card h-full flex flex-col p-5 relative overflow-hidden">
+      <div className="showcase-panel h-full flex flex-col p-5">
         <div className="section-kicker mb-3">{t("showcase.random.kicker")}</div>
 
         {record ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <div
-              className="relative overflow-hidden cursor-pointer group"
+              className="showcase-poster group"
               style={{
-                width: compact ? 100 : 160,
-                height: compact ? 140 : 220,
-                border: "1px solid var(--accent)",
-                boxShadow: "0 0 20px rgba(212,255,0,0.2)",
+                width: compact ? 120 : 140,
+                height: compact ? 168 : 196,
+                borderColor: "var(--accent)",
               }}
               onClick={() => setSelectedRecord(record)}
             >
@@ -66,12 +65,6 @@ export function RandomPick({ compact }: RandomPickProps) {
                   {record.title}
                 </div>
               )}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px)",
-                }}
-              />
             </div>
 
             <div className="text-center">
