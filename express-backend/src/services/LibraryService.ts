@@ -93,6 +93,32 @@ async function fetchTotals() {
   };
 }
 
+export async function getRandomRecord(): Promise<LibraryRecordResponse | null> {
+  const db = getDb();
+
+  const [movieCount, gameCount, tvCount] = await Promise.all([
+    db.movie.count(),
+    db.game.count(),
+    db.tvShow.count(),
+  ]);
+
+  const total = movieCount + gameCount + tvCount;
+  if (total === 0) return null;
+
+  const offset = Math.floor(Math.random() * total);
+
+  if (offset < movieCount) {
+    const movie = (await db.movie.findMany({ skip: offset, take: 1 }))[0];
+    return movie ? toMovieRecord(movie) : null;
+  } else if (offset < movieCount + gameCount) {
+    const game = (await db.game.findMany({ skip: offset - movieCount, take: 1 }))[0];
+    return game ? toGameRecord(game) : null;
+  } else {
+    const show = (await db.tvShow.findMany({ skip: offset - movieCount - gameCount, take: 1 }))[0];
+    return show ? toTvShowRecord(show) : null;
+  }
+}
+
 export async function updateRecord(
   category: string,
   id: number,

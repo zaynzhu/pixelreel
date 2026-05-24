@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { listRecords, updateRecord } from '../services/LibraryService';
+import { listRecords, updateRecord, getRandomRecord } from '../services/LibraryService';
 
 const router = Router();
 
@@ -9,6 +9,20 @@ router.get('/', async (req: Request, res: Response) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
   const result = await listRecords({ cursor, limit });
   res.json(result);
+});
+
+// GET /api/library/random — 随机获取一条记录
+router.get('/random', async (req: Request, res: Response) => {
+  try {
+    const record = await getRandomRecord();
+    if (!record) {
+      res.status(404).json({ error: 'No records found' });
+      return;
+    }
+    res.json(record);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PATCH /api/library/:category/:id — 更新记录状态/评分/短评（不变）
