@@ -37,6 +37,8 @@ export async function enrichExistingRecords(
           data: {
             tmdbId: enrich.tmdbId,
             posterUrl: enrich.posterUrl,
+            tmdbVoteAverage: enrich.voteAverage,
+            tmdbPopularity: enrich.popularity,
           },
         });
         summary.imported++;
@@ -74,6 +76,8 @@ export async function enrichExistingRecords(
           data: {
             tmdbId: enrich.tmdbId,
             posterUrl: enrich.posterUrl,
+            tmdbVoteAverage: enrich.voteAverage,
+            tmdbPopularity: enrich.popularity,
           },
         });
         summary.imported++;
