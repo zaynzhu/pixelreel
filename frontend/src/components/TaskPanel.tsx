@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useTaskStore, startPolling, stopPolling } from '../stores/taskStore';
+import { confirmDialog } from './Toast';
+import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
@@ -121,7 +123,11 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
           </div>
           <div className="flex justify-between mt-1">
             <span className="text-[10px] text-[var(--muted)]">
-              {task.progress.processed}/{task.progress.total}
+              {task.progress.total > 0
+                ? `${task.progress.processed}/${task.progress.total}`
+                : task.progress.processed > 0
+                  ? `${task.progress.processed}条`
+                  : ''}
             </span>
             <span className="text-[10px] text-[var(--muted)] truncate max-w-[180px] ml-2">
               {task.progress.currentTitle}
@@ -150,13 +156,13 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
       {(task.status === 'cancelled' || task.status === 'failed') && task.type === 'douban-harvest' && (
         <button
           onClick={async () => {
-            if (!confirm('确定要清空所有豆瓣来源的数据吗？此操作不可恢复。')) return;
+            if (!(await confirmDialog('确定要清空所有豆瓣来源的数据吗？此操作不可恢复。', true))) return;
             try {
               const result = await useTaskStore.getState().clearDoubanData();
-              alert(`已删除 ${result.deletedMovies} 部电影, ${result.deletedTvShows} 部剧集`);
+              toast(`已删除 ${result.deletedMovies} 部电影, ${result.deletedTvShows} 部剧集`);
               await useTaskStore.getState().pollTasks();
             } catch (e: any) {
-              alert(`清空失败: ${e.message}`);
+              toast(`清空失败: ${e.message}`, 'error');
             }
           }}
           className="mt-2 w-full text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 py-1 hover:bg-red-400/10 transition-colors"
