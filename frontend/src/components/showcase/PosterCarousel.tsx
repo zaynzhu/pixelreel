@@ -1,9 +1,26 @@
 import { useState, useEffect } from "react"
 import type { RecentRecordItem } from "../../types/profile"
 import type { LibraryRecord } from "../../types/library"
+import type { TimelineRecord } from "../../types/timeline"
 import { useI18nStore } from "../../stores/i18nStore"
 import { ImgWithFallback } from "../ImgWithFallback"
 import TimelinePopup from "../TimelinePopup"
+
+/** Extract lightweight TimelineRecord fields from a full LibraryRecord */
+function toLightweight(r: LibraryRecord): TimelineRecord {
+  return {
+    id: r.id,
+    category: r.category,
+    title: r.title,
+    posterUrl: r.posterUrl ?? null,
+    sourceLabel: r.sourceLabel ?? null,
+    platformLabel: r.platformLabel ?? null,
+    status: r.status,
+    rating: r.rating ?? null,
+    playtimeMinutes: r.playtimeMinutes ?? null,
+    createdAt: r.createdAt,
+  }
+}
 
 interface PosterCarouselProps {
   items: RecentRecordItem[]
@@ -106,7 +123,13 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
         </div>
       </div>
 
-      <TimelinePopup record={selectedRecord} onClose={() => setSelectedRecord(null)} />
+      <TimelinePopup
+        lightweightRecord={selectedRecord ? toLightweight(selectedRecord) : null}
+        fullRecord={selectedRecord}
+        loading={false}
+        error={null}
+        onClose={() => setSelectedRecord(null)}
+      />
     </>
   )
 }

@@ -1,27 +1,31 @@
 import { useEffect } from "react";
 import type { LibraryRecord, RecordStatus } from "../types/library";
+import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "./StarRating";
 import { ImgWithFallback } from "./ImgWithFallback";
 
 interface TimelinePopupProps {
-  record: LibraryRecord | null;
+  lightweightRecord: TimelineRecord | null;
+  fullRecord: LibraryRecord | null;
+  loading: boolean;
+  error: string | null;
   onClose: () => void;
 }
 
-export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
+export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose }: TimelinePopupProps) {
   const { t } = useI18nStore();
 
   useEffect(() => {
-    if (!record) return;
+    if (!lightweightRecord) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [record, onClose]);
+  }, [lightweightRecord, onClose]);
 
-  if (!record) return null;
+  if (!lightweightRecord) return null;
 
   const formatDate = (value?: string | null) => {
     if (!value) return null;
@@ -47,9 +51,35 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
     }
   };
 
-  const badge = categoryBadge(record.category);
-  const hasDouban = record.doubanLink != null;
-  const hasTmdb = record.tmdbTitle != null;
+  const badge = categoryBadge(lightweightRecord.category);
+
+  // Derive display values: prefer full record, fall back to lightweight
+  const title = fullRecord?.title ?? lightweightRecord.title;
+  const posterUrl = fullRecord?.posterUrl ?? lightweightRecord.posterUrl;
+  const status = fullRecord?.status ?? lightweightRecord.status;
+  const rating = fullRecord?.rating ?? lightweightRecord.rating;
+  const category = fullRecord?.category ?? lightweightRecord.category;
+  const playtimeMinutes = fullRecord?.playtimeMinutes ?? lightweightRecord.playtimeMinutes;
+  const sourceLabel = fullRecord?.sourceLabel ?? lightweightRecord.sourceLabel;
+  const createdAt = fullRecord?.createdAt ?? lightweightRecord.createdAt;
+
+  // Fields only available from full record
+  const doubanAltTitle = fullRecord?.doubanAltTitle ?? null;
+  const doubanLink = fullRecord?.doubanLink ?? null;
+  const hasDouban = fullRecord?.doubanAvgRating != null;
+  const hasTmdb = fullRecord?.tmdbTitle != null;
+  const tmdbReleaseDate = fullRecord?.tmdbReleaseDate ?? null;
+  const tmdbGenreIds = fullRecord?.tmdbGenreIds ?? null;
+  const shortReview = fullRecord?.shortReview ?? null;
+  const doubanAvgRating = fullRecord?.doubanAvgRating ?? null;
+  const tmdbVoteAverage = fullRecord?.tmdbVoteAverage ?? null;
+  const tmdbPopularity = fullRecord?.tmdbPopularity ?? null;
+  const imdbRating = fullRecord?.imdbRating ?? null;
+  const tmdbTitle = fullRecord?.tmdbTitle ?? null;
+  const tmdbOverview = fullRecord?.tmdbOverview ?? null;
+  const doubanIntro = fullRecord?.doubanIntro ?? null;
+  const doubanDate = fullRecord?.doubanDate ?? null;
+  const hideStatus = category === 'game' && status === 'WANT' && playtimeMinutes && playtimeMinutes > 0;
 
   // TMDB genre ID → 名称映射
   const genreNames = (ids: string | null | undefined): string[] => {
@@ -87,22 +117,22 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
           {/* Poster */}
           <div className="w-[200px] shrink-0">
             <div className="aspect-[2/3] bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative">
-              {record.posterUrl ? (
+              {posterUrl ? (
                 <ImgWithFallback
-                  src={record.posterUrl}
-                  alt={record.title}
+                  src={posterUrl}
+                  alt={title}
                   className="h-full w-full object-cover"
                   fallback={
                     <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
                       <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
-                      <span className="text-3xl font-display font-bold opacity-15" style={{ color: badge.color }}>{record.title.charAt(0).toUpperCase()}</span>
+                      <span className="text-3xl font-display font-bold opacity-15" style={{ color: badge.color }}>{title.charAt(0).toUpperCase()}</span>
                     </div>
                   }
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
                   <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
-                  <span className="text-3xl font-display font-bold opacity-15" style={{ color: badge.color }}>{record.title.charAt(0).toUpperCase()}</span>
+                  <span className="text-3xl font-display font-bold opacity-15" style={{ color: badge.color }}>{title.charAt(0).toUpperCase()}</span>
                 </div>
               )}
               <div
@@ -121,29 +151,35 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
           {/* Title + meta */}
           <div className="flex flex-1 flex-col gap-3 p-5">
             <h3 className="font-display text-lg font-bold uppercase text-white leading-tight">
-              {record.title}
+              {title}
             </h3>
 
-            {record.doubanAltTitle && (
+            {doubanAltTitle && (
               <p className="text-[11px] text-[var(--muted)] leading-relaxed">
-                {record.doubanAltTitle}
+                {doubanAltTitle}
               </p>
             )}
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="neo-badge text-[10px]">{record.sourceLabel}</span>
-              {!(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0) && (
-                <span className="neo-badge text-[10px]">{statusLabel(record.status)}</span>
+              {sourceLabel && <span className="neo-badge text-[10px]">{sourceLabel}</span>}
+              {!hideStatus && (
+                <span className="neo-badge text-[10px]">{statusLabel(status)}</span>
               )}
-              {record.tmdbReleaseDate && (
-                <span className="neo-badge text-[10px]">{record.tmdbReleaseDate}</span>
+              {tmdbReleaseDate && (
+                <span className="neo-badge text-[10px]">{tmdbReleaseDate}</span>
+              )}
+              {loading && (
+                <span className="text-[9px] text-[var(--muted)] uppercase tracking-widest animate-pulse">LOADING...</span>
+              )}
+              {error && (
+                <span className="text-[9px] text-red-400 uppercase tracking-widest">ERR</span>
               )}
             </div>
 
             {/* TMDB 类型标签 */}
-            {genreNames(record.tmdbGenreIds).length > 0 && (
+            {genreNames(tmdbGenreIds).length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {genreNames(record.tmdbGenreIds).map(name => (
+                {genreNames(tmdbGenreIds).map(name => (
                   <span key={name} className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-[var(--line)] text-[var(--muted)]">
                     {name}
                   </span>
@@ -152,24 +188,24 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
             )}
 
             {/* 个人评分（星星） */}
-            {record.rating != null && (
+            {rating != null && (
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">MY RATING</span>
-                <StarRating value={record.rating} />
+                <span className="text-xs sm:text-sm font-bold text-[var(--accent)]"><StarRating value={rating} /></span>
               </div>
             )}
 
             {/* 短评 */}
-            {record.shortReview?.trim() && (
+            {shortReview?.trim() && (
               <p className="text-[11px] leading-relaxed text-[var(--muted)] border-l-2 border-[var(--accent)] pl-3 mt-1">
-                {record.shortReview.trim()}
+                {shortReview.trim()}
               </p>
             )}
 
             {/* 豆瓣条目链接 */}
-            {record.doubanLink && (
+            {doubanLink && (
               <a
-                href={record.doubanLink}
+                href={doubanLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[10px] text-[var(--accent)] hover:underline uppercase tracking-widest mt-auto"
@@ -185,49 +221,49 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
           {/* 平台评分行 */}
           <div className="flex flex-wrap gap-4">
             {hasDouban && (
-              <PlatformScore label="豆瓣" rating={record.doubanAvgRating} />
+              <PlatformScore label="豆瓣" rating={doubanAvgRating} />
             )}
             {hasTmdb && (
-              <PlatformScore label="TMDB" rating={record.tmdbVoteAverage} extra={record.tmdbPopularity != null ? `POP ${record.tmdbPopularity.toFixed(1)}` : undefined} />
+              <PlatformScore label="TMDB" rating={tmdbVoteAverage} extra={tmdbPopularity != null ? `POP ${tmdbPopularity.toFixed(1)}` : undefined} />
             )}
-            {record.imdbRating != null && (
-              <PlatformScore label="IMDb" rating={record.imdbRating} />
+            {imdbRating != null && (
+              <PlatformScore label="IMDb" rating={imdbRating} />
             )}
           </div>
 
           {/* TMDB 原始标题 */}
-          {record.tmdbTitle && record.tmdbTitle !== record.title && (
+          {tmdbTitle && tmdbTitle !== title && (
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">TMDB TITLE</p>
-              <p className="text-[11px] leading-relaxed text-[var(--muted)]">{record.tmdbTitle}</p>
+              <p className="text-[11px] leading-relaxed text-[var(--muted)]">{tmdbTitle}</p>
             </div>
           )}
 
           {/* 简介 */}
-          {record.tmdbOverview && (
+          {tmdbOverview && (
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">OVERVIEW</p>
               <p className="text-[11px] leading-relaxed text-[var(--muted)]">
-                {record.tmdbOverview}
+                {tmdbOverview}
               </p>
             </div>
           )}
 
           {/* 豆瓣 intro（原始信息：导演/类型等） */}
-          {record.doubanIntro && (
+          {doubanIntro && (
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">DOUBAN INFO</p>
               <p className="text-[11px] leading-relaxed text-[var(--muted)]">
-                {record.doubanIntro}
+                {doubanIntro}
               </p>
             </div>
           )}
 
           {/* 底部日期 */}
           <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-[var(--dim)] border-t border-[var(--line)] pt-3">
-            <span>{t("timeline.added")} {formatDate(record.createdAt)}</span>
-            {record.doubanDate && (
-              <span>豆瓣标记 {record.doubanDate}</span>
+            <span>{t("timeline.added")} {formatDate(createdAt)}</span>
+            {doubanDate && (
+              <span>豆瓣标记 {doubanDate}</span>
             )}
           </div>
         </div>

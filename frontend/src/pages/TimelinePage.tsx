@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLibraryStore } from "../stores/libraryStore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTimelineStore } from "../stores/timelineStore";
+import { useTimelineDetailStore } from "../stores/timelineDetailStore";
 import { useI18nStore } from "../stores/i18nStore";
+import type { TimelineRecord } from "../types/timeline";
 import type { LibraryRecord, LibraryCategory, RecordStatus } from "../types/library";
 import TimelinePopup from "../components/TimelinePopup";
 import { StarRating } from "../components/StarRating";
@@ -14,7 +16,7 @@ interface MonthGroup {
   month: number;
   labelMonth: string; // "MAR"
   labelYear: string;  // "2025"
-  records: LibraryRecord[];
+  records: TimelineRecord[];
 }
 
 function getYear(dateStr: string): number {
@@ -52,7 +54,7 @@ function statusBadge(status: RecordStatus, t: ReturnType<typeof useI18nStore.get
   }
 }
 
-function computeStats(records: LibraryRecord[]) {
+function computeStats(records: TimelineRecord[]) {
   const total = records.length;
   const rated = records.filter((r) => r.rating != null);
   const avgRating = rated.length > 0 ? (rated.reduce((s, r) => s + r.rating!, 0) / rated.length).toFixed(1) : null;
@@ -62,22 +64,48 @@ function computeStats(records: LibraryRecord[]) {
   return { total, avgRating, peakRating, completionRate };
 }
 
-function computeMonthStats(records: LibraryRecord[]) {
+function computeMonthStats(records: TimelineRecord[]) {
   const rated = records.filter((r) => r.rating != null);
   const avg = rated.length > 0 ? (rated.reduce((s, r) => s + r.rating!, 0) / rated.length).toFixed(1) : null;
   return { count: records.length, avg };
 }
 
 export default function TimelinePage() {
-  const { records, loading, error, fetchRecords, fetchMore, loadingMore, nextCursor } = useLibraryStore();
+  const { records, nextCursor, loading, loadingMore, error, filters, years, yearsError, fetchRecords, fetchMore, setFilters, fetchYears } = useTimelineStore();
+  const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore();
   const { t } = useI18nStore();
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("media");
-  const [popupRecord, setPopupRecord] = useState<LibraryRecord | null>(null);
+  const [popupRecord, setPopupRecord] = useState<TimelineRecord | null>(null);
 
+  // Initial fetch on mount
   useEffect(() => {
-    void fetchRecords();
-  }, [fetchRecords]);
+    void fetchRecords({
+      limit: 96,
+      category: selectedCategory,
+      year: selectedYear,
+    });
+    void fetchYears(selectedCategory);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch new records when category changes
+  useEffect(() => {
+    void fetchRecords({
+      limit: 96,
+      category: selectedCategory,
+      year: selectedYear,
+    });
+    void fetchYears(selectedCategory);
+  }, [selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch new records when year changes
+  useEffect(() => {
+    void fetchRecords({
+      limit: 96,
+      category: selectedCategory,
+      year: selectedYear,
+    });
+  }, [selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -90,42 +118,29 @@ export default function TimelinePage() {
           void fetchMore();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: '1200px 0px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, fetchMore]);
 
-  const filteredRecords = useMemo(() => {
-    let result = records;
-    if (selectedCategory === "media") {
-      result = result.filter((r) => r.category === "movie" || r.category === "tv_show");
-    } else if (selectedCategory === "game") {
-      result = result.filter((r) => r.category === "game");
-    }
-    if (selectedYear !== "ALL") {
-      result = result.filter((r) => getYear(r.createdAt) === selectedYear);
-    }
-    return result;
-  }, [records, selectedCategory, selectedYear]);
-
-  const years = useMemo(() => {
-    const ys = [...new Set(filteredRecords.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
-    return ys;
-  }, [filteredRecords]);
+  // Server-side filtering handles category and year
+  const yearOptions = years.length > 0
+    ? years
+    : [...new Set(records.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
 
   // 切换分类后，如果已选年份不在新列表里，重置为 ALL
   useEffect(() => {
-    if (selectedYear !== "ALL" && !years.includes(selectedYear)) {
+    if (selectedYear !== "ALL" && !yearOptions.includes(selectedYear)) {
       setSelectedYear("ALL");
     }
-  }, [years, selectedYear]);
+  }, [yearOptions, selectedYear]);
 
-  const stats = useMemo(() => computeStats(filteredRecords), [filteredRecords]);
+  const stats = useMemo(() => computeStats(records), [records]);
 
   const monthGroups = useMemo((): MonthGroup[] => {
-    const map = new Map<string, LibraryRecord[]>();
-    for (const record of filteredRecords) {
+    const map = new Map<string, TimelineRecord[]>();
+    for (const record of records) {
       const key = getYearMonth(record.createdAt);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(record);
@@ -147,7 +162,7 @@ export default function TimelinePage() {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;
     });
-  }, [filteredRecords]);
+  }, [records]);
 
   return (
     <div className="relative min-h-screen bg-black bg-[var(--page-bg)] overflow-hidden font-['JetBrains_Mono',monospace]">
@@ -172,7 +187,7 @@ export default function TimelinePage() {
         <YearFilterBtn active={selectedYear === "ALL"} onClick={() => setSelectedYear("ALL")}>
           ALL_TIME
         </YearFilterBtn>
-        {years.map((y) => (
+        {yearOptions.map((y) => (
           <YearFilterBtn key={y} active={selectedYear === y} onClick={() => setSelectedYear(y)}>
             {y}
           </YearFilterBtn>
@@ -206,7 +221,7 @@ export default function TimelinePage() {
 
         {/* Month Groups */}
         <div className="space-y-16 sm:space-y-24 pb-24">
-          {monthGroups.map((group, index) => {
+          {monthGroups.map((group, groupIndex) => {
             const mStats = computeMonthStats(group.records);
             return (
               <section key={group.key} className="relative">
@@ -255,7 +270,14 @@ export default function TimelinePage() {
                         idx === 0 ? "col-span-2 row-span-2 sm:col-span-2 sm:row-span-2" : ""
                       }`}
                     >
-                      <PosterCard record={record} onClick={() => setPopupRecord(record)} />
+                      <PosterCard
+                        record={record}
+                        priority={groupIndex === 0 && idx < 10}
+                        onClick={() => {
+                          setPopupRecord(record);
+                          void fetchDetail(record.category, record.id);
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -301,7 +323,7 @@ export default function TimelinePage() {
                onChange={(e) => setSelectedYear(e.target.value === "ALL" ? "ALL" : parseInt(e.target.value, 10))}
              >
                <option value="ALL">ALL_TIME</option>
-               {years.map(y => <option key={y} value={y}>{y}</option>)}
+               {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
              </select>
              <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[8px] text-[var(--accent)] pointer-events-none">▼</span>
           </div>
@@ -316,7 +338,13 @@ export default function TimelinePage() {
         </div>
       </div>
 
-      <TimelinePopup record={popupRecord} onClose={() => setPopupRecord(null)} />
+      <TimelinePopup
+        lightweightRecord={popupRecord}
+        fullRecord={popupRecord ? detailCache[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
+        loading={popupRecord ? detailLoading[`${popupRecord.category}:${popupRecord.id}`] ?? false : false}
+        error={popupRecord ? detailErrors[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
+        onClose={() => setPopupRecord(null)}
+      />
     </div>
   );
 }
@@ -367,7 +395,7 @@ function YearFilterBtn({ children, active, onClick }: { children: React.ReactNod
   );
 }
 
-function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () => void }) {
+function PosterCard({ record, priority, onClick }: { record: TimelineRecord; priority?: boolean; onClick: () => void }) {
   const { t } = useI18nStore();
   const badge = categoryBadge(record.category);
   const status = statusBadge(record.status, t);
@@ -386,6 +414,8 @@ function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () =>
         <img
           src={record.posterUrl!}
           alt={record.title}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
           onError={() => setImgError(true)}
           className="absolute inset-0 h-full w-full object-cover grayscale-[20%] opacity-80 transition-all duration-700 ease-out group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100"
         />
