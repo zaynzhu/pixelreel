@@ -208,7 +208,7 @@ async function checkBlockedAsync(page: Page): Promise<{ blocked: boolean; reason
 
 function isOlderThan(dateStr: string, cutoff: string): boolean {
   try {
-    return dateStr.slice(0, 10) <= cutoff;
+    return dateStr.slice(0, 10) < cutoff;
   } catch {
     return false;
   }

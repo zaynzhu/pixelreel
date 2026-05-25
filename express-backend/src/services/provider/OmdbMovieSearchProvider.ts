@@ -9,6 +9,45 @@ import {
 } from '../../dto/external-search';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+function containsChinese(str: string): boolean {
+  return /[一-鿿]/.test(str);
+}
+
+async function tryOmdbWithEnglishTitles(query: string, page: number): Promise<any | null> {
+  try {
+    const tmdbRes = await axios.get(`${config.tmdb.baseUrl}/search/movie`, {
+      params: { query, page: 1 },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+    });
+    const results = tmdbRes.data?.results ?? [];
+    // 按 popularity 降序排列，优先选最热门的结果
+    const sorted = [...results].sort((a: any, b: any) => (b.vote_count ?? 0) - (a.vote_count ?? 0));
+    // 收集所有英文候选标题（去重）
+    const candidates: string[] = [];
+    for (const item of sorted) {
+      if (item.title && /[a-zA-Z]/.test(item.title) && !containsChinese(item.title)) {
+        candidates.push(item.title);
+      }
+      if (item.original_title && /[a-zA-Z]/.test(item.original_title) && !containsChinese(item.original_title)
+        && !candidates.includes(item.original_title)) {
+        candidates.push(item.original_title);
+      }
+    }
+    // 逐个尝试 OMDb 搜索，返回第一个有结果的
+    for (const title of candidates) {
+      const omdbRes = await axios.get(config.omdb.baseUrl, {
+        params: { apikey: config.omdb.apiKey, s: title, page, type: 'movie' },
+      });
+      if (omdbRes.data?.Response === 'True') {
+        return omdbRes.data;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // OMDb 影视搜索 Provider，与 Java 端 OmdbMovieSearchProvider 完全对齐
 export class OmdbMovieSearchProvider implements MovieSearchProvider {
   id(): string {
@@ -35,9 +74,17 @@ export class OmdbMovieSearchProvider implements MovieSearchProvider {
     if (!query) throw new Error('query must not be blank');
     const normalizedPage = Math.max(page, 1);
 
-    const response = await axios.get(config.omdb.baseUrl, {
+    let response = await axios.get(config.omdb.baseUrl, {
       params: { apikey: config.omdb.apiKey, s: query, page: normalizedPage, type: 'movie' },
     });
+
+    // 中文关键词或 OMDb 返回 Too many results 时，通过 TMDB 获取英文标题逐个重试
+    if (containsChinese(query) || response.data?.Error === 'Too many results.') {
+      const fallback = await tryOmdbWithEnglishTitles(query, normalizedPage);
+      if (fallback) {
+        response = { ...response, data: fallback };
+      }
+    }
 
     if (response.data?.Response === 'False') {
       result.message = response.data.Error ?? 'OMDb 搜索无结果';

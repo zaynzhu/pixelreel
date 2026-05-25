@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import type { LibraryRecord, LibraryCategory, RecordStatus } from "../types/library";
@@ -372,6 +372,9 @@ function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () =>
   const badge = categoryBadge(record.category);
   const status = statusBadge(record.status, t);
   const hasRating = record.rating != null;
+  const [imgError, setImgError] = useState(false);
+  const showPlaceholder = !record.posterUrl || imgError;
+  const hideStatus = record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0;
 
   return (
     <button
@@ -379,15 +382,41 @@ function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () =>
       className="group relative flex h-full w-full aspect-[2/3] overflow-hidden bg-[var(--surface)] text-left transition-all duration-500 border border-[var(--line)] hover:border-[var(--accent)] hover:shadow-[0_0_30px_rgba(212,255,0,0.15)]"
     >
       {/* Image with Cinematic Zoom */}
-      {record.posterUrl ? (
+      {!showPlaceholder ? (
         <img
-          src={record.posterUrl}
+          src={record.posterUrl!}
           alt={record.title}
+          onError={() => setImgError(true)}
           className="absolute inset-0 h-full w-full object-cover grayscale-[20%] opacity-80 transition-all duration-700 ease-out group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100"
         />
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-          <span className="text-[10px] text-[var(--line)] uppercase tracking-[0.3em] font-bold">NO_IMAGE</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, #0a0a0a 0%, #111 50%, #0a0a0a 100%)` }}>
+          {/* Grid Pattern */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          {/* Category Icon */}
+          <div className="relative mb-4 opacity-20">
+            {record.category === 'game' ? (
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={badge.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="6" y1="12" x2="10" y2="12" /><line x1="8" y1="10" x2="8" y2="14" />
+                <line x1="15" y1="13" x2="15.01" y2="13" /><line x1="18" y1="11" x2="18.01" y2="11" />
+                <path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z" />
+              </svg>
+            ) : (
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={badge.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+                <line x1="7" y1="2" x2="7" y2="22" /><line x1="17" y1="2" x2="17" y2="22" />
+                <line x1="2" y1="12" x2="22" y2="12" /><line x1="2" y1="7" x2="7" y2="7" />
+                <line x1="2" y1="17" x2="7" y2="17" /><line x1="17" y1="7" x2="22" y2="7" />
+                <line x1="17" y1="17" x2="22" y2="17" />
+              </svg>
+            )}
+          </div>
+          {/* Title Initial */}
+          <div className="text-3xl font-display font-bold opacity-10" style={{ color: badge.color }}>
+            {record.title.charAt(0).toUpperCase()}
+          </div>
+          {/* Decorative Line */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] opacity-20" style={{ background: `linear-gradient(90deg, transparent, ${badge.color}, transparent)` }} />
         </div>
       )}
 
@@ -400,10 +429,12 @@ function PosterCard({ record, onClick }: { record: LibraryRecord; onClick: () =>
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] opacity-20 mix-blend-overlay transition-opacity duration-300 group-hover:opacity-10 z-10" />
 
       {/* Status Tech-Dot */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded border border-white/10">
-         <div className={`w-1.5 h-1.5 rounded-full ${record.status === 'DONE' ? 'bg-[var(--accent)] shadow-[0_0_5px_var(--accent)] animate-pulse' : 'bg-[var(--muted)]'}`} />
-         <span className="text-[8px] font-bold text-white uppercase tracking-widest leading-none">{status}</span>
-      </div>
+      {!hideStatus && (
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded border border-white/10">
+           <div className={`w-1.5 h-1.5 rounded-full ${record.status === 'DONE' ? 'bg-[var(--accent)] shadow-[0_0_5px_var(--accent)] animate-pulse' : 'bg-[var(--muted)]'}`} />
+           <span className="text-[8px] font-bold text-white uppercase tracking-widest leading-none">{status}</span>
+        </div>
+      )}
 
       {/* Category Tech Badge (Top Left) */}
       <div 

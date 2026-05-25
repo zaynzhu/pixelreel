@@ -1,24 +1,22 @@
 import axios from 'axios';
 import { config } from '../../config';
 import { getDb } from '../../config/db';
-import { MovieSearchProvider } from '../provider/MovieSearchProvider';
+import { TvShowSearchProvider } from '../provider/TvShowSearchProvider';
 import {
-  ExternalMovieSearchResult,
+  ExternalTvShowSearchResult,
   ProviderSearchResult,
-  MovieRecordSuggestion,
+  TvShowRecordSuggestion,
 } from '../../dto/external-search';
 import { RecordStatus } from '../../enums/RecordStatus';
 
-// 豆瓣影视搜索 Provider，与 Java 端 DoubanMovieSearchProvider 完全对齐
-export class DoubanMovieSearchProvider implements MovieSearchProvider {
-  private static readonly PAGE_SIZE = 20;
-
+// 豆瓣电视剧搜索 Provider — 使用公开 suggest 接口
+export class DoubanTvShowSearchProvider implements TvShowSearchProvider {
   id(): string {
     return 'douban';
   }
 
-  async search(query: string, page: number): Promise<ProviderSearchResult<ExternalMovieSearchResult>> {
-    const result: ProviderSearchResult<ExternalMovieSearchResult> = {
+  async search(query: string, page: number): Promise<ProviderSearchResult<ExternalTvShowSearchResult>> {
+    const result: ProviderSearchResult<ExternalTvShowSearchResult> = {
       provider: this.id(),
       enabled: true,
       message: '',
@@ -36,16 +34,14 @@ export class DoubanMovieSearchProvider implements MovieSearchProvider {
     });
 
     const subjects = response.data ?? [];
-    // 只返回电影和电视剧
-    const filtered = subjects.filter((s: any) => s.type === 'movie' || s.type === 'tv');
-    const doubanIds = filtered.map((s: any) => s.id).filter(Boolean);
+    const doubanIds = subjects.map((s: any) => s.id).filter(Boolean);
     const existingMap = doubanIds.length > 0
       ? await this.findExistingByDoubanId(doubanIds)
       : new Map<string, any>();
 
-    const results: ExternalMovieSearchResult[] = filtered.map((subject: any) => {
+    const results: ExternalTvShowSearchResult[] = subjects.map((subject: any) => {
       const existing = subject.id ? existingMap.get(subject.id) ?? null : null;
-      const mapped: ExternalMovieSearchResult = {
+      const mapped: ExternalTvShowSearchResult = {
         provider: this.id(),
         tmdbId: null,
         imdbId: null,
@@ -53,7 +49,7 @@ export class DoubanMovieSearchProvider implements MovieSearchProvider {
         traktId: null,
         title: subject.title || subject.sub_title || '',
         posterUrl: subject.img || null,
-        releaseDate: subject.year ?? null,
+        firstAirDate: subject.year ?? null,
         overview: null,
         alreadyAdded: existing !== null,
         existingRecordId: existing?.id != null ? Number(existing.id) : null,
@@ -69,11 +65,11 @@ export class DoubanMovieSearchProvider implements MovieSearchProvider {
   }
 
   private async findExistingByDoubanId(ids: string[]): Promise<Map<string, any>> {
-    const movies = await getDb().movie.findMany({ where: { doubanId: { in: ids } } });
-    return new Map(movies.map((m) => [m.doubanId!, m]));
+    const shows = await getDb().tvShow.findMany({ where: { doubanId: { in: ids } } });
+    return new Map(shows.map((s) => [s.doubanId!, s]));
   }
 
-  private buildSuggestion(mapped: ExternalMovieSearchResult): MovieRecordSuggestion {
+  private buildSuggestion(mapped: ExternalTvShowSearchResult): TvShowRecordSuggestion {
     return {
       tmdbId: mapped.tmdbId,
       imdbId: mapped.imdbId,

@@ -54,7 +54,7 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
     toSave.push({
       steamAppId: owned.appid,
       title: owned.name || '',
-      posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appid}/library_600x900.jpg`,
+      posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appid}/header.jpg`,
       playtimeMinutes: owned.playtime_forever ?? null,
       status: effectiveStatus,
       rating: null,
@@ -102,7 +102,7 @@ export async function backfillSteamData(): Promise<{ updated: number; errors: st
     const apiData = apiMap.get(Number(record.steamAppId!));
     if (!apiData) continue;
 
-    const posterUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${record.steamAppId}/library_600x900.jpg`;
+    const posterUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${record.steamAppId}/header.jpg`;
     const playtime = apiData.playtime_forever ?? null;
 
     await getDb().game.update({

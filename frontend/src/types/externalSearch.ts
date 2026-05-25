@@ -51,6 +51,48 @@ export type ExternalMovieSearchResult = {
   suggestedRecord: MovieRecordSuggestion;
 };
 
+export type ImdbDetail = {
+  imdbId?: string;
+  tmdbId?: number;
+  doubanId?: string;
+  title: string;
+  year: string;
+  rated: string;
+  runtime: string;
+  genre: string;
+  director: string;
+  actors: string;
+  plot: string;
+  language: string;
+  country: string;
+  awards: string;
+  posterUrl: string | null;
+  imdbRating: string;
+  imdbVotes: string;
+  boxOffice: string;
+};
+
+export type GameDetail = {
+  rawgId?: number;
+  steamAppId?: number;
+  title: string;
+  year: string;
+  rating: string;
+  metacritic: string;
+  genre: string;
+  platform: string;
+  developer: string;
+  publisher: string;
+  playtime: string;
+  esrbRating: string;
+  released: string;
+  posterUrl: string | null;
+  description: string;
+  website?: string;
+  steamUrl?: string;
+  screenshots?: string[];
+};
+
 export type ExternalGameSearchResult = {
   provider: string;
   rawgId?: number | null;

@@ -9,6 +9,27 @@ import {
 } from '../../dto/external-search';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+function containsChinese(str: string): boolean {
+  return /[一-鿿]/.test(str);
+}
+
+// MyMemory 免费翻译 API（无需 key）
+async function translateToEnglish(text: string): Promise<string | null> {
+  try {
+    const res = await axios.get('https://api.mymemory.translated.net/get', {
+      params: { q: text, langpair: 'zh|en' },
+      timeout: 5000,
+    });
+    const translated = res.data?.responseData?.translatedText;
+    if (translated && translated.toLowerCase() !== text.toLowerCase()) {
+      return translated;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // RAWG 游戏搜索 Provider，与 Java 端 RawgGameSearchProvider 完全对齐
 export class RawgGameSearchProvider implements GameSearchProvider {
   private static readonly PAGE_SIZE = 20;
@@ -37,9 +58,18 @@ export class RawgGameSearchProvider implements GameSearchProvider {
     if (!query) throw new Error('query must not be blank');
     const normalizedPage = Math.max(page, 1);
 
+    // RAWG 不支持中文搜索，检测到中文时翻译为英文
+    let searchQuery = query;
+    if (containsChinese(query)) {
+      const translated = await translateToEnglish(query);
+      if (translated) {
+        searchQuery = translated;
+      }
+    }
+
     const response = await axios.get(`${config.rawg.baseUrl}/games`, {
       params: {
-        search: query,
+        search: searchQuery,
         page: normalizedPage,
         page_size: RawgGameSearchProvider.PAGE_SIZE,
         key: config.rawg.apiKey,

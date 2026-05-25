@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { LibraryRecord, RecordStatus } from "../types/library";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "./StarRating";
+import { ImgWithFallback } from "./ImgWithFallback";
 
 interface TimelinePopupProps {
   record: LibraryRecord | null;
@@ -87,14 +88,21 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
           <div className="w-[200px] shrink-0">
             <div className="aspect-[2/3] bg-gradient-to-br from-[#1a1a2e] to-[#16213e] relative">
               {record.posterUrl ? (
-                <img
+                <ImgWithFallback
                   src={record.posterUrl}
                   alt={record.title}
                   className="h-full w-full object-cover"
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                      <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                      <span className="text-3xl font-display font-bold opacity-15" style={{ color: badge.color }}>{record.title.charAt(0).toUpperCase()}</span>
+                    </div>
+                  }
                 />
               ) : (
-                <div className="flex h-full items-center justify-center text-xs font-bold uppercase tracking-widest text-[var(--line)]">
-                  NO_IMG
+                <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                  <span className="text-3xl font-display font-bold opacity-15" style={{ color: badge.color }}>{record.title.charAt(0).toUpperCase()}</span>
                 </div>
               )}
               <div
@@ -124,7 +132,9 @@ export default function TimelinePopup({ record, onClose }: TimelinePopupProps) {
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="neo-badge text-[10px]">{record.sourceLabel}</span>
-              <span className="neo-badge text-[10px]">{statusLabel(record.status)}</span>
+              {!(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0) && (
+                <span className="neo-badge text-[10px]">{statusLabel(record.status)}</span>
+              )}
               {record.tmdbReleaseDate && (
                 <span className="neo-badge text-[10px]">{record.tmdbReleaseDate}</span>
               )}

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type {
   ExternalGameSearchResult,
   ExternalSearchResponse,
+  GameDetail,
   ProviderSearchResult,
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
@@ -55,6 +56,9 @@ export default function GameSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [detail, setDetail] = useState<GameDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
   const activeProviderConfig =
@@ -87,6 +91,37 @@ export default function GameSearch() {
       setError(err instanceof Error ? err.message : t("search.failed"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleDetail = async (game: ExternalGameSearchResult) => {
+    const key = buildGameKey(game);
+    if (expandedKey === key) {
+      setExpandedKey(null);
+      setDetail(null);
+      return;
+    }
+
+    setExpandedKey(key);
+    setDetail(null);
+
+    // 根据可用的 ID 选择详情接口
+    let detailUrl: string | null = null;
+    if (game.rawgId) {
+      detailUrl = `/search/rawg/${game.rawgId}`;
+    } else if (game.steamAppId) {
+      detailUrl = `/search/steam/${game.steamAppId}`;
+    }
+    if (!detailUrl) return;
+
+    setDetailLoading(true);
+    try {
+      const result = await apiFetch<GameDetail>(detailUrl);
+      setDetail(result);
+    } catch {
+      // 静默失败
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -171,55 +206,128 @@ export default function GameSearch() {
         <div className="mt-8 space-y-4">
           {data?.results.map((game) => {
             const key = buildGameKey(game);
+            const isExpanded = expandedKey === key;
             return (
-              <div
-                key={key}
-                className="group border border-[var(--line)] bg-[var(--surface-hover)] flex gap-4 p-4 transition-all hover:border-white"
-              >
-                <div className="h-32 w-24 overflow-hidden bg-black border border-[var(--line)] relative shrink-0">
-                  {game.posterUrl ? (
-                    <img
-                      src={game.posterUrl}
-                      alt={game.title}
-                      className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center p-2 text-[10px] font-bold uppercase tracking-widest text-[var(--line)] text-center">
-                      NO_IMG
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50" />
-                </div>
-                <div className="flex-1 flex flex-col justify-between overflow-hidden">
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-display text-xl text-white uppercase truncate" title={game.title}>{game.title}</h3>
-                      <button
-                        onClick={() => addToRecords(game)}
-                        className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all ${
-                          game.alreadyAdded 
-                            ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
+              <div key={key} className="border border-[var(--line)] bg-[var(--surface-hover)] transition-all hover:border-white">
+                <div
+                  className="group flex gap-4 p-4 cursor-pointer"
+                  onClick={() => toggleDetail(game)}
+                >
+                  <div className="h-32 w-24 overflow-hidden bg-black border border-[var(--line)] relative shrink-0">
+                    {game.posterUrl ? (
+                      <img
+                        src={game.posterUrl}
+                        alt={game.title}
+                        className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                        <span className="text-2xl font-display font-bold opacity-15 text-[#8888ff]">{game.title.charAt(0).toUpperCase()}</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50" />
+                  </div>
+                  <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-display text-xl text-white uppercase truncate" title={game.title}>{game.title}</h3>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToRecords(game);
+                          }}
+                          className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all ${
+                            game.alreadyAdded
+                              ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
+                              : addingKey === key
+                              ? "bg-[var(--accent)] text-black border border-[var(--accent)]"
+                              : "border border-white text-white hover:bg-white hover:text-black"
+                          }`}
+                          disabled={game.alreadyAdded || addingKey === key}
+                        >
+                          {game.alreadyAdded
+                            ? t("search.already")
                             : addingKey === key
-                            ? "bg-[var(--accent)] text-black border border-[var(--accent)]"
-                            : "border border-white text-white hover:bg-white hover:text-black"
-                        }`}
-                        disabled={game.alreadyAdded || addingKey === key}
-                      >
-                        {game.alreadyAdded
-                          ? t("search.already")
-                          : addingKey === key
-                          ? t("search.committing")
-                          : t("search.add")}
-                      </button>
+                            ? t("search.committing")
+                            : t("search.add")}
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[10px] text-[var(--accent)] uppercase font-bold tracking-widest">
+                        {t("search.release")} // {game.releaseDate || t("search.unknown")}
+                      </p>
+                      <p className="mt-3 line-clamp-2 text-[10px] uppercase tracking-widest leading-relaxed text-[var(--muted)]">
+                        {game.overview || t("search.no_data")}
+                      </p>
                     </div>
-                    <p className="mt-1 text-[10px] text-[var(--accent)] uppercase font-bold tracking-widest">
-                      {t("search.release")} // {game.releaseDate || t("search.unknown")}
-                    </p>
-                    <p className="mt-3 line-clamp-2 text-[10px] uppercase tracking-widest leading-relaxed text-[var(--muted)]">
-                      {game.overview || t("search.no_data")}
-                    </p>
+                    {(game.rawgId || game.steamAppId) && (
+                      <p className="mt-2 text-[10px] text-[var(--muted)] uppercase tracking-widest">
+                        {isExpanded ? "▼" : "▶"} {game.rawgId ? `RAWG #${game.rawgId}` : `STEAM #${game.steamAppId}`}
+                      </p>
+                    )}
                   </div>
                 </div>
+
+                {isExpanded && (
+                  <div className="border-t border-[var(--line)] px-4 py-4 bg-[var(--surface)]">
+                    {detailLoading ? (
+                      <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
+                        {t("search.detail.loading")}
+                      </p>
+                    ) : detail ? (
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          {detail.rating && (
+                            <DetailRow label={t("search.detail.rating")} value={detail.rating} />
+                          )}
+                          {detail.metacritic && (
+                            <DetailRow label="METACRITIC" value={detail.metacritic} />
+                          )}
+                          {detail.genre && (
+                            <DetailRow label={t("search.detail.genre")} value={detail.genre} />
+                          )}
+                          {detail.developer && (
+                            <DetailRow label="DEVELOPER" value={detail.developer} />
+                          )}
+                          {detail.publisher && (
+                            <DetailRow label="PUBLISHER" value={detail.publisher} />
+                          )}
+                          {detail.platform && (
+                            <DetailRow label="PLATFORM" value={detail.platform} />
+                          )}
+                          {detail.playtime && (
+                            <DetailRow label="PLAYTIME" value={detail.playtime} />
+                          )}
+                          {detail.esrbRating && (
+                            <DetailRow label="ESRB" value={detail.esrbRating} />
+                          )}
+                          {detail.description && (
+                            <DetailRow label={t("search.detail.plot")} value={detail.description.slice(0, 300) + (detail.description.length > 300 ? '...' : '')} />
+                          )}
+                        </div>
+                        {detail.screenshots && detail.screenshots.length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-2">SCREENSHOTS</p>
+                            <div className="flex gap-2 overflow-x-auto pb-1">
+                              {detail.screenshots.map((url, i) => (
+                                <img
+                                  key={i}
+                                  src={url}
+                                  alt={`Screenshot ${i + 1}`}
+                                  className="h-32 shrink-0 object-cover border border-[var(--line)] opacity-80 hover:opacity-100 transition-opacity"
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : game.rawgId ? (
+                      <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
+                        {t("search.no_data")}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -248,6 +356,19 @@ export default function GameSearch() {
         </div>
       )}
     </section>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-3">
+      <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--accent)] shrink-0 w-24">
+        {label}
+      </span>
+      <span className="text-[10px] uppercase tracking-widest text-white leading-relaxed">
+        {value}
+      </span>
+    </div>
   );
 }
 

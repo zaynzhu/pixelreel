@@ -1,21 +1,145 @@
-import { ExternalMovieSearchResult, ProviderSearchResult } from '../../dto/external-search';
+import axios from 'axios';
+import { config } from '../../config';
+import { getDb } from '../../config/db';
 import { MovieSearchProvider } from '../provider/MovieSearchProvider';
+import {
+  ExternalMovieSearchResult,
+  ProviderSearchResult,
+  MovieRecordSuggestion,
+} from '../../dto/external-search';
+import { RecordStatus } from '../../enums/RecordStatus';
 
-// IMDb 直连 Provider — 占位，与 Java 端 ImdbMovieSearchProvider 对齐
+function containsChinese(str: string): boolean {
+  return /[一-鿿]/.test(str);
+}
+
+async function tryOmdbWithEnglishTitles(query: string, page: number): Promise<any | null> {
+  try {
+    const tmdbRes = await axios.get(`${config.tmdb.baseUrl}/search/movie`, {
+      params: { query, page: 1 },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+    });
+    const results = tmdbRes.data?.results ?? [];
+    const sorted = [...results].sort((a: any, b: any) => (b.vote_count ?? 0) - (a.vote_count ?? 0));
+    const candidates: string[] = [];
+    for (const item of sorted) {
+      if (item.title && /[a-zA-Z]/.test(item.title) && !containsChinese(item.title)) {
+        candidates.push(item.title);
+      }
+      if (item.original_title && /[a-zA-Z]/.test(item.original_title) && !containsChinese(item.original_title)
+        && !candidates.includes(item.original_title)) {
+        candidates.push(item.original_title);
+      }
+    }
+    for (const title of candidates) {
+      const omdbRes = await axios.get(config.omdb.baseUrl, {
+        params: { apikey: config.omdb.apiKey, s: title, page, type: 'movie' },
+      });
+      if (omdbRes.data?.Response === 'True') {
+        return omdbRes.data;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// IMDb Provider — 底层使用 OMDb API 实现（OMDb 基于 IMDb 数据）
 export class ImdbMovieSearchProvider implements MovieSearchProvider {
   id(): string {
     return 'imdb';
   }
 
   async search(query: string, page: number): Promise<ProviderSearchResult<ExternalMovieSearchResult>> {
-    return {
+    const result: ProviderSearchResult<ExternalMovieSearchResult> = {
       provider: this.id(),
-      enabled: false,
-      message: 'IMDb API 需要 AWS Data Exchange 签名调用，当前未实现，建议使用 OMDb（provider=omdb）',
+      enabled: true,
+      message: '',
       page,
       totalPages: 0,
       totalResults: 0,
       results: [],
+    };
+
+    if (!config.omdb.apiKey) {
+      result.enabled = false;
+      result.message = 'OMDb 未启用（IMDb 数据源依赖 OMDb）';
+      return result;
+    }
+
+    if (!query) throw new Error('query must not be blank');
+    const normalizedPage = Math.max(page, 1);
+
+    let response = await axios.get(config.omdb.baseUrl, {
+      params: { apikey: config.omdb.apiKey, s: query, page: normalizedPage, type: 'movie' },
+    });
+
+    if (containsChinese(query) || response.data?.Error === 'Too many results.') {
+      const fallback = await tryOmdbWithEnglishTitles(query, normalizedPage);
+      if (fallback) {
+        response = { ...response, data: fallback };
+      }
+    }
+
+    if (response.data?.Response === 'False') {
+      result.message = response.data.Error ?? 'OMDb 搜索无结果';
+      return result;
+    }
+
+    const items = response.data?.Search ?? [];
+    const imdbIds = items.map((i: any) => i.imdbID).filter(Boolean);
+    const existingMap = imdbIds.length > 0
+      ? await this.findExistingByImdbId(imdbIds)
+      : new Map<string, any>();
+
+    const results: ExternalMovieSearchResult[] = items.map((item: any) => {
+      const existing = item.imdbID ? existingMap.get(item.imdbID) ?? null : null;
+      const poster = !item.Poster || item.Poster === 'N/A' ? null : item.Poster;
+      const mapped: ExternalMovieSearchResult = {
+        provider: this.id(),
+        tmdbId: null,
+        imdbId: item.imdbID ?? null,
+        doubanId: null,
+        traktId: null,
+        title: item.Title ?? '',
+        posterUrl: poster,
+        releaseDate: item.Year ?? null,
+        overview: null,
+        alreadyAdded: existing !== null,
+        existingRecordId: existing?.id != null ? Number(existing.id) : null,
+        suggestedRecord: null,
+      };
+      mapped.suggestedRecord = this.buildSuggestion(mapped);
+      return mapped;
+    });
+
+    const total = parseInt(response.data?.totalResults ?? '0', 10) || 0;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / 10);
+
+    result.page = normalizedPage;
+    result.totalPages = totalPages;
+    result.totalResults = total;
+    result.results = results;
+    return result;
+  }
+
+  private async findExistingByImdbId(ids: string[]): Promise<Map<string, any>> {
+    const movies = await getDb().movie.findMany({ where: { imdbId: { in: ids } } });
+    return new Map(movies.map((m) => [m.imdbId!, m]));
+  }
+
+  private buildSuggestion(mapped: ExternalMovieSearchResult): MovieRecordSuggestion {
+    return {
+      tmdbId: mapped.tmdbId,
+      imdbId: mapped.imdbId,
+      doubanId: mapped.doubanId,
+      traktId: mapped.traktId,
+      title: mapped.title,
+      posterUrl: mapped.posterUrl,
+      status: RecordStatus.WANT,
+      rating: null,
+      shortReview: '',
     };
   }
 }

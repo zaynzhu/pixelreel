@@ -22,6 +22,7 @@ import { XboxGameSearchProvider } from './provider/XboxGameSearchProvider';
 import { SwitchGameSearchProvider } from './provider/SwitchGameSearchProvider';
 
 import { TmdbTvShowSearchProvider } from './provider/TmdbTvShowSearchProvider';
+import { DoubanTvShowSearchProvider } from './provider/DoubanTvShowSearchProvider';
 
 // 外部搜索聚合服务
 
@@ -44,6 +45,7 @@ const gameProviders: GameSearchProvider[] = [
 // 电视剧搜索 Provider
 const tvShowProviders: TvShowSearchProvider[] = [
   new TmdbTvShowSearchProvider(),
+  new DoubanTvShowSearchProvider(),
 ];
 
 function parseProviders(providers?: string[]): Set<string> {

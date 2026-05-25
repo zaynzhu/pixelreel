@@ -2,6 +2,7 @@ import { startTransition, useDeferredValue, useEffect, useRef, useState } from "
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
+import { ImgWithFallback } from "../components/ImgWithFallback";
 import ActivityTimeline from "../components/ActivityTimeline";
 import type {
   LibraryCategory,
@@ -290,14 +291,21 @@ export default function LibraryPage() {
                   )}
                   <div className="h-28 overflow-hidden bg-[#0a0a0a] border border-[var(--line)]">
                     {record.posterUrl ? (
-                      <img
+                      <ImgWithFallback
                         src={record.posterUrl}
                         alt={record.title}
                         className={`h-full w-full object-cover transition-all duration-300 ${active ? 'opacity-100 mix-blend-normal' : 'opacity-60 mix-blend-luminosity group-hover:opacity-100 group-hover:mix-blend-normal'}`}
+                        fallback={
+                          <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                            <span className="text-xl font-display font-bold opacity-15 text-[var(--accent)]">{record.title.charAt(0).toUpperCase()}</span>
+                          </div>
+                        }
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center p-2 text-[10px] font-bold uppercase tracking-widest text-[var(--line)]">
-                        {t("dash.null")}
+                      <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                        <span className="text-xl font-display font-bold opacity-15 text-[var(--accent)]">{record.title.charAt(0).toUpperCase()}</span>
                       </div>
                     )}
                   </div>
@@ -308,7 +316,9 @@ export default function LibraryPage() {
                       {record.platformLabel && record.category === "game" ? (
                         <Badge tone="muted">{record.platformLabel}</Badge>
                       ) : null}
-                      <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
+                      {!(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0) && (
+                        <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
+                      )}
                     </div>
                     <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
@@ -358,14 +368,21 @@ export default function LibraryPage() {
             <div className="mt-6 border border-[var(--line)] bg-[#0a0a0a] relative overflow-hidden group">
               <div className="aspect-[4/3] bg-black">
                 {selectedRecord.posterUrl ? (
-                  <img
+                  <ImgWithFallback
                     src={selectedRecord.posterUrl}
                     alt={selectedRecord.title}
                     className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
+                    fallback={
+                      <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                        <span className="text-3xl font-display font-bold opacity-15 text-[var(--accent)]">{selectedRecord.title.charAt(0).toUpperCase()}</span>
+                      </div>
+                    }
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center p-5 text-xs font-bold uppercase tracking-widest text-[var(--line)]">
-                    {t("lib.edit.no_img")}
+                  <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                    <span className="text-3xl font-display font-bold opacity-15 text-[var(--accent)]">{selectedRecord.title.charAt(0).toUpperCase()}</span>
                   </div>
                 )}
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50" />
@@ -615,7 +632,8 @@ function buildRecordKey(record: LibraryRecord | null): SelectedRecordKey {
 }
 
 function buildRecordMeta(record: LibraryRecord, t: any) {
-  const parts = [record.sourceLabel, formatStatus(record.status, t), formatDate(record.updatedAt ?? record.createdAt)];
+  const showStatus = !(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0);
+  const parts = [record.sourceLabel, showStatus ? formatStatus(record.status, t) : null, formatDate(record.updatedAt ?? record.createdAt)].filter(Boolean);
 
   if (record.category === "game" && record.platformLabel) {
     parts.unshift(record.platformLabel);
