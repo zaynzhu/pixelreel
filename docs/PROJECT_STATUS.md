@@ -82,6 +82,9 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - `POST /api/import/tmdb-covers/fill`：TMDB 影视封面补全
 - `POST /api/import/douban-harvest`：豆瓣数据导入/爬取（`?mode=json|full|incremental`）
 - `GET /api/import/douban-harvest/status`：豆瓣导入任务进度查询（`?taskId=xxx`）
+- `POST /api/import/tmdb-enrich/backfill`：批量为已有记录补充 TMDB 数据（`?limit=50`）
+- `POST /api/import/tmdb-detail/backfill`：按 tmdbId 回填完整详情（`?limit=50`，补 imdbId/voteAverage/title/overview/genres 等）
+- `POST /api/import/douban/clear-data`：清空豆瓣来源数据
 - `GET /api/activity`：操作日志列表（游标分页，`?cursor=&limit=50&action=&entityType=&from=&to=`）
 - `POST /api/activity/:id/undo`：撤销操作（CREATE→删除实体，UPDATE→恢复旧值，DELETE→重建实体）
 - `GET /api/settings`：获取环境变量配置（按分类返回）

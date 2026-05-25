@@ -98,6 +98,7 @@ frontend/src/
 | — | `DELETE /api/import/tasks/:taskId` (取消任务) |
 | — | `POST /api/import/douban/clear-data` (清空豆瓣来源数据) |
 | — | `POST /api/import/tmdb-enrich/backfill?limit=50` (批量为已有记录补充 TMDB 数据) |
+| — | `POST /api/import/tmdb-detail/backfill?limit=50` (按 tmdbId 回填完整详情：imdbId/voteAverage/title/overview/genres 等) |
 | — | `POST /api/import/steam/backfill` (回填已有 Steam 游戏的海报和游玩时间) |
 
 ## 关键模式
@@ -113,6 +114,9 @@ frontend/src/
 - **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
+- **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据。
+- **年份筛选：** AnalyticsService 中「已完成」用 `updatedAt`（状态变更时间），其余指标（评分/短评/Top榜/分布）用 `createdAt`（记录创建时间）。
+- **tmdbGenreIds 格式：** 逗号分隔字符串（如 `"28,12,878"`），不是数组。Prisma schema 为 String 类型。
 - **赛博朋克主题：** CSS 自定义属性（`--accent: #d4ff00`，`--accent-deep: #ff4400`），Syne + JetBrains Mono 字体，扫描线遮罩。Showcase 专用类（`@layer components`）：`.showcase-panel`（发光边框面板）、`.showcase-number`（脉冲发光数字）、`.showcase-poster`（扫描线海报 + hover 发光）、`.showcase-bg`（动态径向渐变背景）。
 
 ## 深度文档
@@ -165,3 +169,4 @@ frontend/src/
 - 新组件必须做 i18n — 在 `i18nStore.ts` 的 `dictionaries.en` 和 `dictionaries.zh` 中添加 key，组件中用 `t('key')` 渲染。
 - Prisma `BigInt` 字段（如 `steamAppId`）与 JavaScript `number` 不兼容 — Map 查找和比较时必须用 `Number()` 转换，否则 `20n !== 20`。
 - 不要用 Playwright 截图让模型分析页面效果 — 模型不支持图片输入，截图白费。需要理解页面时读代码或用 `browser_snapshot` 获取 DOM。
+- `tsx watch` 会在 git commit 时重启后端，丢失内存中的任务状态 — 跑回填任务时用 `npx tsx src/server.ts`（无 watch）启动。

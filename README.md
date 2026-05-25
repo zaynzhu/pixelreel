@@ -153,6 +153,8 @@ GET  /api/import/douban-harvest/status   豆瓣导入任务进度（?taskId=xxx�
 DELETE /api/import/tasks/:taskId         取消任务
 POST /api/import/douban/clear-data       清空豆瓣来源数据
 POST /api/import/tmdb-enrich/backfill    批量补充 TMDB 数据（?limit=50）
+POST /api/import/tmdb-detail/backfill    按 tmdbId 回填完整详情（?limit=50）
+POST /api/import/douban/clear-data       清空豆瓣来源数据
 ```
 
 ### Trakt OAuth
