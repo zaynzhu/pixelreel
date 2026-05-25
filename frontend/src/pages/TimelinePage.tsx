@@ -43,7 +43,7 @@ function categoryBadge(cat: LibraryCategory) {
   }
 }
 
-function statusBadge(status: RecordStatus, t: (key: string) => string) {
+function statusBadge(status: RecordStatus, t: ReturnType<typeof useI18nStore.getState>['t']) {
   switch (status) {
     case "WANT": return t("global.status.want");
     case "IN_PROGRESS": return t("global.status.active");

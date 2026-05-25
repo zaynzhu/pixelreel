@@ -5,6 +5,8 @@ import type { ActivityAction, ActivityRecord } from '../types/activity'
 
 interface ActivityTimelineProps {
   /** 只展示特定实体的活动记录 */
+  entityType?: string
+  /** 实体 ID */
   entityId?: string
   /** 紧凑模式：更小的间距和字号 */
   compact?: boolean
@@ -102,7 +104,7 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
   return null
 }
 
-export default function ActivityTimeline({ entityId, compact }: ActivityTimelineProps) {
+export default function ActivityTimeline({ entityType, entityId, compact }: ActivityTimelineProps) {
   const store = useActivityStore()
   const { t } = useI18nStore()
   // entity-specific 模式用本地状态，不污染全局 store
@@ -118,7 +120,7 @@ export default function ActivityTimeline({ entityId, compact }: ActivityTimeline
     if (!entityId) return
     setEntityLoading(true)
     store
-      .fetchEntityHistory('', entityId)
+      .fetchEntityHistory(entityType || '', entityId)
       .then((r) => setEntityRecords(r))
       .finally(() => setEntityLoading(false))
   }, [entityId])
@@ -154,7 +156,7 @@ export default function ActivityTimeline({ entityId, compact }: ActivityTimeline
         await store.undo(id)
         // 重新加载实体历史
         if (entityId) {
-          store.fetchEntityHistory('', entityId).then((r) => setEntityRecords(r))
+          store.fetchEntityHistory(entityType || '', entityId).then((r) => setEntityRecords(r))
         }
       } else {
         await store.undo(id)
@@ -210,7 +212,7 @@ export default function ActivityTimeline({ entityId, compact }: ActivityTimeline
 }
 
 // action 到 i18n key 的映射
-const ACTION_I18N_MAP: Record<ActivityAction, string> = {
+const ACTION_I18N_MAP = {
   CREATE: 'activity.created',
   UPDATE: 'activity.updated',
   DELETE: 'activity.deleted',
@@ -218,7 +220,7 @@ const ACTION_I18N_MAP: Record<ActivityAction, string> = {
   TASK_DONE: 'activity.task_done',
   TASK_FAIL: 'activity.task_fail',
   UNDO: 'activity.undone',
-}
+} as const;
 
 /** 单条活动记录行 */
 function ActivityRow({

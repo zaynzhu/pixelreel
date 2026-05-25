@@ -212,7 +212,7 @@ router.get('/rawg/:rawgId', async (req: Request, res: Response) => {
 
 // GET /api/search/steam/:steamAppId — 通过 Steam App ID 获取游戏详情
 router.get('/steam/:steamAppId', async (req: Request, res: Response) => {
-  const steamAppId = req.params.steamAppId;
+  const steamAppId = req.params.steamAppId as string;
   if (!steamAppId) {
     res.status(400).json({ error: 'steamAppId required' });
     return;
@@ -280,7 +280,7 @@ router.get('/proxy/image', async (req: Request, res: Response) => {
         'Referer': 'https://movie.douban.com/',
       },
     });
-    res.set('Content-Type', response.headers['content-type'] ?? 'image/jpeg');
+    res.set('Content-Type', String(response.headers['content-type'] ?? 'image/jpeg'));
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(response.data);
   } catch {
