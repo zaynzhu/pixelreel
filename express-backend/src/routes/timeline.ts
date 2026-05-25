@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { listTimelineRecords } from '../services/TimelineService';
+import { listTimelineRecords, listTimelineYears } from '../services/TimelineService';
 import { normalizeCategory } from '../services/LibraryService';
 import { parseRecordStatus } from '../enums/RecordStatus';
 
@@ -17,6 +17,12 @@ function normalizeTimelineStatus(value?: string): string | undefined {
   const parsed = parseRecordStatus(value);
   return parsed ?? undefined;
 }
+
+router.get('/years', async (req: Request, res: Response) => {
+  const category = normalizeTimelineCategory(req.query.category as string | undefined);
+  const years = await listTimelineYears(category);
+  res.json({ years });
+});
 
 router.get('/', async (req: Request, res: Response) => {
   const parsedLimit = parseInt(req.query.limit as string, 10);

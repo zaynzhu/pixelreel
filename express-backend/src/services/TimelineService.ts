@@ -187,6 +187,30 @@ export async function listTimelineRecords(
     : { records, nextCursor };
 }
 
+// ── Years endpoint ──
+
+export async function listTimelineYears(category: ListTimelineOptions['category'] = 'all'): Promise<number[]> {
+  const db = getDb();
+  const includeMovies = category === 'all' || category === 'media' || category === 'movie';
+  const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
+  const includeGames = category === 'all' || category === 'game';
+
+  const [movieDates, tvShowDates, gameDates] = await Promise.all([
+    includeMovies ? db.movie.findMany({ select: { createdAt: true } }) : Promise.resolve([]),
+    includeTvShows ? db.tvShow.findMany({ select: { createdAt: true } }) : Promise.resolve([]),
+    includeGames ? db.game.findMany({ select: { createdAt: true } }) : Promise.resolve([]),
+  ]);
+
+  const allDates: Date[] = [
+    ...movieDates.map((m: any) => m.createdAt),
+    ...tvShowDates.map((t: any) => t.createdAt),
+    ...gameDates.map((g: any) => g.createdAt),
+  ];
+
+  const years = [...new Set(allDates.map((d: Date) => d.getFullYear()))].sort((a, b) => b - a);
+  return years;
+}
+
 async function fetchTotal(options?: ListTimelineOptions) {
   const db = getDb();
   const baseWhere = buildBaseWhere(options ?? {});
