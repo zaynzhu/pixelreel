@@ -70,4 +70,9 @@ export const config = {
     cookie: process.env.PSN_PROFILES_COOKIE || '',
     enabled: process.env.PSN_PROFILES_ENABLED === 'true',
   },
+
+  imageProxy: {
+    maxBytes: parseInt(process.env.IMAGE_PROXY_MAX_BYTES || String(5 * 1024 * 1024), 10),
+    cacheSeconds: parseInt(process.env.IMAGE_PROXY_CACHE_SECONDS || String(60 * 60 * 24 * 7), 10),
+  },
 } as const;

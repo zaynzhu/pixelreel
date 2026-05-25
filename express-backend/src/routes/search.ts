@@ -261,11 +261,44 @@ router.get('/steam/:steamAppId', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/proxy/image?url=xxx — 图片代理（解决豆瓣防盗链）
+// Image proxy allowlist — only known poster hosts are proxied
+const ALLOWED_HOSTS = new Set([
+  'image.tmdb.org',
+  'media.themoviedb.org',
+  'steamcdn-a.akamaihd.net',
+  'cdn.cloudflare.steamstatic.com',
+  'cdn.akamai.steamstatic.com',
+  'shared.akamai.steamstatic.com',
+  'media.rawg.io',
+  'img1.doubanio.com',
+  'img2.doubanio.com',
+  'img3.doubanio.com',
+]);
+
+// GET /api/proxy/image?url=xxx — 图片代理（解决豆瓣防盗链 + 缓存控制）
 router.get('/proxy/image', async (req: Request, res: Response) => {
   let url = req.query.url as string;
   if (!url) {
     res.status(400).json({ error: 'url required' });
+    return;
+  }
+
+  // Validate URL
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    res.status(400).json({ error: 'Invalid URL' });
+    return;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    res.status(400).json({ error: 'Only http/https URLs allowed' });
+    return;
+  }
+
+  if (!ALLOWED_HOSTS.has(parsed.hostname)) {
+    res.status(400).json({ error: 'Host not allowed' });
     return;
   }
 
@@ -279,9 +312,18 @@ router.get('/proxy/image', async (req: Request, res: Response) => {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         'Referer': 'https://movie.douban.com/',
       },
+      timeout: 10000,
+      maxContentLength: config.imageProxy.maxBytes,
     });
-    res.set('Content-Type', String(response.headers['content-type'] ?? 'image/jpeg'));
-    res.set('Cache-Control', 'public, max-age=86400');
+
+    const contentType = String(response.headers['content-type'] ?? 'image/jpeg');
+    if (!contentType.startsWith('image/')) {
+      res.status(400).json({ error: 'Response is not an image' });
+      return;
+    }
+
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', `public, max-age=${config.imageProxy.cacheSeconds}, immutable`);
     res.send(response.data);
   } catch {
     res.status(502).json({ error: 'Image proxy failed' });
