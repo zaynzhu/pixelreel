@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { listRecords, updateRecord, getRandomRecord, getRandomRecords, normalizeCategory, parseYear, normalizeStatus } from '../services/LibraryService';
+import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords, normalizeCategory, parseYear, normalizeStatus } from '../services/LibraryService';
 
 const router = Router();
 
@@ -37,6 +37,18 @@ router.get('/random', async (req: Request, res: Response) => {
     }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/library/:category/:id — 获取单条完整记录
+router.get('/:category/:id', async (req: Request, res: Response) => {
+  try {
+    const category = req.params.category as string;
+    const id = Number(req.params.id);
+    const result = await getRecord(category, id);
+    res.json(result);
+  } catch (err: any) {
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 

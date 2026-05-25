@@ -208,6 +208,26 @@ export async function getRandomRecords(count: number): Promise<LibraryRecordResp
   return results;
 }
 
+export async function getRecord(category: string, id: number): Promise<LibraryRecordResponse> {
+  const normalized = category.trim().toLowerCase();
+
+  if (normalized === 'movie') {
+    const movie = await getDb().movie.findUnique({ where: { id } });
+    if (!movie) throw Object.assign(new Error('Movie record not found'), { status: 404 });
+    return toMovieRecord(movie);
+  } else if (normalized === 'game') {
+    const game = await getDb().game.findUnique({ where: { id } });
+    if (!game) throw Object.assign(new Error('Game record not found'), { status: 404 });
+    return toGameRecord(game);
+  } else if (normalized === 'tv_show' || normalized === 'tvshow') {
+    const show = await getDb().tvShow.findUnique({ where: { id } });
+    if (!show) throw Object.assign(new Error('TV Show record not found'), { status: 404 });
+    return toTvShowRecord(show);
+  } else {
+    throw Object.assign(new Error(`Unknown category: ${category}`), { status: 400 });
+  }
+}
+
 export async function updateRecord(
   category: string,
   id: number,
