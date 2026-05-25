@@ -63,9 +63,10 @@ express-backend/src/
   dto/            library.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
-  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage（占位）, ActivityPage, ShowcasePage, AnalyticsPage
-  components/     AppShell, RightActionDrawer, TaskPanel, Toast, MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating, ActivityFilters, ActivityTimeline
+  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage, ActivityPage, ShowcasePage, AnalyticsPage
+  components/     AppShell, RightActionDrawer, TaskPanel, Toast (ToastContainer + ConfirmDialog), MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating, ActivityFilters, ActivityTimeline
                   showcase/（StatsPanel, PosterCarousel, TimelineMini, RandomPick, ShowcaseControls）
+                  analytics/（OverviewCards, MonthlyChart, RatingChart, SourcePieChart, CrossPlatformChart, TopRatedList）
   stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore
   types/          library.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts
   api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向，**已自动解析 JSON — 不要再调 .json()**）
@@ -114,6 +115,7 @@ frontend/src/
 - **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
+- **Toast 通知：** 用 `toastStore` 的 `addToast(message, type)` 和 `toast()` 便捷函数。错误用 `toast(msg, 'error')`，成功用默认 `toast(msg)`。确认对话框用 `confirmDialog(msg, danger?)` 返回 `Promise<boolean>`，替代浏览器原生 `alert()`/`confirm()`。
 - **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据。
 - **年份筛选：** AnalyticsService 中「已完成」用 `updatedAt`（状态变更时间），其余指标（评分/短评/Top榜/分布）用 `createdAt`（记录创建时间）。
 - **tmdbGenreIds 格式：** 逗号分隔字符串（如 `"28,12,878"`），不是数组。Prisma schema 为 String 类型。
@@ -122,7 +124,6 @@ frontend/src/
 ## 深度文档
 
 - 架构与数据模型 → `docs/PROJECT_STATUS.md`
-- 认证设计 → `docs/plans/2026-04-08-multi-user-auth-design.md`（基于 Spring，需要重写为 Express 版本）
 - 开发环境搭建 → `db/setup.md`
 
 ## 豆瓣数据导入（douban-harvester）

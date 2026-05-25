@@ -18,7 +18,7 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] Movie / TvShow / Game 基础 CRUD
 - [x] 统一外部搜索聚合接口（影视 / 游戏 / 电视剧）
 - [x] 影视搜索 Provider：TMDB / OMDb / Trakt / 豆瓣 / IMDb
-- [x] 电视剧搜索 Provider：TMDB
+- [x] 电视剧搜索 Provider：TMDB、豆瓣
 - [x] 游戏搜索 Provider：RAWG / Steam（支持中文关键词自动翻译，Steam 改用 Store Search API）
 - [x] 搜索详情展开（影视：评分/类型/导演/演员/片长/剧情；游戏：评分/Metacritic/开发商/平台/ESRB）
 - [x] 搜索详情接口：`/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId`
@@ -38,10 +38,14 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 操作日志（Prisma 扩展自动记录 CRUD，支持撤销，筛选与无限滚动）
 - [x] Showcase 大屏展示页面（网格模式 + 全屏轮播模式，统计数据/海报轮播/时间线概览/随机推荐）
 - [x] 数据分析页面（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
+- [x] Toast 通知 + ConfirmDialog 组件（替代浏览器 alert/confirm，赛博朋克主题）
+- [x] 系统设置页面（环境变量配置，敏感字段遮罩，分类编辑，写入 .env）
+- [x] 豆瓣导入任务进度显示修复（爬取阶段显示条数而非 0/0）
+- [x] 搜索详情增强（影视评分/类型/导演/演员/片长/剧情，游戏多维度）
 
 ## 未完成 / 占位
 - [ ] Switch 接入（占位）
-- [ ] 电视剧多 Provider 搜索（豆瓣、IMDb、Trakt 等）
+- [ ] 电视剧多 Provider 搜索（IMDb、Trakt 等，豆瓣已接入）
 
 ## 不计划实现
 - ~~多用户登录与权限体系~~ — 个人项目，不需要多用户
