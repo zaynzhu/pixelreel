@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiFetch } from '../api';
+import { toast } from '../stores/toastStore';
 
 type SyncTarget = 'douban-json' | 'douban-incremental' | 'douban-full' | 'trakt-movies' | 'trakt-shows' | 'steam-owned' | 'posters' | null;
 
@@ -150,7 +151,7 @@ export default function RightActionDrawer() {
       if (!data.taskId) { setStatusMsg('启动失败'); setSyncing(null); return; }
       pollDoubanTask(data.taskId);
     } catch {
-      setStatusMsg('请求失败');
+      toast('请求失败', 'error');
       setSyncing(null);
     }
   }
@@ -169,15 +170,20 @@ export default function RightActionDrawer() {
         return;
       }
       if (data.status === 'failed') {
-        setStatusMsg(`豆瓣失败: ${data.error}`);
+        toast(`豆瓣失败: ${data.error}`, 'error');
         setSyncing(null);
         return;
       }
       const p = data.progress!;
-      setStatusMsg(`豆瓣 ${p.processed ?? '?'}/${p.total ?? '?'} ${p.currentTitle ?? ''}`);
+      const progressText = p.total && p.total > 0
+        ? `${p.processed ?? 0}/${p.total}`
+        : p.processed && p.processed > 0
+          ? `${p.processed}条`
+          : '';
+      setStatusMsg(`豆瓣 ${progressText} ${p.currentTitle ?? ''}`.trim());
       setTimeout(() => pollDoubanTask(taskId), 2000);
     } catch {
-      setStatusMsg('查询失败');
+      toast('查询失败', 'error');
       setSyncing(null);
     }
   }
@@ -190,7 +196,7 @@ export default function RightActionDrawer() {
       const res = await apiFetch<any>(`/trakt/import/${type}`, { method: 'POST' });
       setStatusMsg(`Trakt ${type}: 导入${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
     } catch (err: any) {
-      setStatusMsg(`Trakt 失败: ${err.message}`);
+      toast(`Trakt 失败: ${err.message}`, 'error');
     } finally {
       setSyncing(null);
     }
@@ -220,7 +226,7 @@ export default function RightActionDrawer() {
       const res = await apiFetch<any>('/import/tmdb-covers/fill', { method: 'POST' });
       setStatusMsg(`海报: 修复${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
     } catch (err: any) {
-      setStatusMsg(`修复失败: ${err.message}`);
+      toast(`修复失败: ${err.message}`, 'error');
     } finally {
       setSyncing(null);
     }
