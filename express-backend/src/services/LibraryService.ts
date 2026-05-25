@@ -387,7 +387,7 @@ function toTvShowRecord(show: any): LibraryRecordResponse {
   };
 }
 
-function detectMovieSource(movie: any): string {
+export function detectMovieSource(movie: any): string {
   if (movie.doubanId) return 'douban';
   if (movie.tmdbId) return 'tmdb';
   if (movie.imdbId) return 'imdb';
@@ -395,7 +395,7 @@ function detectMovieSource(movie: any): string {
   return 'manual';
 }
 
-function detectGameSource(game: any): string {
+export function detectGameSource(game: any): string {
   if (game.psnId) return 'psn';
   if (game.xboxId) return 'xbox';
   if (game.steamAppId) return 'steam';
@@ -403,7 +403,7 @@ function detectGameSource(game: any): string {
   return 'manual';
 }
 
-function detectTvShowSource(show: any): string {
+export function detectTvShowSource(show: any): string {
   if (show.doubanId) return 'douban';
   if (show.tmdbId) return 'tmdb';
   if (show.imdbId) return 'imdb';
@@ -411,17 +411,17 @@ function detectTvShowSource(show: any): string {
   return 'manual';
 }
 
-function movieSourceLabel(sourceKey: string): string {
+export function movieSourceLabel(sourceKey: string): string {
   const map: Record<string, string> = { douban: '豆瓣', tmdb: 'TMDB', imdb: 'IMDb', trakt: 'Trakt' };
   return map[sourceKey] || 'Manual';
 }
 
-function gameSourceLabel(sourceKey: string): string {
+export function gameSourceLabel(sourceKey: string): string {
   const map: Record<string, string> = { psn: 'PSN', xbox: 'Xbox', steam: 'Steam', rawg: 'RAWG' };
   return map[sourceKey] || 'Manual';
 }
 
-function tvShowSourceLabel(sourceKey: string): string {
+export function tvShowSourceLabel(sourceKey: string): string {
   const map: Record<string, string> = { douban: '豆瓣', tmdb: 'TMDB', imdb: 'IMDb', trakt: 'Trakt' };
   return map[sourceKey] || 'Manual';
 }
