@@ -12,6 +12,7 @@ import traktRoutes from '../routes/trakt';
 import activityRoutes from '../routes/activity';
 import analyticsRoutes from '../routes/analytics';
 import settingsRoutes from '../routes/settings';
+import timelineRoutes from '../routes/timeline';
 
 const router = Router();
 
@@ -35,5 +36,8 @@ router.use('/analytics', analyticsRoutes);
 
 // 系统设置路由
 router.use('/settings', settingsRoutes);
+
+// 时间线轻量接口
+router.use('/timeline', timelineRoutes);
 
 export default router;
