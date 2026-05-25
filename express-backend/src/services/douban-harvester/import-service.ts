@@ -291,7 +291,7 @@ export function startIncrementalHarvestTask() {
       try {
         updateProgress(task.taskId, { processed: 0, total: 0, currentTitle: '正在增量爬取...' });
         const collectResult = await scrapeCollect(context, progress, lastSync, undefined, signal, (info) => {
-          updateProgress(task.taskId, { processed: 0, total: info.total, currentTitle: info.label });
+          updateProgress(task.taskId, { processed: info.total, total: 0, currentTitle: info.label });
         });
         if (!collectResult.ok) {
           failTask(task.taskId, collectResult.error || '爬取失败');
