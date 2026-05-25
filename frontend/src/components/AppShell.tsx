@@ -5,6 +5,7 @@ import { useI18nStore } from "../stores/i18nStore";
 import { useTaskStore } from "../stores/taskStore";
 import RightActionDrawer from "./RightActionDrawer";
 import TaskPanel from "./TaskPanel";
+import { ToastContainer, ConfirmDialog } from "./Toast";
 
 export default function AppShell() {
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
@@ -102,6 +103,8 @@ export default function AppShell() {
 
         <RightActionDrawer />
         <TaskPanel open={taskPanelOpen} onClose={() => setTaskPanelOpen(false)} />
+        <ToastContainer />
+        <ConfirmDialog />
       </div>
     </div>
   );
