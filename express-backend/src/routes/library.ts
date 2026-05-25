@@ -1,13 +1,18 @@
 import { Router, Request, Response } from 'express';
-import { listRecords, updateRecord, getRandomRecord, getRandomRecords } from '../services/LibraryService';
+import { listRecords, updateRecord, getRandomRecord, getRandomRecords, normalizeCategory, parseYear, normalizeStatus } from '../services/LibraryService';
 
 const router = Router();
 
-// GET /api/library — 游标分页混合列表
+// GET /api/library — 游标分页混合列表，支持 category/year/status 筛选
 router.get('/', async (req: Request, res: Response) => {
   const cursor = req.query.cursor as string | undefined;
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-  const result = await listRecords({ cursor, limit });
+  const parsedLimit = parseInt(req.query.limit as string, 10);
+  const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 50, 1), 200);
+  const includeTotals = req.query.includeTotals !== 'false';
+  const category = normalizeCategory(req.query.category as string | undefined);
+  const year = parseYear(req.query.year as string | undefined);
+  const status = normalizeStatus(req.query.status as string | undefined);
+  const result = await listRecords({ cursor, limit, includeTotals, category, year, status });
   res.json(result);
 });
 

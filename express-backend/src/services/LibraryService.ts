@@ -4,9 +4,42 @@ import { RecordStatus, parseRecordStatus } from '../enums/RecordStatus';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
+export type LibraryCategoryFilter = 'all' | 'media' | 'movie' | 'tv_show' | 'game';
+
 export interface ListRecordsOptions {
   cursor?: string;
   limit?: number;
+  includeTotals?: boolean;
+  category?: LibraryCategoryFilter;
+  year?: number;
+  status?: RecordStatus;
+}
+
+export function normalizeCategory(value?: string): LibraryCategoryFilter {
+  if (value === 'movie' || value === 'tv_show' || value === 'game' || value === 'media') {
+    return value;
+  }
+  return 'all';
+}
+
+export function parseYear(value?: string): number | undefined {
+  if (!value) return undefined;
+  const year = Number(value);
+  if (!Number.isInteger(year) || year < 1900 || year > 3000) return undefined;
+  return year;
+}
+
+export function yearRange(year?: number) {
+  if (!year) return undefined;
+  return {
+    gte: new Date(`${year}-01-01T00:00:00.000Z`),
+    lt: new Date(`${year + 1}-01-01T00:00:00.000Z`),
+  };
+}
+
+export function normalizeStatus(value?: string): RecordStatus | undefined {
+  if (!value) return undefined;
+  return parseRecordStatus(value) as RecordStatus;
 }
 
 function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
@@ -18,13 +51,23 @@ function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
   return { createdAt, id };
 }
 
+function buildBaseWhere(options: ListRecordsOptions) {
+  const createdAtRange = yearRange(options.year);
+  return {
+    ...(createdAtRange ? { createdAt: createdAtRange } : {}),
+    ...(options.status ? { status: options.status } : {}),
+  };
+}
+
 export async function listRecords(
   options?: ListRecordsOptions,
-): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null; totals: { total: number; rated: number; reviewed: number; completed: number } }> {
-  const limit = Math.min(options?.limit ?? 50, 200);
+): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null; totals?: { total: number; rated: number; reviewed: number; completed: number } }> {
+  const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
+  const pageTake = limit + 1;
   const cursorObj = options?.cursor ? parseCursor(options.cursor) : undefined;
 
-  const cursorFilter = cursorObj
+  const baseWhere = buildBaseWhere(options ?? {});
+  const cursorWhere = cursorObj
     ? {
         OR: [
           { createdAt: { lt: cursorObj.createdAt } },
@@ -33,11 +76,27 @@ export async function listRecords(
       }
     : {};
 
+  const where = {
+    AND: [baseWhere, cursorWhere].filter((part) => Object.keys(part).length > 0),
+  };
+
+  const category = options?.category ?? 'all';
+  // media is a PixelReel UI convention for movie + tv_show.
+  const includeMovies = category === 'all' || category === 'media' || category === 'movie';
+  const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
+  const includeGames = category === 'all' || category === 'game';
+
   const [movies, games, tvShows, totals] = await Promise.all([
-    getDb().movie.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-    getDb().game.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-    getDb().tvShow.findMany({ where: cursorFilter, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-    fetchTotals(),
+    includeMovies
+      ? getDb().movie.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      : Promise.resolve([]),
+    includeGames
+      ? getDb().game.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      : Promise.resolve([]),
+    includeTvShows
+      ? getDb().tvShow.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      : Promise.resolve([]),
+    options?.includeTotals === false ? Promise.resolve(undefined) : fetchTotals(options),
   ]);
 
   const allRecords: LibraryRecordResponse[] = [
@@ -61,29 +120,35 @@ export async function listRecords(
     ? `${new Date(lastRecord.createdAt).toISOString()}__${lastRecord.id}`
     : null;
 
-  return { records, nextCursor, totals };
+  return totals ? { records, nextCursor, totals } : { records, nextCursor };
 }
 
-async function fetchTotals() {
+async function fetchTotals(options?: ListRecordsOptions) {
   const db = getDb();
+  const baseWhere = buildBaseWhere(options ?? {});
+  const category = options?.category ?? 'all';
+  const includeMovies = category === 'all' || category === 'media' || category === 'movie';
+  const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
+  const includeGames = category === 'all' || category === 'game';
+
   const [
     movieCount, tvCount, gameCount,
     movieRated, tvRated, gameRated,
     movieReviewed, tvReviewed, gameReviewed,
     movieDone, tvDone, gameDone,
   ] = await Promise.all([
-    db.movie.count(),
-    db.tvShow.count(),
-    db.game.count(),
-    db.movie.count({ where: { rating: { not: null } } }),
-    db.tvShow.count({ where: { rating: { not: null } } }),
-    db.game.count({ where: { rating: { not: null } } }),
-    db.movie.count({ where: { shortReview: { not: null } } }),
-    db.tvShow.count({ where: { shortReview: { not: null } } }),
-    db.game.count({ where: { shortReview: { not: null } } }),
-    db.movie.count({ where: { status: 'DONE' } }),
-    db.tvShow.count({ where: { status: 'DONE' } }),
-    db.game.count({ where: { status: 'DONE' } }),
+    includeMovies ? db.movie.count({ where: baseWhere }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: baseWhere }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: baseWhere }) : Promise.resolve(0),
+    includeMovies ? db.movie.count({ where: { ...baseWhere, rating: { not: null } } }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: { ...baseWhere, rating: { not: null } } }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: { ...baseWhere, rating: { not: null } } }) : Promise.resolve(0),
+    includeMovies ? db.movie.count({ where: { ...baseWhere, shortReview: { not: null } } }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: { ...baseWhere, shortReview: { not: null } } }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: { ...baseWhere, shortReview: { not: null } } }) : Promise.resolve(0),
+    includeMovies ? db.movie.count({ where: { ...baseWhere, status: 'DONE' } }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: { ...baseWhere, status: 'DONE' } }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: { ...baseWhere, status: 'DONE' } }) : Promise.resolve(0),
   ]);
   return {
     total: movieCount + tvCount + gameCount,
