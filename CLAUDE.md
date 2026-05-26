@@ -10,7 +10,7 @@
 | 前端 | React 18 + Vite + Zustand + TailwindCSS — 端口 18888 |
 | 数据库 | MySQL (Prisma ORM) |
 
-项目中还保留了一套 Java 后端（`src/`、`pom.xml`），基于 Spring Boot 3 + MyBatis Plus（端口 8080）。建表 SQL 在 `db/legacy/java-schema.sql`。目前未启用，切换后端只需修改 Vite 代理目标（`frontend/vite.config.ts`）。
+> Java Spring Boot 后端代码已归档至 `legacy/java-backend/`，不再维护。
 
 ## 开发命令
 
@@ -19,13 +19,8 @@
 mysql -u root -p < db/init.sql           # 建库，然后配置 .env
 cd express-backend && npx prisma db push  # 建表（从 schema.prisma 生成）
 
-# Express 后端（默认）
+# Express 后端
 cd express-backend && npm run dev        # tsx watch, 端口 18889
-
-# Java 后端（备用）— 需要 Maven
-mvn clean spring-boot:run               # 端口 8080, 需要 application-local.yml
-
-# 切换后端：编辑 frontend/vite.config.ts 中的 proxy target
 
 # 前端
 cd frontend && npm run dev               # Vite, 端口 18888, 代理 /api → 18889
@@ -43,10 +38,10 @@ db/                       ← 数据库初始化文件
   setup.md                ← 从零搭建手顺
   legacy/java-schema.sql  ← Java 后端建表 SQL（留档，Prisma 不使用）
 
-src/                      ← Java Spring Boot 后端（遗留，仍在仓库中）
-  main/java/com/pixelreel/
+legacy/java-backend/      ← Java Spring Boot 后端（归档，不再维护）
+  src/main/java/com/pixelreel/
     controller/, config/, dto/, entity/, enums/, mapper/, service/
-  pom.xml                    ← 位于项目根目录
+  pom.xml
 
 express-backend/src/
   config/         index.ts（环境配置）, db.ts（Prisma 客户端 + getDb() + registerExtensions()）
@@ -126,7 +121,7 @@ frontend/src/
 
 ## 深度文档
 
-- 架构与数据模型 → `docs/PROJECT_STATUS.md`
+- 架构与数据模型 → `docs/PROJECT_STATUS.md`（已合并至 `README.md`）
 - 开发环境搭建 → `db/setup.md`
 
 ## 豆瓣数据导入（douban-harvester）
