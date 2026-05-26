@@ -4,7 +4,7 @@
 >
 > **目标：** 新增 `/radar` 页面，聚合展示流媒体平台、海外趋势和国内院线的近期影片信息，并支持一键加入 PixelReel 记录库。
 >
-> **结论：** 第一版应把 TMDB 和豆瓣作为核心可信源，把腾讯、优酷、芒果 TV、爱奇艺作为可失败的附加源。雷达模块的主体验不能依赖页面爬虫是否成功。
+> **结论：** 第一版应把 TMDB 作为唯一核心可信源（豆瓣 frodo API 已锁定，需要官方 apikey，公开 key 已全部失效），把腾讯、优酷、芒果 TV、爱奇艺作为可失败的附加源。雷达模块的主体验不能依赖页面爬虫是否成功。
 
 ## 背景
 
@@ -23,9 +23,8 @@ PixelReel 当前已经有电影、剧集、游戏的记录库、搜索、导入�
 第一版以稳定、可解释的数据源为主：
 
 - TMDB：趋势电影、趋势剧集、平台 discover。
-- 豆瓣：正在上映、即将上映。
 
-这些数据源决定 `/radar` 页面的基础体验。它们失败时需要在状态接口和前端显式展示。
+> **注意：** 豆瓣 frodo API（`/api/v2/movie/in_theaters`、`/api/v2/movie/coming_soon`、`/api/v2/tv/coming_soon` 等）已全面锁定，需要官方 apikey 才能访问，历史上可用的公开 apikey 已全部失效。如需接入豆瓣数据，需联系 `bd-team@douban.com` 申请 apikey。在拿到 apikey 之前，豆瓣不应作为核心源。
 
 ### 爬虫源降级
 
@@ -71,14 +70,15 @@ TMDB：
 - `350`：Apple TV+
 - `1899`：Max
 
-注意：TMDB discover 更准确地说是“按平台可观看内容筛选”，不等于严格意义上的“刚上线”。前端文案应使用“平台可看 / 近期发现 / 流媒体关注”，避免承诺精确上新时间。
+注意：TMDB discover 更准确地说是”按平台可观看内容筛选”，不等于严格意义上的”刚上线”。前端文案应使用”平台可看 / 近期发现 / 流媒体关注”，避免承诺精确上新时间。
 
-豆瓣：
+豆瓣（需官方 apikey，当前不可用）：
 
 - `GET https://frodo.douban.com/api/v2/movie/in_theaters?city=北京&count=20`
 - `GET https://frodo.douban.com/api/v2/movie/coming_soon?count=20`
+- `GET https://frodo.douban.com/api/v2/tv/coming_soon?count=20`
 
-豆瓣请求需要设置移动端 User-Agent 和 Referer，并在两个请求之间 sleep 1000ms，降低频率限制风险。
+> 以上端点在 frodo 服务器上路由存在，但需要 `apikey` 参数认证。历史公开 apikey 已失效，需联系豆瓣官方（`bd-team@douban.com`）申请。拿到 apikey 后可恢复为核心源，当前应降级为”待激活”。
 
 ### V1 附加源
 
@@ -167,16 +167,18 @@ express-backend/src/services/radar/
 - `types.ts`：定义 `RadarItemInput`、`RadarSourceResult`、source id 枚举。
 - `radarSyncService.ts`：总调度、同步锁、upsert、状态汇总。
 - `tmdbRadarService.ts`：TMDB 趋势和 discover。
-- `doubanRadarService.ts`：豆瓣院线和即将上映。
+- `doubanRadarService.ts`：豆瓣院线和即将上映（需 apikey，当前不可用，作为待激活源保留）。
 - `scraperService.ts`：腾讯、优酷、芒果 TV 的 axios + cheerio 抓取。
 - `iqiyiScraperService.ts`：爱奇艺 Playwright 抓取。
 
 总调度分为两组：
 
 ```ts
-const criticalSources = ["tmdb", "douban"];
-const optionalSources = ["tencent", "youku", "mgtv", "iqiyi"];
+const criticalSources = ["tmdb"];
+const optionalSources = ["douban", "tencent", "youku", "mgtv", "iqiyi"];
 ```
+
+> 豆瓣从 critical 降级为 optional，因为 frodo API 需要 apikey 认证。拿到 apikey 后可恢复为 critical。
 
 执行策略：
 
@@ -240,8 +242,8 @@ POST /api/radar/sync/:source
 
 在后端启动时注册 cron：
 
-- 每小时同步 TMDB + 豆瓣。
-- 每 6 小时同步 optional scraper。
+- 每小时同步 TMDB。
+- 每 6 小时同步豆瓣（如果 apikey 已配置）和 optional scraper。
 - 服务启动后延迟执行一次核心源同步。
 
 启动时不要阻塞 `app.listen`。服务应先对外可用，再由后台任务触发同步。这样即使 Playwright 环境缺失，API 也不会启动失败。
@@ -335,7 +337,7 @@ const url = `https://www.justwatch.com/cn/搜索?q=${query}`;
 同步验收：
 
 - TMDB 配置缺失时状态接口能说明原因。
-- 豆瓣失败不会影响 TMDB 数据展示。
+- 豆瓣 apikey 未配置时状态接口说明原因（不视为同步失败）。
 - 腾讯、优酷、芒果或爱奇艺失败不会影响核心源同步。
 - 同一时间重复点击同步不会并发跑多个全量任务。
 - Playwright 源失败后浏览器进程能正常关闭。
@@ -395,7 +397,8 @@ const url = `https://www.justwatch.com/cn/搜索?q=${query}`;
 
 推荐第一版交付：
 
-- TMDB + 豆瓣作为核心可信源。
+- TMDB 作为唯一核心可信源。
+- 豆瓣 frodo 作为待激活源（需官方 apikey，当前不可用）。
 - 国内平台页面爬虫作为可失败附加源。
 - 爱奇艺 Playwright 单独隔离并默认可关闭。
 - 后端同步有状态、有限流、有锁、有降级。
