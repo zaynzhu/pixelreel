@@ -79,6 +79,10 @@ export default function TimelinePage() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("media");
   const [popupRecord, setPopupRecord] = useState<TimelineRecord | null>(null);
 
+  const INITIAL_VISIBLE_GROUPS = 8;
+  const GROUP_INCREMENT = 4;
+  const [visibleGroupCount, setVisibleGroupCount] = useState(INITIAL_VISIBLE_GROUPS);
+
   // Initial fetch on mount
   useEffect(() => {
     void fetchRecords({
@@ -97,6 +101,7 @@ export default function TimelinePage() {
       year: selectedYear,
     });
     void fetchYears(selectedCategory);
+    setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
   }, [selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch new records when year changes
@@ -106,9 +111,11 @@ export default function TimelinePage() {
       category: selectedCategory,
       year: selectedYear,
     });
+    setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
   }, [selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const groupSentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -124,6 +131,22 @@ export default function TimelinePage() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, fetchMore]);
+
+  // Group expansion sentinel — reveal more month groups as user scrolls
+  useEffect(() => {
+    const sentinel = groupSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          setVisibleGroupCount((count) => Math.min(count + GROUP_INCREMENT, monthGroups.length));
+        }
+      },
+      { rootMargin: '800px 0px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleGroupCount, loadingMore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Server-side filtering handles category and year
   const yearOptions = years.length > 0
@@ -222,7 +245,7 @@ export default function TimelinePage() {
 
         {/* Month Groups */}
         <div className="space-y-16 sm:space-y-24 pb-24">
-          {monthGroups.map((group, groupIndex) => {
+          {monthGroups.slice(0, visibleGroupCount).map((group, groupIndex) => {
             const mStats = computeMonthStats(group.records);
             return (
               <section key={group.key} className="relative">
@@ -286,6 +309,11 @@ export default function TimelinePage() {
             );
           })}
         </div>
+
+        {/* Group expansion sentinel */}
+        {visibleGroupCount < monthGroups.length && (
+          <div ref={groupSentinelRef} className="h-1" />
+        )}
 
         {/* 无限滚动哨兵 */}
         {nextCursor && (
