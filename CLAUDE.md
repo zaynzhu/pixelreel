@@ -121,7 +121,7 @@ frontend/src/
 
 ## 深度文档
 
-- 架构与数据模型 → `docs/PROJECT_STATUS.md`（已合并至 `README.md`）
+- 架构与数据模型 → `README.md`
 - 开发环境搭建 → `db/setup.md`
 
 ## 豆瓣数据导入（douban-harvester）
