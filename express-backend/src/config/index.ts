@@ -2,7 +2,18 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config();
 
-// 环境变量配置，与 Java 端各 Properties 类对齐
+const parseBoolean = (value: string | undefined, defaultValue: boolean): boolean => {
+  if (value == null || value === '') return defaultValue;
+  return value === 'true';
+};
+
+const parseNumber = (value: string | undefined, defaultValue: number): number => {
+  if (value == null || value === '') return defaultValue;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : defaultValue;
+};
+
+// 环境变量配置
 export const config = {
   port: parseInt(process.env.PORT || '18889', 10),
 
@@ -43,6 +54,26 @@ export const config = {
     cookie: process.env.DOUBAN_COOKIE || '',
     userId: process.env.DOUBAN_USER_ID || '',
     dataDir: process.env.DOUBAN_DATA_DIR || path.resolve(__dirname, '../../data/douban-harvester'),
+    harvestEnabled: parseBoolean(process.env.DOUBAN_HARVEST_ENABLED, true),
+    headless: parseBoolean(process.env.DOUBAN_HARVEST_HEADLESS, true),
+    maxPagesPerRun: parseNumber(process.env.DOUBAN_HARVEST_MAX_PAGES_PER_RUN, 200),
+    sleepMin: parseNumber(process.env.DOUBAN_HARVEST_SLEEP_MIN, 3),
+    sleepMax: parseNumber(process.env.DOUBAN_HARVEST_SLEEP_MAX, 7),
+    longBreakEvery: parseNumber(process.env.DOUBAN_HARVEST_LONG_BREAK_EVERY, 40),
+    longBreakSeconds: parseNumber(process.env.DOUBAN_HARVEST_LONG_BREAK_SECONDS, 180),
+    navigationTimeoutMs: parseNumber(process.env.DOUBAN_HARVEST_NAVIGATION_TIMEOUT_MS, 30000),
+  },
+
+  radar: {
+    enabled: parseBoolean(process.env.RADAR_ENABLED, true),
+    cronEnabled: parseBoolean(process.env.RADAR_CRON_ENABLED, true),
+    syncOnStart: parseBoolean(process.env.RADAR_SYNC_ON_START, true),
+    scrapersEnabled: parseBoolean(process.env.RADAR_SCRAPERS_ENABLED, true),
+    iqiyiEnabled: parseBoolean(process.env.RADAR_IQIYI_ENABLED, false),
+    playwrightHeadless: parseBoolean(process.env.RADAR_PLAYWRIGHT_HEADLESS, true),
+    syncCoreCron: process.env.RADAR_SYNC_CORE_CRON || '0 * * * *',
+    syncScraperCron: process.env.RADAR_SYNC_SCRAPER_CRON || '0 */6 * * *',
+    requestTimeoutMs: parseNumber(process.env.RADAR_REQUEST_TIMEOUT_MS, 15000),
   },
 
   rawg: {

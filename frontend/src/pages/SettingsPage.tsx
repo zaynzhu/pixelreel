@@ -179,6 +179,20 @@ export default function SettingsPage() {
                           <span className="text-[10px] text-[var(--accent)]">*</span>
                         )}
                       </div>
+                    ) : field.type === 'number' ? (
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={editValues[field.key] ?? ''}
+                          onChange={(e) => handleChange(field.key, e.target.value)}
+                          className="tech-input w-full"
+                        />
+                        {editValues[field.key] !== originalValues[field.key] && (
+                          <span className="absolute right-2 bottom-0 text-[10px] text-[var(--accent)]">
+                            MODIFIED
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <div className="relative">
                         <input

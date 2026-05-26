@@ -1,4 +1,4 @@
-export type SettingsFieldType = 'text' | 'boolean' | 'password';
+export type SettingsFieldType = 'text' | 'boolean' | 'password' | 'number';
 
 export interface SettingsField {
   key: string;

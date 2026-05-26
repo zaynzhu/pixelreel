@@ -5,13 +5,13 @@ import path from 'path';
 const router = Router();
 
 const ENV_PATH = path.resolve(__dirname, '../../.env');
-const ENV_BACKUP_PATH = path.resolve(__dirname, '../../.env.backup');
+const ENV_BACKUP_PATH = path.resolve(__dirname, '../../.env.backup.local');
 
 // ── 分类定义 ──
 interface FieldDef {
   key: string;
   sensitive: boolean;
-  type: 'text' | 'boolean' | 'password';
+  type: 'text' | 'boolean' | 'password' | 'number';
 }
 
 interface CategoryDef {
@@ -28,7 +28,7 @@ const SENSITIVE_PATTERNS = [
 const isSensitive = (key: string): boolean =>
   key === 'DATABASE_URL' || SENSITIVE_PATTERNS.some(p => key.includes(p));
 
-const inferType = (key: string): 'text' | 'boolean' | 'password' => {
+const inferType = (key: string): 'text' | 'boolean' | 'password' | 'number' => {
   if (key.endsWith('_ENABLED') || key === 'AUTH_ENABLED') return 'boolean';
   if (key.includes('PASSWORD')) return 'password';
   return 'text';
@@ -83,6 +83,29 @@ const CATEGORIES: CategoryDef[] = [
       { key: 'DOUBAN_BASE_URL', sensitive: false, type: 'text' },
       { key: 'DOUBAN_COOKIE', sensitive: true, type: 'text' },
       { key: 'DOUBAN_USER_ID', sensitive: false, type: 'text' },
+      { key: 'DOUBAN_DATA_DIR', sensitive: false, type: 'text' },
+      { key: 'DOUBAN_HARVEST_ENABLED', sensitive: false, type: 'boolean' },
+      { key: 'DOUBAN_HARVEST_HEADLESS', sensitive: false, type: 'boolean' },
+      { key: 'DOUBAN_HARVEST_MAX_PAGES_PER_RUN', sensitive: false, type: 'number' },
+      { key: 'DOUBAN_HARVEST_SLEEP_MIN', sensitive: false, type: 'number' },
+      { key: 'DOUBAN_HARVEST_SLEEP_MAX', sensitive: false, type: 'number' },
+      { key: 'DOUBAN_HARVEST_LONG_BREAK_EVERY', sensitive: false, type: 'number' },
+      { key: 'DOUBAN_HARVEST_LONG_BREAK_SECONDS', sensitive: false, type: 'number' },
+      { key: 'DOUBAN_HARVEST_NAVIGATION_TIMEOUT_MS', sensitive: false, type: 'number' },
+    ],
+  },
+  {
+    key: 'radar', labelZh: '雷达', labelEn: 'Radar',
+    fields: [
+      { key: 'RADAR_ENABLED', sensitive: false, type: 'boolean' },
+      { key: 'RADAR_CRON_ENABLED', sensitive: false, type: 'boolean' },
+      { key: 'RADAR_SYNC_ON_START', sensitive: false, type: 'boolean' },
+      { key: 'RADAR_SCRAPERS_ENABLED', sensitive: false, type: 'boolean' },
+      { key: 'RADAR_IQIYI_ENABLED', sensitive: false, type: 'boolean' },
+      { key: 'RADAR_PLAYWRIGHT_HEADLESS', sensitive: false, type: 'boolean' },
+      { key: 'RADAR_SYNC_CORE_CRON', sensitive: false, type: 'text' },
+      { key: 'RADAR_SYNC_SCRAPER_CRON', sensitive: false, type: 'text' },
+      { key: 'RADAR_REQUEST_TIMEOUT_MS', sensitive: false, type: 'number' },
     ],
   },
   {

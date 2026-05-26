@@ -4,6 +4,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import {
   USER_ID, SLEEP_MIN, SLEEP_MAX,
   LONG_BREAK_EVERY, LONG_BREAK_SECONDS, MAX_PAGES_PER_RUN,
+  HARVEST_HEADLESS, NAVIGATION_TIMEOUT_MS,
 } from "./config";
 import { loadData, saveData, saveProgress, dedupByLink } from "./storage";
 import { parseCollectPage, parseReviewsPage } from "./parser";
@@ -26,7 +27,7 @@ async function longBreak(): Promise<void> {
 
 export async function makeBrowser(): Promise<{ browser: Browser; context: BrowserContext }> {
   const browser = await chromium.launch({
-    headless: false, // 调试期用有头；稳定后可改 true
+    headless: HARVEST_HEADLESS,
     args: [
       "--disable-blink-features=AutomationControlled",
       "--no-sandbox",
@@ -253,7 +254,7 @@ export async function scrapeCollect(
       onProgress?.({ total: data.length + newItems.length, label: `正在爬取评分数据...` });
       console.log(`   正在加载 ${url}`);
       try {
-        await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+        await page.goto(url, { waitUntil: "networkidle", timeout: NAVIGATION_TIMEOUT_MS });
       } catch (e: any) {
         console.log(`❌ 页面加载失败: ${e.message}`);
         return { ok: false, newItems, error: '页面加载超时，可能是网络问题或 IP 被封' };
@@ -287,7 +288,7 @@ export async function scrapeCollect(
         console.log(`  ⚠ 本页仅 ${items.length} 条（预期28+），重试 ${retry}/2...`);
         await randomSleep(5, 10);
         try {
-          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
           await randomSleep(2, 3);
           const retried = await parseCollectPage(page);
           if (retried.length > items.length) {
@@ -376,7 +377,7 @@ export async function scrapeReviews(
         `?start=${(p - 1) * 20}&sortby=time`;
 
       console.log(`\n📝 影评第 ${p} 页 | 已抓 ${data.length + newItems.length} 条`);
-      await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+      await page.goto(url, { waitUntil: "networkidle", timeout: NAVIGATION_TIMEOUT_MS });
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await randomSleep(1.5, 2.5);
 
@@ -398,7 +399,7 @@ export async function scrapeReviews(
         console.log(`  ⚠ 本页仅 ${items.length} 条（预期20），重试 ${retry}/2...`);
         await randomSleep(5, 10);
         try {
-          await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
           await randomSleep(2, 3);
           const retried = await parseReviewsPage(page);
           if (retried.length > items.length) {

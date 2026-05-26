@@ -113,6 +113,10 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
   let task;
   switch (mode) {
     case 'full':
+      if (!config.douban.harvestEnabled) {
+        res.status(403).json({ error: '豆瓣浏览器收割已关闭，可使用 mode=json 导入已有数据' });
+        return;
+      }
       if (!config.douban.userId) {
         res.status(400).json({ error: '缺少 DOUBAN_USER_ID 配置' });
         return;
@@ -120,6 +124,10 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
       task = startFullHarvestTask();
       break;
     case 'incremental':
+      if (!config.douban.harvestEnabled) {
+        res.status(403).json({ error: '豆瓣浏览器收割已关闭，可使用 mode=json 导入已有数据' });
+        return;
+      }
       if (!config.douban.userId) {
         res.status(400).json({ error: '缺少 DOUBAN_USER_ID 配置' });
         return;
