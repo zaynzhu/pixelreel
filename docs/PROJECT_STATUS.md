@@ -35,6 +35,10 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 - [x] 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
 - [x] 豆瓣数据导入（douban-harvester 集成：JSON 导入、全量/增量爬取、TMDB 丰富）
 - [x] 记录库与时间线游标分页 + 无限滚动（IntersectionObserver）
+- [x] 记录库服务端过滤（category=movie|tv_show|game|media|all、year、status）
+- [x] 时间线轻量 API（`/api/timeline` 仅返回列表必要字段，点击按需加载完整记录）
+- [x] 时间线年份端点（`/api/timeline/years?category=`）
+- [x] 图片代理增强（域名允许列表、URL 校验、Cache-Control、内容类型检查）
 - [x] 操作日志（Prisma 扩展自动记录 CRUD，支持撤销，筛选与无限滚动）
 - [x] Showcase 大屏展示页面（网格模式 + 全屏轮播模式，统计数据/海报轮播/时间线概览/随机推荐）
 - [x] 数据分析页面（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
@@ -67,8 +71,12 @@ PixelReel 是一个个人影剧游记录平台，支持电影、电视剧、游�
 ## 关键接口
 - `POST /api/auth/login`：JWT 登录
 - `GET /api/profile/summary`：个人主页统计汇总
-- `GET /api/library`：混合记录库列表（游标分页，`?cursor=&limit=50`），返回 `{ records, nextCursor, totals }`，`totals` 为全库统计
+- `GET /api/library`：混合记录库列表（游标分页，`?cursor=&limit=50&category=media&year=2026&status=DONE`），`category=media` = movie+tv_show（产品约定），`totals` 受筛选影响
+- `GET /api/library/:category/:id`：获取单条完整记录（用于时间线弹窗按需加载）
 - `PATCH /api/library/:category/:id`：更新状态 / 评分 / 短评
+- `GET /api/library/random?limit=N`：随机返回记录（N 最大 20，默认 1，库空返回 404）
+- `GET /api/timeline`：时间线轻量列表（游标分页，`?cursor=&limit=96&category=media&year=2026`），返回仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt
+- `GET /api/timeline/years?category=`：返回可选年份列表，用于年份选择器
 - `GET /api/library/random?limit=N`：随机返回记录（N 最大 20，默认 1，库空返回 404）
 - `GET /api/search/movies`：电影搜索聚合
 - `GET /api/search/tv-shows`：电视剧搜索
