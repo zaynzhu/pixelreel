@@ -6,6 +6,7 @@ import type {
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
 import { useI18nStore } from "../stores/i18nStore";
+import { proxiedImageUrl } from "../imageProxy";
 
 const PROVIDERS = [
   { id: "tmdb", label: "TMDB" },
@@ -13,14 +14,6 @@ const PROVIDERS = [
 ];
 
 const defaultProvider = PROVIDERS[0].id;
-
-function proxyImage(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.includes('doubanio.com')) {
-    return `/api/search/proxy/image?url=${encodeURIComponent(url)}`;
-  }
-  return url;
-}
 
 export default function TvShowSearch() {
   const { t } = useI18nStore();
@@ -143,9 +136,9 @@ export default function TvShowSearch() {
                 className="group border border-[var(--line)] bg-[var(--surface-hover)] flex gap-4 p-4 transition-all hover:border-white"
               >
                 <div className="h-32 w-24 overflow-hidden bg-black border border-[var(--line)] relative shrink-0">
-                  {proxyImage(show.posterUrl) ? (
+                  {proxiedImageUrl(show.posterUrl) ? (
                     <img
-                      src={proxyImage(show.posterUrl)!}
+                      src={proxiedImageUrl(show.posterUrl)!}
                       alt={show.title}
                       className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
                     />

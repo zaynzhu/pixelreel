@@ -45,6 +45,10 @@ router.get('/:category/:id', async (req: Request, res: Response) => {
   try {
     const category = req.params.category as string;
     const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: 'Invalid id parameter' });
+      return;
+    }
     const result = await getRecord(category, id);
     res.json(result);
   } catch (err: any) {

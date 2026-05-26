@@ -72,7 +72,7 @@ function computeMonthStats(records: TimelineRecord[]) {
 }
 
 export default function TimelinePage() {
-  const { records, nextCursor, loading, loadingMore, error, filters, years, yearsError, fetchRecords, fetchMore, setFilters, fetchYears } = useTimelineStore();
+  const { records, nextCursor, loading, loadingMore, error, years, yearsError, fetchRecords, fetchMore, fetchYears } = useTimelineStore();
   const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore();
   const { t } = useI18nStore();
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
@@ -82,16 +82,6 @@ export default function TimelinePage() {
   const INITIAL_VISIBLE_GROUPS = 8;
   const GROUP_INCREMENT = 4;
   const [visibleGroupCount, setVisibleGroupCount] = useState(INITIAL_VISIBLE_GROUPS);
-
-  // Initial fetch on mount
-  useEffect(() => {
-    void fetchRecords({
-      limit: 96,
-      category: selectedCategory,
-      year: selectedYear,
-    });
-    void fetchYears(selectedCategory);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch new records when category changes
   useEffect(() => {
@@ -132,26 +122,11 @@ export default function TimelinePage() {
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, fetchMore]);
 
-  // Group expansion sentinel — reveal more month groups as user scrolls
-  useEffect(() => {
-    const sentinel = groupSentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loadingMore) {
-          setVisibleGroupCount((count) => Math.min(count + GROUP_INCREMENT, monthGroups.length));
-        }
-      },
-      { rootMargin: '800px 0px' },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [visibleGroupCount, loadingMore]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Server-side filtering handles category and year
-  const yearOptions = years.length > 0
-    ? years
-    : [...new Set(records.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
+  const yearOptions = useMemo(() => {
+    if (years.length > 0) return years;
+    return [...new Set(records.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
+  }, [years, records]);
 
   // 切换分类后，如果已选年份不在新列表里，重置为 ALL
   useEffect(() => {
@@ -188,6 +163,23 @@ export default function TimelinePage() {
     });
   }, [records]);
 
+  // Group expansion sentinel — reveal more month groups as user scrolls
+  useEffect(() => {
+    const sentinel = groupSentinelRef.current;
+    if (!sentinel) return;
+    const monthCount = monthGroups.length;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          setVisibleGroupCount((count) => Math.min(count + GROUP_INCREMENT, monthCount));
+        }
+      },
+      { rootMargin: '800px 0px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleGroupCount, loadingMore, monthGroups.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="relative min-h-screen bg-black bg-[var(--page-bg)] overflow-hidden font-['JetBrains_Mono',monospace]">
       {/* Floating Filter Menu (Top Right) */}
@@ -208,6 +200,9 @@ export default function TimelinePage() {
         <div className="text-[10px] font-bold text-[var(--accent)] tracking-[0.2em] mt-4 mb-2 uppercase">
           [ YEAR ]
         </div>
+        {yearsError && (
+          <div className="text-[9px] text-red-400 mb-1 uppercase tracking-widest">{yearsError}</div>
+        )}
         <YearFilterBtn active={selectedYear === "ALL"} onClick={() => setSelectedYear("ALL")}>
           ALL_TIME
         </YearFilterBtn>

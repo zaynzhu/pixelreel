@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { listTimelineRecords, listTimelineYears } from '../services/TimelineService';
-import { normalizeCategory } from '../services/LibraryService';
-import { parseRecordStatus } from '../enums/RecordStatus';
+import { normalizeCategory, normalizeStatus } from '../services/LibraryService';
 
 const router = Router();
 
@@ -10,12 +9,6 @@ function normalizeTimelineCategory(value?: string): 'all' | 'media' | 'movie' | 
     return value;
   }
   return 'all';
-}
-
-function normalizeTimelineStatus(value?: string): string | undefined {
-  if (!value) return undefined;
-  const parsed = parseRecordStatus(value);
-  return parsed ?? undefined;
 }
 
 router.get('/years', async (req: Request, res: Response) => {
@@ -35,7 +28,7 @@ router.get('/', async (req: Request, res: Response) => {
     includeTotals: req.query.includeTotals !== 'false',
     category: normalizeTimelineCategory(req.query.category as string | undefined),
     year: Number.isFinite(parsedYear) ? parsedYear : undefined,
-    status: normalizeTimelineStatus(req.query.status as string | undefined),
+    status: normalizeStatus(req.query.status as string | undefined),
   });
 
   res.json(result);

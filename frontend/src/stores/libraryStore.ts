@@ -5,7 +5,7 @@ import { apiFetch } from "../api";
 interface PaginatedResponse {
   records: LibraryRecord[];
   nextCursor: string | null;
-  totals: {
+  totals?: {
     total: number;
     rated: number;
     reviewed: number;
@@ -16,12 +16,13 @@ interface PaginatedResponse {
 type LibraryState = {
   records: LibraryRecord[];
   nextCursor: string | null;
+  pageSize: number;
   totals: { total: number; rated: number; reviewed: number; completed: number };
   loading: boolean;
   loadingMore: boolean;
   saving: boolean;
   error: string | null;
-  fetchRecords: () => Promise<void>;
+  fetchRecords: (options?: { limit?: number }) => Promise<void>;
   fetchMore: () => Promise<void>;
   updateRecord: (
     category: LibraryRecord["category"],
@@ -30,21 +31,37 @@ type LibraryState = {
   ) => Promise<LibraryRecord | null>;
 };
 
+let latestFetchRequest = 0;
+
+function recordKey(record: LibraryRecord) {
+  return `${record.category}:${record.id}`;
+}
+
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   records: [],
   nextCursor: null,
+  pageSize: 50,
   totals: { total: 0, rated: 0, reviewed: 0, completed: 0 },
   loading: false,
   loadingMore: false,
   saving: false,
   error: null,
 
-  fetchRecords: async () => {
-    set({ loading: true, error: null });
+  fetchRecords: async (options) => {
+    const limit = Math.min(Math.max(options?.limit ?? get().pageSize, 1), 200);
+    const requestId = ++latestFetchRequest;
+    set({ loading: true, error: null, pageSize: limit });
     try {
-      const payload = await apiFetch<PaginatedResponse>("/library");
-      set({ records: payload.records, nextCursor: payload.nextCursor, totals: payload.totals, loading: false });
+      const payload = await apiFetch<PaginatedResponse>(`/library?limit=${limit}`);
+      if (requestId !== latestFetchRequest) return;
+      set({
+        records: payload.records,
+        nextCursor: payload.nextCursor,
+        totals: payload.totals ?? get().totals,
+        loading: false,
+      });
     } catch (err) {
+      if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "获取记录库失败",
         loading: false,
@@ -53,20 +70,30 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   fetchMore: async () => {
-    const { nextCursor, loadingMore } = get();
-    if (!nextCursor || loadingMore) return;
-    set({ loadingMore: true });
+    const { nextCursor, loadingMore, loading, pageSize } = get();
+    if (!nextCursor || loadingMore || loading) return;
+    const cursor = nextCursor;
+    set({ loadingMore: true, error: null });
     try {
       const payload = await apiFetch<PaginatedResponse>(
-        `/library?cursor=${encodeURIComponent(nextCursor)}&limit=50`
+        `/library?cursor=${encodeURIComponent(cursor)}&limit=${pageSize}&includeTotals=false`
       );
+      if (get().nextCursor !== cursor) {
+        set({ loadingMore: false });
+        return;
+      }
+      const seen = new Set(get().records.map(recordKey));
+      const newRecords = payload.records.filter((record) => !seen.has(recordKey(record)));
       set({
-        records: [...get().records, ...payload.records],
+        records: [...get().records, ...newRecords],
         nextCursor: payload.nextCursor,
         loadingMore: false,
       });
     } catch (err) {
-      set({ loadingMore: false });
+      set({
+        error: err instanceof Error ? err.message : "加载更多记录失败",
+        loadingMore: false,
+      });
     }
   },
 

@@ -306,6 +306,23 @@ router.get('/proxy/image', async (req: Request, res: Response) => {
   url = url.replace(/img\d+\.doubanio\.com/, 'img1.doubanio.com');
 
   try {
+    // HEAD request to check content-type before downloading the body
+    const headRes = await axios.head(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Referer': 'https://movie.douban.com/',
+      },
+      timeout: 5000,
+    }).catch(() => null);
+
+    if (headRes) {
+      const headContentType = String(headRes.headers['content-type'] ?? '');
+      if (headContentType && !headContentType.startsWith('image/')) {
+        res.status(400).json({ error: 'Response is not an image' });
+        return;
+      }
+    }
+
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
       headers: {

@@ -4,6 +4,7 @@ import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "./StarRating";
 import { ImgWithFallback } from "./ImgWithFallback";
+import { proxiedImageUrl } from "../imageProxy";
 
 interface TimelinePopupProps {
   lightweightRecord: TimelineRecord | null;
@@ -55,7 +56,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
 
   // Derive display values: prefer full record, fall back to lightweight
   const title = fullRecord?.title ?? lightweightRecord.title;
-  const posterUrl = fullRecord?.posterUrl ?? lightweightRecord.posterUrl;
+  const posterUrl = proxiedImageUrl(fullRecord?.posterUrl ?? lightweightRecord.posterUrl);
   const status = fullRecord?.status ?? lightweightRecord.status;
   const rating = fullRecord?.rating ?? lightweightRecord.rating;
   const category = fullRecord?.category ?? lightweightRecord.category;

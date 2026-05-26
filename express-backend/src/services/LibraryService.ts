@@ -39,10 +39,14 @@ export function yearRange(year?: number) {
 
 export function normalizeStatus(value?: string): RecordStatus | undefined {
   if (!value) return undefined;
-  return parseRecordStatus(value) as RecordStatus;
+  const parsed = parseRecordStatus(value);
+  if (Object.values(RecordStatus).includes(parsed as RecordStatus)) {
+    return parsed as RecordStatus;
+  }
+  return undefined;
 }
 
-function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
+export function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
   const parts = cursor.split('__');
   if (parts.length !== 2) return null;
   const createdAt = new Date(parts[0]);

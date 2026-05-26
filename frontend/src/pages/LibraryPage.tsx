@@ -65,7 +65,7 @@ export default function LibraryPage() {
           void fetchMore();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: '800px 0px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();

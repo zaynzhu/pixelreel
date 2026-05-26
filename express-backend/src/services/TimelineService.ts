@@ -1,10 +1,10 @@
 import { getDb } from '../config/db';
-import { normalizeCategory, LibraryCategoryFilter } from './LibraryService';
+import { normalizeCategory, LibraryCategoryFilter, parseCursor, yearRange } from './LibraryService';
 import {
   detectMovieSource, detectGameSource, detectTvShowSource,
   movieSourceLabel, gameSourceLabel, tvShowSourceLabel,
 } from './LibraryService';
-import { parseRecordStatus } from '../enums/RecordStatus';
+import { normalizeStatus } from './LibraryService';
 import { TimelineRecordResponse, TimelinePageResponse } from '../dto/timeline';
 
 export interface ListTimelineOptions {
@@ -16,29 +16,10 @@ export interface ListTimelineOptions {
   status?: string;
 }
 
-// ── Private helpers (same logic as LibraryService) ──
-
-function parseCursor(cursor: string): { createdAt: Date; id: number } | null {
-  const parts = cursor.split('__');
-  if (parts.length !== 2) return null;
-  const createdAt = new Date(parts[0]);
-  const id = Number(parts[1]);
-  if (isNaN(createdAt.getTime()) || isNaN(id)) return null;
-  return { createdAt, id };
-}
-
-function yearRange(year?: number) {
-  if (!year) return undefined;
-  return {
-    gte: new Date(`${year}-01-01T00:00:00.000Z`),
-    lt: new Date(`${year + 1}-01-01T00:00:00.000Z`),
-  };
-}
-
 function buildBaseWhere(options: ListTimelineOptions) {
   const createdAtRange = yearRange(options.year);
   const normalizedStatus = options.status
-    ? parseRecordStatus(options.status)
+    ? normalizeStatus(options.status)
     : undefined;
   return {
     ...(createdAtRange ? { createdAt: createdAtRange } : {}),
@@ -97,7 +78,7 @@ function toTimelineGame(g: any): TimelineRecordResponse {
       ? (g.platform.trim().toUpperCase() === 'PSN' ? 'PSN'
         : g.platform.trim().toUpperCase() === 'XBOX' ? 'Xbox'
         : g.platform.trim().toUpperCase() === 'STEAM' ? 'Steam'
-        : g.platform)
+        : g.platform.trim() || gameSourceLabel(sourceKey))
       : gameSourceLabel(sourceKey),
     createdAt: g.createdAt instanceof Date ? g.createdAt.toISOString() : String(g.createdAt),
   };
@@ -195,20 +176,20 @@ export async function listTimelineYears(category: ListTimelineOptions['category'
   const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
   const includeGames = category === 'all' || category === 'game';
 
-  const [movieDates, tvShowDates, gameDates] = await Promise.all([
-    includeMovies ? db.movie.findMany({ select: { createdAt: true } }) : Promise.resolve([]),
-    includeTvShows ? db.tvShow.findMany({ select: { createdAt: true } }) : Promise.resolve([]),
-    includeGames ? db.game.findMany({ select: { createdAt: true } }) : Promise.resolve([]),
-  ]);
+  // Use raw SQL for efficient distinct year extraction (avoids loading all rows)
+  const queries: Promise<{ year: number }[]>[] = [];
+  if (includeMovies) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(createdAt) AS year FROM movie ORDER BY year DESC`);
+  if (includeTvShows) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(createdAt) AS year FROM tv_show ORDER BY year DESC`);
+  if (includeGames) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(createdAt) AS year FROM game ORDER BY year DESC`);
 
-  const allDates: Date[] = [
-    ...movieDates.map((m: any) => m.createdAt),
-    ...tvShowDates.map((t: any) => t.createdAt),
-    ...gameDates.map((g: any) => g.createdAt),
-  ];
-
-  const years = [...new Set(allDates.map((d: Date) => d.getFullYear()))].sort((a, b) => b - a);
-  return years;
+  const results = await Promise.all(queries);
+  const years = new Set<number>();
+  for (const rows of results) {
+    for (const row of rows) {
+      if (row.year != null) years.add(Number(row.year));
+    }
+  }
+  return [...years].sort((a, b) => b - a);
 }
 
 async function fetchTotal(options?: ListTimelineOptions) {

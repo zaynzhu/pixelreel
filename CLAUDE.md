@@ -113,9 +113,9 @@ frontend/src/
 - **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。
 - **海报图片：** Steam 海报有两种 CDN 格式——旧格式 `cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg`（大部分游戏可用）和新格式 `shared.akamai.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`（新游戏必须用这个）。图片加载失败时自动显示赛博朋克占位符（`ImgWithFallback` 组件）。
 - **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）的游戏不显示"想玩"状态标签——已玩过的游戏不应标记为 WANT。
-- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣），未知域名返回 400。响应带 `Cache-Control: public, max-age=7d, immutable`。
-- **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录。`/api/timeline/years?category=` 返回可选年份列表。
-- **记录库服务端过滤：** `GET /api/library` 支持 `category=movie|tv_show|game|media|all`、`year=2026`、`status=DONE` 筛选参数。`category=media` 是产品约定，等于 `movie + tv_show`。
+- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣），未知域名返回 400。代理先发 HEAD 请求检查 Content-Type 再下载 body（避免浪费带宽下载非图片响应）。响应带 `Cache-Control: public, max-age=7d, immutable`。前端统一用 `proxiedImageUrl()` 路由代理，搜索组件（MovieSearch/TvShowSearch）和 TimelinePopup 都必须使用此函数。
+- **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录，前端用 `timelineDetailStore` 缓存（key 格式 `category:id`）。`/api/timeline/years?category=` 用 `SELECT DISTINCT YEAR(createdAt)` 高效返回年份列表。
+- **记录库服务端过滤：** `GET /api/library` 支持 `category=movie|tv_show|game|media|all`、`year=2026`、`status=DONE` 筛选参数。`category=media` 是产品约定，等于 `movie + tv_show`。`normalizeStatus` 只接受有效 RecordStatus 值，非法 status 参数被忽略（返回 undefined）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
 - **Toast 通知：** 用 `toastStore` 的 `addToast(message, type)` 和 `toast()` 便捷函数。错误用 `toast(msg, 'error')`，成功用默认 `toast(msg)`。确认对话框用 `confirmDialog(msg, danger?)` 返回 `Promise<boolean>`，替代浏览器原生 `alert()`/`confirm()`。

@@ -58,6 +58,7 @@ model Movie {
   @@index([imdbId], map: "idx_movie_imdb_id")
   @@index([doubanId], map: "idx_movie_douban_id")
   @@index([traktId], map: "idx_movie_trakt_id")
+  @@index([createdAt, id], map: "idx_movie_created_id")
   @@map("movie")
 }
 
@@ -107,6 +108,7 @@ model TvShow {
   @@index([imdbId], map: "idx_tv_show_imdb_id")
   @@index([doubanId], map: "idx_tv_show_douban_id")
   @@index([traktId], map: "idx_tv_show_trakt_id")
+  @@index([createdAt, id], map: "idx_tv_show_created_id")
   @@map("tv_show")
 }
 
@@ -137,6 +139,7 @@ model Game {
   @@index([steamAppId], map: "idx_game_steam_app_id")
   @@index([xboxId], map: "idx_game_xbox_id")
   @@index([psnId], map: "idx_game_psn_id")
+  @@index([createdAt, id], map: "idx_game_created_id")
   @@map("game")
 }
 

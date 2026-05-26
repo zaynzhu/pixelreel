@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import type { LibraryRecord } from "../../types/library"
 import type { TimelineRecord } from "../../types/timeline"
 import { useI18nStore } from "../../stores/i18nStore"
+import { useTimelineDetailStore } from "../../stores/timelineDetailStore"
 import { ImgWithFallback } from "../ImgWithFallback"
 import TimelinePopup from "../TimelinePopup"
 import { apiFetch } from "../../api"
@@ -28,6 +29,7 @@ interface RandomPickProps {
 
 export function RandomPick({ compact }: RandomPickProps) {
   const { t } = useI18nStore()
+  const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore()
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -96,7 +98,10 @@ export function RandomPick({ compact }: RandomPickProps) {
                     aspectRatio: "2/3",
                     borderColor: "var(--accent)",
                   }}
-                  onClick={() => setSelectedRecord(record)}
+                  onClick={() => {
+                    setSelectedRecord(record);
+                    void fetchDetail(record.category, record.id);
+                  }}
                 >
                   {record.posterUrl ? (
                     <ImgWithFallback
@@ -134,9 +139,9 @@ export function RandomPick({ compact }: RandomPickProps) {
 
       <TimelinePopup
         lightweightRecord={selectedRecord ? toLightweight(selectedRecord) : null}
-        fullRecord={selectedRecord}
-        loading={false}
-        error={null}
+        fullRecord={selectedRecord ? detailCache[`${selectedRecord.category}:${selectedRecord.id}`] ?? null : null}
+        loading={selectedRecord ? detailLoading[`${selectedRecord.category}:${selectedRecord.id}`] ?? false : false}
+        error={selectedRecord ? detailErrors[`${selectedRecord.category}:${selectedRecord.id}`] ?? null : null}
         onClose={() => setSelectedRecord(null)}
       />
     </>

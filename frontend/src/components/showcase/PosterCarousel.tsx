@@ -3,6 +3,7 @@ import type { RecentRecordItem } from "../../types/profile"
 import type { LibraryRecord } from "../../types/library"
 import type { TimelineRecord } from "../../types/timeline"
 import { useI18nStore } from "../../stores/i18nStore"
+import { useTimelineDetailStore } from "../../stores/timelineDetailStore"
 import { ImgWithFallback } from "../ImgWithFallback"
 import TimelinePopup from "../TimelinePopup"
 
@@ -29,6 +30,7 @@ interface PosterCarouselProps {
 
 export function PosterCarousel({ items, compact }: PosterCarouselProps) {
   const { t } = useI18nStore()
+  const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore()
   const [batchIndex, setBatchIndex] = useState(0)
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
   const [transitionKey, setTransitionKey] = useState(0)
@@ -63,6 +65,7 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
       updatedAt: item.createdAt,
     } as LibraryRecord
     setSelectedRecord(record)
+    void fetchDetail(item.category, item.id)
   }
 
   return (
@@ -125,9 +128,9 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
 
       <TimelinePopup
         lightweightRecord={selectedRecord ? toLightweight(selectedRecord) : null}
-        fullRecord={selectedRecord}
-        loading={false}
-        error={null}
+        fullRecord={selectedRecord ? detailCache[`${selectedRecord.category}:${selectedRecord.id}`] ?? null : null}
+        loading={selectedRecord ? detailLoading[`${selectedRecord.category}:${selectedRecord.id}`] ?? false : false}
+        error={selectedRecord ? detailErrors[`${selectedRecord.category}:${selectedRecord.id}`] ?? null : null}
         onClose={() => setSelectedRecord(null)}
       />
     </>
