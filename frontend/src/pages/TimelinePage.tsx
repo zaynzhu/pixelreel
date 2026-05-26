@@ -6,6 +6,7 @@ import type { TimelineRecord } from "../types/timeline";
 import type { LibraryRecord, LibraryCategory, RecordStatus } from "../types/library";
 import TimelinePopup from "../components/TimelinePopup";
 import { StarRating } from "../components/StarRating";
+import { proxiedImageUrl } from "../imageProxy";
 
 type YearFilter = number | "ALL";
 type CategoryFilter = "media" | "game" | "all";
@@ -401,7 +402,8 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
   const status = statusBadge(record.status, t);
   const hasRating = record.rating != null;
   const [imgError, setImgError] = useState(false);
-  const showPlaceholder = !record.posterUrl || imgError;
+  const resolvedPosterUrl = proxiedImageUrl(record.posterUrl);
+  const showPlaceholder = !resolvedPosterUrl || imgError;
   const hideStatus = record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0;
 
   return (
@@ -412,7 +414,7 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
       {/* Image with Cinematic Zoom */}
       {!showPlaceholder ? (
         <img
-          src={record.posterUrl!}
+          src={resolvedPosterUrl!}
           alt={record.title}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
