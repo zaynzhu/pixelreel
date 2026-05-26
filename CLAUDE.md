@@ -51,25 +51,26 @@ src/                      ← Java Spring Boot 后端（遗留，仍在仓库中
 express-backend/src/
   config/         index.ts（环境配置）, db.ts（Prisma 客户端 + getDb() + registerExtensions()）
   routes/         index.ts（聚合器）, auth, trakt, search, searchTvShows,
-                  import, library, movie, game, tvShow, profile, settings, activity
+                  import, library, timeline, movie, game, tvShow, profile, settings, activity
   services/       provider/（TmdbMovieSearchProvider, OmdbMovieSearchProvider, TraktMovieSearchProvider,
                           DoubanMovieSearchProvider, ImdbMovieSearchProvider, DoubanTvShowSearchProvider,
                           TmdbTvShowSearchProvider, RawgGameSearchProvider, SteamGameSearchProvider 等）
                   import/（Steam、Xbox、PSN、豆瓣 CSV、RAWG 封面、TMDB 封面、TMDB 回填）
                   douban-harvester/（爬虫核心、TMDB 丰富、导入服务、任务管理）
-                  LibraryService, ProfileSummaryService, ExternalSearchService, activity-log
+                  LibraryService, TimelineService, ProfileSummaryService, ExternalSearchService, activity-log
   middlewares/    auth.ts（JWT，当前未启用）, errorHandler.ts, activity-log.ts（Prisma 扩展，自动记录 CRUD）
   enums/          RecordStatus.ts（UNSET|WANT|IN_PROGRESS|DONE|DROPPED）
-  dto/            library.ts, profile.ts, external-search.ts, import-summary.ts
+  dto/            library.ts, timeline.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
   pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage, ActivityPage, ShowcasePage, AnalyticsPage
   components/     AppShell, RightActionDrawer, TaskPanel, Toast (ToastContainer + ConfirmDialog), MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating, ActivityFilters, ActivityTimeline
                   showcase/（StatsPanel, PosterCarousel, TimelineMini, RandomPick, ShowcaseControls）
                   analytics/（OverviewCards, MonthlyChart, RatingChart, SourcePieChart, CrossPlatformChart, TopRatedList）
-  stores/         authStore, profileStore, libraryStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore
-  types/          library.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts
+  stores/         authStore, profileStore, libraryStore, timelineStore, timelineDetailStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore
+  types/          library.ts, timeline.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts
   api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向，**已自动解析 JSON — 不要再调 .json()**）
+  imageProxy.ts   proxiedImageUrl() 辅助函数（代理 TMDB/Steam/RAWG/豆瓣图片到 /api/search/proxy/image）
 ```
 
 ## 路由
@@ -86,8 +87,8 @@ frontend/src/
 | — | `GET /api/search/rawg/:rawgId` (RAWG 游戏详情：评分、开发商、类型等) |
 | — | `GET /api/search/steam/:steamAppId` (Steam 游戏详情：Metacritic、开发商、类型等) |
 | — | `GET /api/search/proxy/image?url=` (图片代理，解决豆瓣防盗链) |
-| `/library` | `GET /api/library?cursor=&limit=50`, `PATCH /api/library/:cat/:id` |
-| `/timeline` | 复用 `libraryStore`（游标分页 + IntersectionObserver 无限滚动） |
+| `/library` | `GET /api/library?cursor=&limit=50&category=&year=&status=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
+| `/timeline` | `GET /api/timeline?cursor=&limit=96&category=&year=`, `GET /api/timeline/years?category=`（轻量 API，前端 `timelineStore` + `timelineDetailStore`） |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
@@ -112,7 +113,9 @@ frontend/src/
 - **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。
 - **海报图片：** Steam 海报有两种 CDN 格式——旧格式 `cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg`（大部分游戏可用）和新格式 `shared.akamai.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`（新游戏必须用这个）。图片加载失败时自动显示赛博朋克占位符（`ImgWithFallback` 组件）。
 - **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）的游戏不显示"想玩"状态标签——已玩过的游戏不应标记为 WANT。
-- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。
+- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣），未知域名返回 400。响应带 `Cache-Control: public, max-age=7d, immutable`。
+- **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录。`/api/timeline/years?category=` 返回可选年份列表。
+- **记录库服务端过滤：** `GET /api/library` 支持 `category=movie|tv_show|game|media|all`、`year=2026`、`status=DONE` 筛选参数。`category=media` 是产品约定，等于 `movie + tv_show`。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
 - **Toast 通知：** 用 `toastStore` 的 `addToast(message, type)` 和 `toast()` 便捷函数。错误用 `toast(msg, 'error')`，成功用默认 `toast(msg)`。确认对话框用 `confirmDialog(msg, danger?)` 返回 `Promise<boolean>`，替代浏览器原生 `alert()`/`confirm()`。
@@ -146,11 +149,23 @@ frontend/src/
 
 ## 记录库分页
 
-- `GET /api/library` 支持游标分页：`?cursor=2026-05-18T00:00:00.000Z__3&limit=50`
+- `GET /api/library` 支持游标分页：`?cursor=2026-05-18T00:00:00.000Z__3&limit=50&category=media&year=2026&status=DONE`
 - cursor 格式：`{createdAt的ISO字符串}__{id}`，同一秒多条记录用 id 作 tiebreaker
+- `category` 筛选：`movie|tv_show|game|media|all`，`media` = movie + tv_show（产品约定）
+- `year` 筛选：按 `createdAt` 年份过滤
+- `status` 筛选：`UNSET|WANT|IN_PROGRESS|DONE|DROPPED`
+- `includeTotals=false` 跳过 totals 计算（加载更多时使用）
 - 返回 `{ records: LibraryRecord[], nextCursor: string | null, totals: { total, rated, reviewed, completed } }`，`nextCursor` 为 null 表示无更多
-- `totals` 为全库统计（不受分页影响），前端统计卡片直接使用
+- `totals` 受 category/year/status 筛选影响，前端统计卡片直接使用
 - 前端用 IntersectionObserver 实现无限滚动，滚到底部自动 `fetchMore()`
+
+## 时间线 API
+
+- `GET /api/timeline` 轻量游标分页：`?cursor=&limit=96&category=media&year=2026&includeTotals=false`
+- 返回 `TimelineRecordResponse`：仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt
+- 不含豆瓣/TMDB 详情字段，点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录
+- `GET /api/timeline/years?category=media` 返回 `{ years: number[] }`，用于年份选择器
+- 前端 `timelineStore` 管理分页和筛选状态，`timelineDetailStore` 缓存点击后的完整记录
 
 ## 数据库
 
