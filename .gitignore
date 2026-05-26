@@ -1,4 +1,7 @@
 # Sensitive local config
+.env
+.env.*
+!.env.example
 src/main/resources/application-local.yml
 
 # Build output
