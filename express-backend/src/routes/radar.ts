@@ -101,7 +101,7 @@ router.post('/sync/:source', async (req: Request, res: Response) => {
     res.status(409).json({ error: '同步正在运行中' });
     return;
   }
-  const source = req.params.source;
+  const source = req.params.source as string;
   try {
     const { taskId } = await runRadarSync(source);
     res.json({ taskId, status: 'running' });

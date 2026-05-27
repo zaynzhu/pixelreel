@@ -3,7 +3,7 @@ import { useRadarStore } from '../stores/radarStore';
 import { useI18nStore } from '../stores/i18nStore';
 import { toast } from '../stores/toastStore';
 import { proxiedImageUrl } from '../imageProxy';
-import ImgWithFallback from '../components/ImgWithFallback';
+import { ImgWithFallback } from '../components/ImgWithFallback';
 import type { RadarItem } from '../types/radar';
 
 const CATEGORIES = ['now_playing', 'upcoming', 'trending', 'on_the_air'] as const;
@@ -113,9 +113,16 @@ export default function RadarPage() {
             <div key={item.id} className="group border border-[var(--line)] bg-[var(--surface)] overflow-hidden">
               <div className="relative aspect-[2/3] overflow-hidden bg-[var(--surface-hover)]">
                 <ImgWithFallback
-                  src={proxiedImageUrl(item.posterPath)}
+                  src={proxiedImageUrl(item.posterPath) ?? ''}
                   alt={item.titleZh || item.title}
                   className="h-full w-full object-cover transition-all group-hover:opacity-80"
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                      <span className="text-[10px] text-[var(--accent)] font-mono uppercase tracking-widest animate-pulse">
+                        {item.type === 'tv' ? 'TV' : 'FILM'}
+                      </span>
+                    </div>
+                  }
                 />
                 {item.platform && (
                   <span className="absolute top-2 left-2 neo-badge text-[9px]">{item.platform}</span>
