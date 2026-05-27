@@ -139,6 +139,18 @@ router.post('/add-to-library', async (req: Request, res: Response) => {
       }
     }
 
+    // Dedup by title for items without tmdbId
+    if (!radarItem.tmdbId) {
+      const title = radarItem.titleZh || radarItem.title;
+      const existing = radarItem.type === 'tv'
+        ? await db.tvShow.findFirst({ where: { title } })
+        : await db.movie.findFirst({ where: { title } });
+      if (existing) {
+        res.json({ exists: true, recordId: existing.id, category });
+        return;
+      }
+    }
+
     // Create new record with status=WANT
     if (radarItem.type === 'tv') {
       const show = await db.tvShow.create({
