@@ -273,6 +273,8 @@ const ALLOWED_HOSTS = new Set([
   'img1.doubanio.com',
   'img2.doubanio.com',
   'img3.doubanio.com',
+  'r1.ykimg.com',
+  'tv.puui.qpic.cn',
 ]);
 
 // GET /api/proxy/image?url=xxx — 图片代理（解决豆瓣防盗链 + 缓存控制）

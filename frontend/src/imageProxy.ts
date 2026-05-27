@@ -9,6 +9,8 @@ const PROXYABLE_HOSTS = new Set([
   'img1.doubanio.com',
   'img2.doubanio.com',
   'img3.doubanio.com',
+  'r1.ykimg.com',
+  'tv.puui.qpic.cn',
 ]);
 
 export function proxiedImageUrl(url?: string | null): string | null {
