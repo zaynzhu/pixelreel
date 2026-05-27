@@ -158,3 +158,33 @@ model ActivityLog {
   @@index([entityType, entityId], map: "idx_activity_entity")
   @@map("activity_log")
 }
+
+model RadarItem {
+  id           BigInt   @id @default(autoincrement())
+  sourceKey    String   @unique @db.VarChar(255) @map("source_key")
+  source       String   @db.VarChar(30)
+  sourceId     String?  @db.VarChar(120) @map("source_id")
+  sourceUrl    String?  @db.VarChar(500) @map("source_url")
+
+  tmdbId       BigInt?  @map("tmdb_id")
+  doubanId     String?  @db.VarChar(30) @map("douban_id")
+  type         String   @db.VarChar(20)
+  title        String   @db.VarChar(255)
+  titleZh      String?  @db.VarChar(255) @map("title_zh")
+  overview     String?  @db.Text
+  posterPath   String?  @db.VarChar(500) @map("poster_path")
+  releaseDate  String?  @db.VarChar(20) @map("release_date")
+
+  platform     String?  @db.VarChar(50)
+  category     String   @db.VarChar(30)
+  voteAverage  Decimal? @db.Decimal(3,1) @map("vote_average")
+
+  lastSyncedAt DateTime @map("last_synced_at") @db.DateTime(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@index([category, type], map: "idx_radar_category_type")
+  @@index([platform], map: "idx_radar_platform")
+  @@index([lastSyncedAt], map: "idx_radar_last_synced")
+  @@index([tmdbId], map: "idx_radar_tmdb_id")
+  @@map("radar_item")
+}
