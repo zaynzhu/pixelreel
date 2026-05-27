@@ -13,6 +13,7 @@ import activityRoutes from '../routes/activity';
 import analyticsRoutes from '../routes/analytics';
 import settingsRoutes from '../routes/settings';
 import timelineRoutes from '../routes/timeline';
+import radarRoutes from '../routes/radar';
 
 const router = Router();
 
@@ -39,5 +40,8 @@ router.use('/settings', settingsRoutes);
 
 // 时间线轻量接口
 router.use('/timeline', timelineRoutes);
+
+// 雷达路由
+router.use('/radar', radarRoutes);
 
 export default router;
