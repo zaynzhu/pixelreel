@@ -45,10 +45,12 @@
 - 数据分析页面（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
 - Toast 通知 + ConfirmDialog 组件（替代浏览器 alert/confirm）
 - 系统设置页面（环境变量配置，敏感字段遮罩，分类编辑）
+- 雷达发现页面（TMDB 热映/趋势/即将上映/正在播出 + 优酷/腾讯可失败附加源，一键加入想看）
 
 ## 未完成 / 占位
 
 - [ ] Switch 接入（占位）
+- [ ] 雷达模块：豆瓣 frodo API（需官方 apikey）、芒果 TV（需 Playwright）
 - [ ] 电视剧多 Provider 搜索（IMDb、Trakt 等，豆瓣已接入）
 
 ## 不计划实现
@@ -70,6 +72,7 @@
 | `/showcase` | 大屏展示（网格 + 全屏轮播） |
 | `/analytics` | 数据分析（年度报告 + 习惯洞察） |
 | `/settings` | 系统设置（环境变量配置） |
+| `/radar` | 雷达发现（TMDB+优酷+腾讯聚合） |
 | `/login` | 登录页 |
 
 ## 关键接口
@@ -136,6 +139,16 @@ GET    /api/settings                 获取环境变量配置
 PUT    /api/settings                 更新环境变量配置
 ```
 
+### 雷达
+
+```text
+GET    /api/radar?category=&type=&platform=&source=&page=&limit=  雷达列表（含 inLibrary 标记）
+GET    /api/radar/status                                               各源同步状态
+POST   /api/radar/sync                                                触发全量同步
+POST   /api/radar/sync/:source                                        触发单源同步（tmdb/youku/tencent）
+POST   /api/radar/add-to-library                                      加入想看（按 tmdbId/标题去重）
+```
+
 ## 本地启动
 
 ### Express 后端
@@ -178,7 +191,17 @@ npm run dev
 - `DOUBAN_USER_ID` — 豆瓣用户 ID（用于爬取）
 - `DOUBAN_COOKIE` — 豆瓣登录 Cookie（仅搜索 Provider 使用）
 - `DOUBAN_DATA_DIR` — 豆瓣数据目录（默认 `express-backend/data/douban-harvester/`）
+- `DOUBAN_HARVEST_ENABLED` — 是否启用浏览器收割（默认 true，关闭后 full/incremental 返回 403）
+- `DOUBAN_HARVEST_HEADLESS` — Playwright 无头模式（默认 true）
+- `DOUBAN_HARVEST_MAX_PAGES_PER_RUN` — 单次收割最大页数（默认 200）
 - `HTTPS_PROXY` — TMDB API 代理地址（国内必需，如 `http://127.0.0.1:7897`）
+- `RADAR_ENABLED` — 雷达模块总开关（默认 true）
+- `RADAR_CRON_ENABLED` — 雷达定时同步开关（默认 true）
+- `RADAR_SYNC_ON_START` — 启动时执行同步（默认 true）
+- `RADAR_SCRAPERS_ENABLED` — 国内平台（优酷/腾讯）开关（默认 true）
+- `RADAR_SYNC_CORE_CRON` — 核心源同步 cron（默认 `0 * * * *`，每小时）
+- `RADAR_SYNC_SCRAPER_CRON` — 附加源同步 cron（默认 `0 */6 * * *`，每6小时）
+- `RADAR_REQUEST_TIMEOUT_MS` — 请求超时（默认 15000）
 
 ## 数据模型
 
@@ -191,6 +214,8 @@ npm run dev
 | Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5星), shortReview, platform, playtimeMinutes | — | — |
 
 | ActivityLog | — | action, entityType, entityId, entityTitle, oldValues(JSON), newValues(JSON), metadata(JSON) | — | — |
+
+| RadarItem | sourceKey(唯一), source, sourceId, sourceUrl, tmdbId, doubanId | title, titleZh, overview, posterPath, releaseDate | — | type, category, platform, voteAverage |
 
 所有表使用 BigInt 自增主键，`createdAt`/`updatedAt` 由 MySQL 管理。
 

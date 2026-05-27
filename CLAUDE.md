@@ -46,24 +46,25 @@ legacy/java-backend/      ← Java Spring Boot 后端（归档，不再维护）
 express-backend/src/
   config/         index.ts（环境配置）, db.ts（Prisma 客户端 + getDb() + registerExtensions()）
   routes/         index.ts（聚合器）, auth, trakt, search, searchTvShows,
-                  import, library, timeline, movie, game, tvShow, profile, settings, activity
+                  import, library, timeline, movie, game, tvShow, profile, settings, activity, radar
   services/       provider/（TmdbMovieSearchProvider, OmdbMovieSearchProvider, TraktMovieSearchProvider,
                           DoubanMovieSearchProvider, ImdbMovieSearchProvider, DoubanTvShowSearchProvider,
                           TmdbTvShowSearchProvider, RawgGameSearchProvider, SteamGameSearchProvider 等）
                   import/（Steam、Xbox、PSN、豆瓣 CSV、RAWG 封面、TMDB 封面、TMDB 回填）
                   douban-harvester/（爬虫核心、TMDB 丰富、导入服务、任务管理）
+                  radar/（types、tmdbRadarService、youkuRadarService、tencentRadarService、radarSyncService）
                   LibraryService, TimelineService, ProfileSummaryService, ExternalSearchService, activity-log
   middlewares/    auth.ts（JWT，当前未启用）, errorHandler.ts, activity-log.ts（Prisma 扩展，自动记录 CRUD）
   enums/          RecordStatus.ts（UNSET|WANT|IN_PROGRESS|DONE|DROPPED）
   dto/            library.ts, timeline.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
-  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage, ActivityPage, ShowcasePage, AnalyticsPage
+  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage, ActivityPage, ShowcasePage, AnalyticsPage, RadarPage
   components/     AppShell, RightActionDrawer, TaskPanel, Toast (ToastContainer + ConfirmDialog), MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating, ActivityFilters, ActivityTimeline
                   showcase/（StatsPanel, PosterCarousel, TimelineMini, RandomPick, ShowcaseControls）
                   analytics/（OverviewCards, MonthlyChart, RatingChart, SourcePieChart, CrossPlatformChart, TopRatedList）
-  stores/         authStore, profileStore, libraryStore, timelineStore, timelineDetailStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore
-  types/          library.ts, timeline.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts
+  stores/         authStore, profileStore, libraryStore, timelineStore, timelineDetailStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore, radarStore
+  types/          library.ts, timeline.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts, radar.ts
   api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向，**已自动解析 JSON — 不要再调 .json()**）
   imageProxy.ts   proxiedImageUrl() 辅助函数（代理 TMDB/Steam/RAWG/豆瓣图片到 /api/search/proxy/image）
 ```
@@ -87,6 +88,11 @@ frontend/src/
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
+| `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=`（雷达列表，含 inLibrary 标记） |
+| `/radar` | `GET /api/radar/status`（各源同步状态） |
+| `/radar` | `POST /api/radar/sync`（触发全量同步） |
+| `/radar` | `POST /api/radar/sync/:source`（触发单源同步） |
+| `/radar` | `POST /api/radar/add-to-library`（加入想看，按 tmdbId/标题去重） |
 | `/login` | `POST /api/auth/login` |
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
@@ -101,6 +107,7 @@ frontend/src/
 ## 关键模式
 
 - **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。中间件已存在但未接入路由。
+- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。豆瓣分类包含收割机运行参数，雷达分类包含同步配置。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。带速率限制（250ms 间隔，429 重试）。
@@ -108,7 +115,7 @@ frontend/src/
 - **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。
 - **海报图片：** Steam 海报有两种 CDN 格式——旧格式 `cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg`（大部分游戏可用）和新格式 `shared.akamai.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`（新游戏必须用这个）。图片加载失败时自动显示赛博朋克占位符（`ImgWithFallback` 组件）。
 - **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）的游戏不显示"想玩"状态标签——已玩过的游戏不应标记为 WANT。
-- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣），未知域名返回 400。代理先发 HEAD 请求检查 Content-Type 再下载 body（避免浪费带宽下载非图片响应）。响应带 `Cache-Control: public, max-age=7d, immutable`。前端统一用 `proxiedImageUrl()` 路由代理，搜索组件（MovieSearch/TvShowSearch）和 TimelinePopup 都必须使用此函数。
+- **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣/优酷/腾讯），未知域名返回 400。代理先发 HEAD 请求检查 Content-Type 再下载 body（避免浪费带宽下载非图片响应）。响应带 `Cache-Control: public, max-age=7d, immutable`。前端统一用 `proxiedImageUrl()` 路由代理，搜索组件（MovieSearch/TvShowSearch）和 TimelinePopup 都必须使用此函数。
 - **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录，前端用 `timelineDetailStore` 缓存（key 格式 `category:id`）。`/api/timeline/years?category=` 用 `SELECT DISTINCT YEAR(createdAt)` 高效返回年份列表。
 - **记录库服务端过滤：** `GET /api/library` 支持 `category=movie|tv_show|game|media|all`、`year=2026`、`status=DONE` 筛选参数。`category=media` 是产品约定，等于 `movie + tv_show`。`normalizeStatus` 只接受有效 RecordStatus 值，非法 status 参数被忽略（返回 undefined）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
@@ -141,6 +148,8 @@ frontend/src/
   - 智能标题匹配：自动清理"第X季""Season X""剧场版"等干扰词，中英文混合标题拆分为多个候选逐个尝试
 - 综艺归入 TvShow 表，不单独建表
 - 豆瓣评分 1-5 星直接存入 `douban_rating` 和 `rating`，不再 ×2 转换
+- **浏览器收割可关闭：** `DOUBAN_HARVEST_ENABLED=false` 时，`mode=full`/`mode=incremental` 返回 403，`mode=json` 不受影响
+- **收割机参数可配置：** `DOUBAN_HARVEST_HEADLESS`（默认 true）、`DOUBAN_HARVEST_NAVIGATION_TIMEOUT_MS`（默认 30000）等通过 `config.douban` 读取，Settings 页面可直接修改
 
 ## 记录库分页
 
@@ -181,3 +190,5 @@ frontend/src/
 - Prisma `BigInt` 字段（如 `steamAppId`）与 JavaScript `number` 不兼容 — Map 查找和比较时必须用 `Number()` 转换，否则 `20n !== 20`。
 - 不要用 Playwright 截图让模型分析页面效果 — 模型不支持图片输入，截图白费。需要理解页面时读代码或用 `browser_snapshot` 获取 DOM。
 - `tsx watch` 会在 git commit 时重启后端，丢失内存中的任务状态 — 跑回填任务时用 `npx tsx src/server.ts`（无 watch）启动。
+- Settings 备份路径是 `.env.backup.local`（不是 `.env.backup`，后者曾是敏感文件已被删除）。
+- **雷达模块：** TMDB 为核心源（now_playing/upcoming/trending/on_the_air），优酷和腾讯为可失败附加源（纯 JSON API，无需 Playwright）。同步有锁（同一时间只允许一个全量同步运行），单源失败不影响整体。RadarItem 用 sourceKey 去重 upsert，add-to-library 按 tmdbId 去重（无 tmdbId 时按标题去重）。优酷 API 响应数据在 `pageComponentList[].commonData`（不是 `searchResult`）。雷达 cron 配置：`RADAR_SYNC_CORE_CRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒延迟执行）。
