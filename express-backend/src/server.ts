@@ -5,6 +5,8 @@ import { registerExtensions } from './config/db';
 import { createActivityLogExtension } from './middlewares/activity-log';
 import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
+import cron from 'node-cron';
+import { runRadarSync } from './services/radar/radarSyncService';
 
 // JSON 序列化 BigInt 支持（Prisma 使用 BigInt 作为主键类型）
 (BigInt.prototype as any).toJSON = function () {
@@ -38,6 +40,29 @@ app.use(errorHandler);
 app.listen(config.port, () => {
   console.log(`[PixelReel Express] 服务已启动，监听端口 ${config.port}`);
   console.log(`[PixelReel Express] 数据库: ${config.database.url.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
+
+  // Radar cron + startup sync
+  if (config.radar.enabled) {
+    if (config.radar.syncOnStart) {
+      setTimeout(() => {
+        console.log('[Radar] 启动同步...');
+        runRadarSync().catch(err => console.error('[Radar] 启动同步失败:', err.message));
+      }, 5000);
+    }
+    if (config.radar.cronEnabled) {
+      cron.schedule(config.radar.syncCoreCron, () => {
+        console.log('[Radar] 定时同步 TMDB...');
+        runRadarSync('tmdb').catch(err => console.error('[Radar] TMDB 同步失败:', err.message));
+      });
+      if (config.radar.scrapersEnabled) {
+        // Scraper cron: full sync includes TMDB + Youku + Tencent (TMDB re-upsert is idempotent)
+        cron.schedule(config.radar.syncScraperCron, () => {
+          console.log('[Radar] 定时同步所有源...');
+          runRadarSync().catch(err => console.error('[Radar] 定时同步失败:', err.message));
+        });
+      }
+    }
+  }
 });
 
 export default app;
