@@ -14,21 +14,26 @@ export async function fetchYoukuRadar(): Promise<RadarItemInput[]> {
       },
     });
 
-    const items: any[] = response.data?.searchResult ?? [];
-    return items.map((item: any) => ({
-      sourceKey: `youku:${item.showId}`,
-      source: 'youku' as const,
-      sourceId: item.showId ?? undefined,
-      sourceUrl: item.leftButtonDTO?.action?.value ?? undefined,
-      type: 'movie' as const,
-      title: item.titleDTO?.displayName ?? '',
-      titleZh: item.titleDTO?.displayName ?? undefined,
-      posterPath: item.posterDTO?.vThumbUrl ?? undefined,
-      releaseDate: undefined,
-      platform: '优酷',
-      category: 'now_playing' as const,
-      voteAverage: undefined,
-    }));
+    const components: any[] = response.data?.pageComponentList ?? [];
+    return components
+      .filter((c: any) => c.commonData?.showId)
+      .map((c: any) => {
+        const d = c.commonData;
+        return {
+          sourceKey: `youku:${d.showId}`,
+          source: 'youku' as const,
+          sourceId: d.showId,
+          sourceUrl: d.leftButtonDTO?.action?.value ?? undefined,
+          type: 'movie' as const,
+          title: d.titleDTO?.displayName ?? '',
+          titleZh: d.titleDTO?.displayName ?? undefined,
+          posterPath: d.posterDTO?.vThumbUrl ?? undefined,
+          releaseDate: undefined,
+          platform: '优酷',
+          category: 'now_playing' as const,
+          voteAverage: undefined,
+        };
+      });
   } catch (err: any) {
     console.error('[Radar] Youku fetch error:', err.message);
     return [];
