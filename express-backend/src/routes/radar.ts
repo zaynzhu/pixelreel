@@ -6,6 +6,7 @@ const router = Router();
 
 const VALID_CATEGORIES = ['now_playing', 'upcoming', 'trending', 'on_the_air'];
 const VALID_TYPES = ['movie', 'tv'];
+const VALID_PLATFORMS = new Set(['Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '腾讯视频']);
 
 // GET /api/radar — list with filters
 router.get('/', async (req: Request, res: Response) => {
@@ -19,7 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
   const where: any = {};
   if (category && VALID_CATEGORIES.includes(category)) where.category = category;
   if (type && VALID_TYPES.includes(type)) where.type = type;
-  if (platform) where.platform = platform;
+  if (platform && VALID_PLATFORMS.has(platform)) where.platform = platform;
   if (source) where.source = source;
 
   try {

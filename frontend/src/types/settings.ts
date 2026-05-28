@@ -2,6 +2,8 @@ export type SettingsFieldType = 'text' | 'boolean' | 'password' | 'number';
 
 export interface SettingsField {
   key: string;
+  labelZh: string;
+  labelEn: string;
   value: string;
   sensitive: boolean;
   type: SettingsFieldType;

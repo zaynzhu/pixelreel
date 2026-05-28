@@ -74,6 +74,7 @@ export const config = {
     syncCoreCron: process.env.RADAR_SYNC_CORE_CRON || '0 * * * *',
     syncScraperCron: process.env.RADAR_SYNC_SCRAPER_CRON || '0 */6 * * *',
     requestTimeoutMs: parseNumber(process.env.RADAR_REQUEST_TIMEOUT_MS, 15000),
+    watchRegion: process.env.RADAR_WATCH_REGION || 'TW',
   },
 
   rawg: {

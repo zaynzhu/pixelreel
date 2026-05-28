@@ -5,7 +5,7 @@ import { toast } from '../stores/toastStore';
 import type { SettingsCategory, SettingsResponse, SettingsSaveResponse } from '../types/settings';
 
 export default function SettingsPage() {
-  const { t } = useI18nStore();
+  const { t, lang } = useI18nStore();
   const [categories, setCategories] = useState<SettingsCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,7 +155,7 @@ export default function SettingsPage() {
                 {activeCat.fields.map((field) => (
                   <div key={field.key} className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
-                      {field.key}
+                      {lang === 'zh' ? field.labelZh : field.labelEn}
                     </label>
 
                     {field.type === 'boolean' ? (

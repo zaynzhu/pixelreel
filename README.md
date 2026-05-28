@@ -202,6 +202,7 @@ npm run dev
 - `RADAR_SYNC_CORE_CRON` — 核心源同步 cron（默认 `0 * * * *`，每小时）
 - `RADAR_SYNC_SCRAPER_CRON` — 附加源同步 cron（默认 `0 */6 * * *`，每6小时）
 - `RADAR_REQUEST_TIMEOUT_MS` — 请求超时（默认 15000）
+- `RADAR_WATCH_REGION` — TMDB 流媒体平台地区（默认 `TW`，用于 `with_watch_providers` 筛选）
 
 ## 数据模型
 

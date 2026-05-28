@@ -2,6 +2,18 @@ export type RadarSource = 'tmdb' | 'youku' | 'tencent' | 'douban';
 export type RadarCategory = 'now_playing' | 'upcoming' | 'trending' | 'on_the_air';
 export type RadarType = 'movie' | 'tv';
 
+export interface RadarWatchProvider {
+  name: string;
+  providerId: number;
+}
+
+export const TMDB_WATCH_PROVIDERS: Record<string, RadarWatchProvider> = {
+  netflix:    { name: 'Netflix',    providerId: 8 },
+  disneyplus: { name: 'Disney+',    providerId: 337 },
+  appletv:    { name: 'Apple TV+',  providerId: 350 },
+  max:        { name: 'Max',        providerId: 1899 },
+};
+
 export interface RadarItemInput {
   sourceKey: string;
   source: RadarSource;
