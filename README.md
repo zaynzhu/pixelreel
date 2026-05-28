@@ -1,64 +1,143 @@
-# PixelReel
+<div align="center">
 
-个人影剧游记录平台 — 电影、电视剧、游戏统一管理。
+# 🎬 PixelReel
 
-## 技术栈
+**个人影剧游统一管理平台**
 
-| 层级 | 技术 |
+[中文](README.md) | [English](README_EN.md)
+
+</div>
+
+<div align="center">
+
+![License](https://img.shields.io/github/license/zaynzhu/pixelreel?style=for-the-badge)
+![Stars](https://img.shields.io/github/stars/zaynzhu/pixelreel?style=for-the-badge)
+![Forks](https://img.shields.io/github/forks/zaynzhu/pixelreel?style=for-the-badge)
+![Issues](https://img.shields.io/github/issues/zaynzhu/pixelreel?style=for-the-badge)
+![Last Commit](https://img.shields.io/github/last-commit/zaynzhu/pixelreel?style=for-the-badge)
+
+</div>
+
+---
+
+> [!TIP]
+> PixelReel 是一个自托管的个人影剧游记录平台，将电影、电视剧和游戏统一管理。
+> 支持从豆瓣、Trakt、Steam、Xbox、PSN 等多平台导入数据，聚合 TMDB、OMDb、RAWG 等数据源，
+> 提供时间线、数据分析、大屏展示等丰富的可视化功能。
+
+## ✨ Features
+
+- **多平台搜索聚合** -- 同时搜索 TMDB、OMDb、豆瓣、IMDb、Trakt、RAWG、Steam，一个入口搜遍全网
+- **一键数据导入** -- 从豆瓣、Trakt、Steam、Xbox、PSN 批量导入，自动填充海报和详情
+- **统一记录库** -- 电影、电视剧、游戏混排展示，支持分类/年份/状态多维筛选和评分短评
+- **时间线海报墙** -- 按月份分组的精美海报墙，支持年份切换和详情弹窗
+- **雷达发现** -- 聚合 TMDB 热映/趋势 + 优酷/腾讯片单，一键加入想看列表
+- **数据分析** -- 年度报告、月度趋势、评分分布、来源占比、跨平台评分对比
+- **大屏展示** -- 网格模式 + 全屏轮播模式，适合投屏展示你的影剧游收藏
+- **操作日志** -- 自动记录每次 CRUD 操作，支持撤销和筛选
+
+## 🚀 Quick Start
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/zaynzhu/pixelreel.git
+cd pixelreel
+
+# 2. 初始化数据库
+mysql -u root -p < db/init.sql
+
+# 3. 启动后端
+cd express-backend
+npm install
+cp .env.example .env   # 编辑 .env，填入数据库连接和 API Key
+npx prisma generate
+npx prisma db push
+npm run dev             # http://localhost:18889
+
+# 4. 启动前端（新终端）
+cd frontend
+npm install
+npm run dev             # http://localhost:18888
+```
+
+> [!NOTE]
+> 完整搭建步骤见 [db/setup.md](db/setup.md)。TMDB API 国内访问需要配置 `HTTPS_PROXY` 代理。
+
+## 📦 Installation
+
+### 前置要求
+
+- Node.js >= 18
+- MySQL 8.4+
+- npm 或 pnpm
+
+### 环境变量配置
+
+编辑 `express-backend/.env`，配置以下关键项：
+
+```bash
+DATABASE_URL="mysql://user:password@host:3306/pixelreel"
+TMDB_API_KEY="your_tmdb_bearer_token"    # TMDB API v4 Bearer Token
+OMDB_API_KEY="your_omdb_key"             # OMDb API Key
+TRAKT_CLIENT_ID="your_trakt_client_id"   # Trakt API
+RAWG_API_KEY="your_rawg_key"             # RAWG API
+STEAM_API_KEY="your_steam_key"           # Steam API
+HTTPS_PROXY="http://127.0.0.1:7897"      # TMDB 国内必需
+```
+
+完整配置项见下方 [配置项](#配置项) 章节。
+
+## 💡 Usage
+
+### 搜索并添加记录
+
+在搜索页面输入关键词，支持中英文混合搜索。点击搜索结果展开详情（评分、导演、演员、类型等），确认后一键加入记录库。
+
+### 从已有平台导入
+
+```bash
+# 豆瓣全量导入（需要 Playwright）
+curl -X POST http://localhost:18889/api/import/douban-harvest?mode=full
+
+# Trakt 电影导入
+curl -X POST http://localhost:18889/api/trakt/import/movies
+
+# Steam 已购游戏导入
+curl -X POST http://localhost:18889/api/import/steam/owned
+```
+
+### 雷达发现新片
+
+访问 `/radar` 页面，浏览 TMDB 热映、即将上映、正在播出的影视，以及优酷和腾讯的热门片单。流媒体平台（Netflix/Disney+/Apple TV+/Max）支持独立筛选。发现感兴趣的直接一键加入想看。
+
+---
+
+## 🔄 Comparison
+
+| 功能 | PixelReel | Letterboxd | Trakt | 豆瓣 |
+|------|:---------:|:----------:|:-----:|:----:|
+| 电影记录 | ✅ | ✅ | ✅ | ✅ |
+| 电视剧记录 | ✅ | ❌ | ✅ | ✅ |
+| 游戏记录 | ✅ | ❌ | ❌ | ❌ |
+| 自托管 | ✅ | ❌ | ❌ | ❌ |
+| 多平台数据聚合 | ✅ | ❌ | ⚠️ | ❌ |
+| 豆瓣数据导入 | ✅ | ❌ | ❌ | -- |
+| Steam/Xbox/PSN 导入 | ✅ | ❌ | ❌ | ❌ |
+| 数据分析报告 | ✅ | ⚠️ | ✅ | ❌ |
+| 雷达发现 | ✅ | ❌ | ✅ | ✅ |
+| 操作撤销 | ✅ | ❌ | ❌ | ❌ |
+
+## 📚 Documentation
+
+| 主题 | 说明 |
 |------|------|
-| 后端 | Express 5 + TypeScript + Prisma 6 (MySQL) — 端口 18889 |
-| 前端 | React 18 + Vite + Zustand + TailwindCSS — 端口 18888 |
-| 影视数据 | TMDB, OMDb, Trakt, 豆瓣, IMDb |
-| 游戏数据 | RAWG, Steam, OpenXBL, PSNProfiles |
+| [数据模型](#数据模型) | Movie / TvShow / Game / RadarItem 表结构 |
+| [前端路由](#前端路由) | 所有页面路由一览 |
+| [API 接口](#关键接口) | 搜索、记录库、导入、雷达等全部 API |
+| [配置项](#配置项) | .env 环境变量完整列表 |
+| [db/setup.md](db/setup.md) | 从零搭建开发环境手顺 |
 
-> Java Spring Boot 后端代码已归档至 `legacy/java-backend/`，不再维护。
-
-## 已完成功能
-
-- Express + Prisma 后端（替代原 Java Spring Boot）
-- Movie / TvShow / Game 基础 CRUD
-- 统一外部搜索聚合接口（影视 / 游戏 / 电视剧）
-- 影视搜索 Provider：TMDB / OMDb / Trakt / 豆瓣 / IMDb
-- 电视剧搜索 Provider：TMDB、豆瓣
-- 游戏搜索 Provider：RAWG / Steam（支持中文关键词自动翻译）
-- 搜索详情展开（影视：评分/类型/导演/演员/片长/剧情；游戏：评分/Metacritic/开发商/平台/ESRB）
-- 搜索详情接口：`/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId`
-- Trakt 影视导入（电影 + 电视剧，自动分页，TMDB 封面填充）
-- Steam 已购导入
-- Xbox 已玩导入（OpenXBL）
-- PSN 已玩导入（PSNProfiles）
-- RAWG 封面补全（游戏）
-- TMDB 封面补全（影视）
-- JWT 登录鉴权 + 前端登录页
-- 个人主页统计接口与前端首页
-- 记录库混合列表页：筛选、排序、评分和短评编辑
-- 前端国际化（EN / ZH）
-- 时间线页面（按月份分组的海报墙，年份筛选，详情弹窗）
-- 豆瓣数据导入（douban-harvester 集成：JSON 导入、全量/增量爬取、TMDB 丰富）
-- 记录库与时间线游标分页 + 无限滚动（IntersectionObserver）
-- 记录库服务端过滤（category=movie|tv_show|game|media|all、year、status）
-- 时间线轻量 API（`/api/timeline` 仅返回列表必要字段，点击按需加载完整记录）
-- 时间线年份端点（`/api/timeline/years?category=`）
-- 图片代理增强（域名允许列表、HEAD 预检、Cache-Control、内容类型检查）
-- 操作日志（Prisma 扩展自动记录 CRUD，支持撤销，筛选与无限滚动）
-- Showcase 大屏展示页面（网格模式 + 全屏轮播模式）
-- 数据分析页面（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
-- Toast 通知 + ConfirmDialog 组件（替代浏览器 alert/confirm）
-- 系统设置页面（环境变量配置，敏感字段遮罩，分类编辑，i18n 字段标签）
-- 雷达发现页面（TMDB 热映/趋势/即将上映/正在播出 + 优酷/腾讯可失败附加源，一键加入想看）
-
-## 未完成 / 占位
-
-- [ ] Switch 接入（占位）
-- [ ] 雷达模块：豆瓣 frodo API（需官方 apikey）、芒果 TV（需 Playwright）
-- [ ] 电视剧多 Provider 搜索（IMDb、Trakt 等，豆瓣已接入）
-
-## 不计划实现
-
-- ~~多用户登录与权限体系~~ — 个人项目，不需要多用户
-- ~~豆瓣 CSV 导入前端界面~~ — 已有 JSON/全量/增量导入，CSV 界面多余
-
-## 前端路由
+### 前端路由
 
 | 路由 | 页面 |
 |------|------|
@@ -72,157 +151,206 @@
 | `/showcase` | 大屏展示（网格 + 全屏轮播） |
 | `/analytics` | 数据分析（年度报告 + 习惯洞察） |
 | `/settings` | 系统设置（环境变量配置） |
-| `/radar` | 雷达发现（TMDB+优酷+腾讯聚合） |
+| `/radar` | 雷达发现（TMDB + 优酷 + 腾讯聚合） |
 | `/login` | 登录页 |
 
-## 关键接口
+### 关键接口
 
-### 搜索
+#### 搜索
 
 ```text
 GET /api/search/movies?query=&providers=omdb,tmdb,douban,imdb,trakt
 GET /api/search/tv-shows?query=&providers=tmdb,douban
 GET /api/search/games?query=&providers=rawg,steam
+```
 
-# 详情接口
+#### 详情接口
+
+```text
 GET /api/search/imdb/:imdbId        IMDb/OMDb 影视详情
 GET /api/search/tmdb/:tmdbId        TMDB 影视详情 + credits
 GET /api/search/douban/:doubanId    豆瓣影视详情
 GET /api/search/rawg/:rawgId        RAWG 游戏详情
 GET /api/search/steam/:steamAppId   Steam 游戏详情
-
-# 图片代理
-GET /api/search/proxy/image?url=   代理豆瓣等防盗链图片
+GET /api/search/proxy/image?url=    图片代理（防盗链）
 ```
 
-### 记录库与时间线
+#### 记录库与时间线
 
 ```text
-GET   /api/library?cursor=&limit=50&category=&year=&status=   混合列表（游标分页）
-GET   /api/library/:category/:id                                单条完整记录
-PATCH /api/library/:category/:id                                更新记录
-GET   /api/library/random?limit=N                                随机记录（N 最大 20）
+GET   /api/library?cursor=&limit=50&category=&year=&status=
+GET   /api/library/:category/:id
+PATCH /api/library/:category/:id
+GET   /api/library/random?limit=N
 
-GET   /api/timeline?cursor=&limit=96&category=&year=           时间线轻量列表
-GET   /api/timeline/years?category=                              可选年份列表
+GET   /api/timeline?cursor=&limit=96&category=&year=
+GET   /api/timeline/years?category=
 ```
 
-### 导入
+#### 导入
 
 ```text
-POST   /api/import/douban-harvest?mode=json|full|incremental   豆瓣数据导入/爬取
-GET    /api/import/douban-harvest/status?taskId=xxx           任务进度
-GET    /api/import/tasks                                        所有任务列表
-DELETE /api/import/tasks/:taskId                               取消任务
-POST   /api/import/douban/clear-data                           清空豆瓣来源数据
-POST   /api/import/tmdb-enrich/backfill?limit=50               批量补充 TMDB 数据
-POST   /api/import/tmdb-detail/backfill?limit=50               按 tmdbId 回填完整详情
-POST   /api/import/steam/backfill                              回填 Steam 海报和游玩时间
-POST   /api/trakt/import/movies                                Trakt 电影导入
-POST   /api/trakt/import/shows                                Trakt 电视剧导入
-POST   /api/import/steam/owned                                 Steam 已购导入
-POST   /api/import/xbox/owned                                  Xbox 已玩导入
-POST   /api/import/psn/owned                                   PSN 已玩导入
-POST   /api/import/covers/fill                                 RAWG 封面补全
-POST   /api/import/tmdb-covers/fill                            TMDB 封面补全
+POST   /api/import/douban-harvest?mode=json|full|incremental
+GET    /api/import/douban-harvest/status?taskId=xxx
+POST   /api/trakt/import/movies
+POST   /api/trakt/import/shows
+POST   /api/import/steam/owned
+POST   /api/import/xbox/owned
+POST   /api/import/psn/owned
+POST   /api/import/tmdb-enrich/backfill?limit=50
+POST   /api/import/tmdb-detail/backfill?limit=50
+POST   /api/import/steam/backfill
 ```
 
-### 其他
+#### 雷达
 
 ```text
-GET    /api/profile/summary          个人主页统计
-GET    /api/analytics?year=          年度分析数据
-GET    /api/activity                 操作日志（游标分页 + 筛选）
-POST   /api/activity/:id/undo        撤销操作
-POST   /api/auth/login               JWT 登录
-GET    /api/settings                 获取环境变量配置
-PUT    /api/settings                 更新环境变量配置
+GET    /api/radar?category=&type=&platform=&source=&page=&limit=
+GET    /api/radar/status
+POST   /api/radar/sync
+POST   /api/radar/sync/:source
+POST   /api/radar/add-to-library
 ```
 
-### 雷达
+#### 其他
 
 ```text
-GET    /api/radar?category=&type=&platform=&source=&page=&limit=  雷达列表（含 inLibrary 标记）
-GET    /api/radar/status                                               各源同步状态
-POST   /api/radar/sync                                                触发全量同步
-POST   /api/radar/sync/:source                                        触发单源同步（tmdb/youku/tencent）
-POST   /api/radar/add-to-library                                      加入想看（按 tmdbId/标题去重）
+GET    /api/profile/summary
+GET    /api/analytics?year=
+GET    /api/activity
+POST   /api/activity/:id/undo
+POST   /api/auth/login
+GET    /api/settings
+PUT    /api/settings
 ```
 
-## 本地启动
-
-### Express 后端
-
-```bash
-# 1. 创建数据库（首次）
-mysql -u root -p < db/init.sql
-
-# 2. 安装依赖 & 建表
-cd express-backend
-npm install
-cp .env.example .env
-# 编辑 .env，填入数据库连接和 API Key
-npx prisma generate
-npx prisma db push
-npm run dev        # 默认端口 18889
-```
-
-> 完整搭建步骤见 `db/setup.md`。
-
-### 前端
-
-```bash
-cd frontend
-npm install
-npm run dev
-# 默认地址：http://localhost:18888
-# 代理已配置指向 Express 后端 18889
-```
-
-## 配置项（.env）
-
-- `DATABASE_URL` — MySQL 连接字符串
-- `PORT` — 后端端口（默认 18889）
-- `JWT_SECRET` — JWT 签名密钥
-- `AUTH_ENABLED` — 是否启用登录鉴权（默认 false）
-- `TMDB_API_KEY`, `OMDB_API_KEY`, `TRAKT_CLIENT_ID/SECRET/ACCESS_TOKEN`
-- `STEAM_API_KEY`, `OPENXBL_API_KEY`, `PSNPROFILES_USER_AGENT/COOKIE`
-- `RAWG_API_KEY`
-- `DOUBAN_USER_ID` — 豆瓣用户 ID（用于爬取）
-- `DOUBAN_COOKIE` — 豆瓣登录 Cookie（仅搜索 Provider 使用）
-- `DOUBAN_DATA_DIR` — 豆瓣数据目录（默认 `express-backend/data/douban-harvester/`）
-- `DOUBAN_HARVEST_ENABLED` — 是否启用浏览器收割（默认 true，关闭后 full/incremental 返回 403）
-- `DOUBAN_HARVEST_HEADLESS` — Playwright 无头模式（默认 true）
-- `DOUBAN_HARVEST_MAX_PAGES_PER_RUN` — 单次收割最大页数（默认 200）
-- `HTTP_PROXY` — HTTP 代理地址（如 `http://127.0.0.1:7897`）
-- `HTTPS_PROXY` — HTTPS 代理地址（TMDB API 国内必需，如 `http://127.0.0.1:7897`）
-- `RADAR_ENABLED` — 雷达模块总开关（默认 true）
-- `RADAR_CRON_ENABLED` — 雷达定时同步开关（默认 true）
-- `RADAR_SYNC_ON_START` — 启动时执行同步（默认 true）
-- `RADAR_SCRAPERS_ENABLED` — 国内平台（优酷/腾讯）开关（默认 true）
-- `RADAR_SYNC_CORE_CRON` — 核心源同步 cron（默认 `0 * * * *`，每小时）
-- `RADAR_SYNC_SCRAPER_CRON` — 附加源同步 cron（默认 `0 */6 * * *`，每6小时）
-- `RADAR_REQUEST_TIMEOUT_MS` — 请求超时（默认 15000）
-- `RADAR_WATCH_REGION` — TMDB 流媒体平台地区（默认 `TW`，用于 `with_watch_providers` 筛选）
-
-## 数据模型
+### 数据模型
 
 三张核心表，字段按来源分组（豆瓣为主、TMDB 为辅）：
 
-| Model | 外部 ID | 显示字段 | 豆瓣原始字段 | TMDB 原始字段 |
-|-------|---------|---------|------------|-------------|
-| Movie | doubanId, tmdbId, imdbId, traktId | title, posterUrl, releaseDate, overview, rating(1-5星), shortReview | doubanTitle, doubanAltTitle, doubanIntro, doubanRating, doubanDate, doubanComment, doubanLink, doubanAvgRating | tmdbTitle, tmdbPosterUrl, tmdbReleaseDate, tmdbOverview, tmdbVoteAverage, tmdbPopularity, tmdbGenreIds |
-| TvShow | doubanId, tmdbId, imdbId, traktId | title, posterUrl, firstAirDate, overview, rating(1-5星), shortReview | 同 Movie | 同 Movie |
-| Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5星), shortReview, platform, playtimeMinutes | — | — |
+| Model | 外部 ID | 显示字段 |
+|-------|---------|---------|
+| Movie | doubanId, tmdbId, imdbId, traktId | title, posterUrl, releaseDate, overview, rating(1-5星), shortReview |
+| TvShow | doubanId, tmdbId, imdbId, traktId | title, posterUrl, firstAirDate, overview, rating(1-5星), shortReview |
+| Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5星), shortReview, platform, playtimeMinutes |
+| ActivityLog | -- | action, entityType, entityId, entityTitle, oldValues, newValues |
+| RadarItem | sourceKey(唯一), source, sourceId, tmdbId | title, titleZh, overview, posterPath, type, category, platform |
 
-| ActivityLog | — | action, entityType, entityId, entityTitle, oldValues(JSON), newValues(JSON), metadata(JSON) | — | — |
+### 配置项
 
-| RadarItem | sourceKey(唯一), source, sourceId, sourceUrl, tmdbId, doubanId | title, titleZh, overview, posterPath, releaseDate | — | type, category, platform, voteAverage |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DATABASE_URL` | MySQL 连接字符串 | -- |
+| `PORT` | 后端端口 | `18889` |
+| `JWT_SECRET` | JWT 签名密钥 | -- |
+| `AUTH_ENABLED` | 启用登录鉴权 | `false` |
+| `TMDB_API_KEY` | TMDB API v4 Bearer Token | -- |
+| `OMDB_API_KEY` | OMDb API Key | -- |
+| `TRAKT_CLIENT_ID` | Trakt Client ID | -- |
+| `RAWG_API_KEY` | RAWG API Key | -- |
+| `STEAM_API_KEY` | Steam API Key | -- |
+| `HTTPS_PROXY` | HTTPS 代理（TMDB 国内必需） | -- |
+| `DOUBAN_USER_ID` | 豆瓣用户 ID | -- |
+| `DOUBAN_HARVEST_ENABLED` | 启用浏览器收割 | `true` |
+| `RADAR_ENABLED` | 雷达模块总开关 | `true` |
+| `RADAR_SYNC_CORE_CRON` | 核心源同步 cron | `0 * * * *` |
+| `RADAR_SYNC_SCRAPER_CRON` | 附加源同步 cron | `0 */6 * * *` |
+| `RADAR_WATCH_REGION` | TMDB 流媒体平台地区 | `TW` |
 
-所有表使用 BigInt 自增主键，`createdAt`/`updatedAt` 由 MySQL 管理。
+## ❓ FAQ
 
-ActivityLog 由 Prisma `$extends` 中间件自动写入，无需手动调用。支持按 entityType/entityId/action/from~to 筛选，游标分页与记录库相同格式。
+<details>
+<summary>TMDB API 请求超时怎么办？</summary>
 
-## License
+TMDB API 在国内需要代理访问。在 `.env` 中配置 `HTTPS_PROXY=http://127.0.0.1:7897`（替换为你的代理地址）。
 
-MIT
+</details>
+
+<details>
+<summary>豆瓣全量导入和增量导入有什么区别？</summary>
+
+- `mode=full`：每次从零开始爬取，使用 Playwright 浏览器自动化
+- `mode=incremental`：只抓取上次同步之后的新数据，需要先全量同步过一次
+- `mode=json`：直接读取本地 `collect.json` 文件，不需要浏览器
+
+</details>
+
+<details>
+<summary>如何为已有记录补充 TMDB 海报和详情？</summary>
+
+运行回填接口：
+- `POST /api/import/tmdb-enrich/backfill?limit=50` — 按标题搜 TMDB 补充 tmdbId 和海报
+- `POST /api/import/tmdb-detail/backfill?limit=50` — 按 tmdbId 回填完整详情
+
+两个接口都是异步任务，可在 `/activity` 页面查看进度。
+
+</details>
+
+<details>
+<summary>雷达模块的数据来源有哪些？</summary>
+
+- **核心源（TMDB）**：热映、即将上映、趋势、正在播出，每小时同步
+- **附加源**：优酷、腾讯热门片单，每 6 小时同步（可失败，不影响核心源）
+- **流媒体平台**：Netflix、Disney+、Apple TV+、Max 通过 TMDB Discover API 筛选
+
+所有源均可通过 `RADAR_ENABLED` 和 `RADAR_SCRAPERS_ENABLED` 开关控制。
+
+</details>
+
+<details>
+<summary>如何关闭登录鉴权？</summary>
+
+默认 `AUTH_ENABLED=false`，无需登录即可使用。设置为 `true` 后需要通过 `POST /api/auth/login` 获取 JWT Token。
+
+</details>
+
+---
+
+## 🤝 Contributing
+
+欢迎贡献！请遵循以下步骤：
+
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 开启 Pull Request
+
+### 开发环境
+
+```bash
+git clone https://github.com/zaynzhu/pixelreel.git
+cd pixelreel
+
+# 后端
+cd express-backend && npm install && npm run dev
+
+# 前端（新终端）
+cd frontend && npm install && npm run dev
+```
+
+---
+
+## ⭐ Star History
+
+<a href="https://star-history.com/#zaynzhu/pixelreel&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=zaynzhu/pixelreel&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=zaynzhu/pixelreel&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=zaynzhu/pixelreel&type=Date" />
+ </picture>
+</a>
+
+---
+
+## 🙏 Contributors
+
+<a href="https://github.com/zaynzhu/pixelreel/graphs/contributors">
+ <img src="https://contrib.rocks/image?repo=zaynzhu/pixelreel" />
+</a>
+
+---
+
+## 📄 License
+
+本项目基于 [MIT License](LICENSE) 开源 -- 详见 [LICENSE](LICENSE) 文件。
