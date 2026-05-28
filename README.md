@@ -44,7 +44,7 @@
 - Showcase 大屏展示页面（网格模式 + 全屏轮播模式）
 - 数据分析页面（年度报告、月度趋势、评分分布、来源占比、跨平台评分对比、Top 评分榜）
 - Toast 通知 + ConfirmDialog 组件（替代浏览器 alert/confirm）
-- 系统设置页面（环境变量配置，敏感字段遮罩，分类编辑）
+- 系统设置页面（环境变量配置，敏感字段遮罩，分类编辑，i18n 字段标签）
 - 雷达发现页面（TMDB 热映/趋势/即将上映/正在播出 + 优酷/腾讯可失败附加源，一键加入想看）
 
 ## 未完成 / 占位
@@ -194,7 +194,8 @@ npm run dev
 - `DOUBAN_HARVEST_ENABLED` — 是否启用浏览器收割（默认 true，关闭后 full/incremental 返回 403）
 - `DOUBAN_HARVEST_HEADLESS` — Playwright 无头模式（默认 true）
 - `DOUBAN_HARVEST_MAX_PAGES_PER_RUN` — 单次收割最大页数（默认 200）
-- `HTTPS_PROXY` — TMDB API 代理地址（国内必需，如 `http://127.0.0.1:7897`）
+- `HTTP_PROXY` — HTTP 代理地址（如 `http://127.0.0.1:7897`）
+- `HTTPS_PROXY` — HTTPS 代理地址（TMDB API 国内必需，如 `http://127.0.0.1:7897`）
 - `RADAR_ENABLED` — 雷达模块总开关（默认 true）
 - `RADAR_CRON_ENABLED` — 雷达定时同步开关（默认 true）
 - `RADAR_SYNC_ON_START` — 启动时执行同步（默认 true）
