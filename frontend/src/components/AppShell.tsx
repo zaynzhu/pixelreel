@@ -23,6 +23,7 @@ export default function AppShell() {
     { to: "/activity", label: t("nav.activity") },
     { to: "/showcase", label: t("nav.showcase") },
     { to: "/radar", label: t("nav.radar") },
+    { to: "/popular", label: t("nav.popular") },
     { to: "/analytics", label: t("nav.analytics") },
     { to: "/settings", label: t("nav.settings") },
   ];

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
+import { config } from '../config';
 import { getDb } from '../config/db';
-import { runRadarSync, isSyncRunning, getRadarSyncStatus } from '../services/radar/radarSyncService';
+import { runRadarSync, isSyncRunning, getRadarSyncStatus, runNewReleaseRadarSync, isNewReleaseSyncRunning, getNewReleaseRadarSyncStatus } from '../services/radar/radarSyncService';
 
 const router = Router();
 
@@ -84,6 +85,10 @@ router.get('/status', (_req: Request, res: Response) => {
 
 // POST /api/radar/sync — trigger full sync
 router.post('/sync', async (_req: Request, res: Response) => {
+  if (!config.radar.enabled) {
+    res.status(403).json({ error: '雷达模块未启用' });
+    return;
+  }
   if (isSyncRunning()) {
     res.status(409).json({ error: '同步正在运行中' });
     return;
@@ -98,6 +103,10 @@ router.post('/sync', async (_req: Request, res: Response) => {
 
 // POST /api/radar/sync/:source — trigger single-source sync
 router.post('/sync/:source', async (req: Request, res: Response) => {
+  if (!config.radar.enabled) {
+    res.status(403).json({ error: '雷达模块未启用' });
+    return;
+  }
   if (isSyncRunning()) {
     res.status(409).json({ error: '同步正在运行中' });
     return;
@@ -105,6 +114,49 @@ router.post('/sync/:source', async (req: Request, res: Response) => {
   const source = req.params.source as string;
   try {
     const { taskId } = await runRadarSync(source);
+    res.json({ taskId, status: 'running' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/radar/new-releases/status
+router.get('/new-releases/status', (_req: Request, res: Response) => {
+  const status = getNewReleaseRadarSyncStatus();
+  res.json({ running: isNewReleaseSyncRunning(), lastTask: status });
+});
+
+// POST /api/radar/sync-new-releases — trigger new release sync
+router.post('/sync-new-releases', async (_req: Request, res: Response) => {
+  if (!config.radar.enabled) {
+    res.status(403).json({ error: '雷达模块未启用' });
+    return;
+  }
+  if (isNewReleaseSyncRunning()) {
+    res.status(409).json({ error: '新片同步正在运行中' });
+    return;
+  }
+  try {
+    const { taskId } = await runNewReleaseRadarSync();
+    res.json({ taskId, status: 'running' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/radar/sync-new-releases/:source — trigger single-source new release sync
+router.post('/sync-new-releases/:source', async (req: Request, res: Response) => {
+  if (!config.radar.enabled) {
+    res.status(403).json({ error: '雷达模块未启用' });
+    return;
+  }
+  if (isNewReleaseSyncRunning()) {
+    res.status(409).json({ error: '新片同步正在运行中' });
+    return;
+  }
+  const source = req.params.source as string;
+  try {
+    const { taskId } = await runNewReleaseRadarSync(source);
     res.json({ taskId, status: 'running' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

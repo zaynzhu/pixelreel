@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { useNewReleaseRadarStore } from '../stores/newReleaseRadarStore';
+import { useRadarStore } from '../stores/radarStore';
 import { useI18nStore } from '../stores/i18nStore';
 import { toast } from '../stores/toastStore';
 import { proxiedImageUrl } from '../imageProxy';
 import { ImgWithFallback } from '../components/ImgWithFallback';
 import type { RadarItem } from '../types/radar';
 
-const CATEGORIES = ['now_playing', 'upcoming', 'on_the_air'] as const;
+const CATEGORIES = ['now_playing', 'upcoming', 'trending', 'on_the_air'] as const;
 const PLATFORMS = ['', 'Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '腾讯视频'];
 
 function formatSyncTime(iso: string | null) {
@@ -18,8 +18,8 @@ function formatSyncTime(iso: string | null) {
   return `${Math.floor(diff / 86400000)} 天前`;
 }
 
-export default function RadarPage() {
-  const { items, total, page, category, platform, loading, syncing, lastSyncedAt, fetchItems, setCategory, setPlatform, triggerSync, addToLibrary } = useNewReleaseRadarStore();
+export default function PopularPage() {
+  const { items, total, page, category, platform, loading, syncing, lastSyncedAt, fetchItems, setCategory, setPlatform, triggerSync, addToLibrary } = useRadarStore();
   const { t } = useI18nStore();
 
   useEffect(() => { fetchItems(); }, []);
@@ -38,6 +38,7 @@ export default function RadarPage() {
     const map: Record<string, string> = {
       now_playing: t('radar.nowPlaying'),
       upcoming: t('radar.upcoming'),
+      trending: t('radar.trending'),
       on_the_air: t('radar.onTheAir'),
     };
     return map[cat] ?? cat;
@@ -47,9 +48,9 @@ export default function RadarPage() {
     <div>
       {/* Header */}
       <section className="border border-[var(--line)] bg-[var(--surface)] px-6 py-8 sm:px-8">
-        <span className="section-kicker">RADAR</span>
+        <span className="section-kicker">POPULAR</span>
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <h2 className="font-display text-3xl text-white">新片雷达</h2>
+          <h2 className="font-display text-3xl text-white">热门</h2>
           <div className="flex items-center gap-4 text-xs text-[var(--muted)]">
             <span>{t('radar.lastSync')}: {formatSyncTime(lastSyncedAt)}</span>
             <button
@@ -57,13 +58,13 @@ export default function RadarPage() {
               disabled={syncing}
               className="brutal-btn-accent px-3 py-1 text-xs"
             >
-              {syncing ? '同步中...' : '同步新片'}
+              {syncing ? t('radar.syncing') : t('radar.refresh')}
             </button>
           </div>
         </div>
       </section>
 
-      {/* Category tabs — 无 trending */}
+      {/* Category tabs */}
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           onClick={() => setCategory('' as any)}
@@ -71,7 +72,7 @@ export default function RadarPage() {
             category === '' ? 'bg-[var(--accent)] text-black' : 'border border-[var(--line)] text-[var(--muted)] hover:text-white'
           }`}
         >
-          全部
+          {t('radar.all')}
         </button>
         {CATEGORIES.map(cat => (
           <button
@@ -96,16 +97,16 @@ export default function RadarPage() {
               platform === p ? 'bg-[var(--accent-deep)] text-white' : 'border border-[var(--line)] text-[var(--muted)] hover:text-white'
             }`}
           >
-            {p || '全部'}
+            {p || t('radar.all')}
           </button>
         ))}
       </div>
 
       {/* Card grid */}
       {loading ? (
-        <p className="mt-8 text-center text-sm text-[var(--muted)]">同步新片中...</p>
+        <p className="mt-8 text-center text-sm text-[var(--muted)]">{t('radar.syncing')}</p>
       ) : items.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-[var(--muted)]">暂无新片数据，点击同步按钮获取</p>
+        <p className="mt-8 text-center text-sm text-[var(--muted)]">{t('radar.noResults')}</p>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {items.map(item => (
@@ -141,14 +142,14 @@ export default function RadarPage() {
                 <div className="mt-2 flex gap-2">
                   {item.inLibrary ? (
                     <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
-                      已在记录库
+                      {t('radar.inLibrary')}
                     </span>
                   ) : (
                     <button
                       onClick={() => handleAddToLibrary(item)}
                       className="brutal-btn-accent px-2 py-1 text-[10px]"
                     >
-                      想看
+                      {t('radar.addToLibrary')}
                     </button>
                   )}
                   <a
@@ -157,7 +158,7 @@ export default function RadarPage() {
                     rel="noopener noreferrer"
                     className="brutal-btn px-2 py-1 text-[10px]"
                   >
-                    哪看
+                    {t('radar.whereToWatch')}
                   </a>
                 </div>
               </div>

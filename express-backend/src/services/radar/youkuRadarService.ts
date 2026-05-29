@@ -2,11 +2,11 @@ import axios from 'axios';
 import { config } from '../../config';
 import { RadarItemInput } from './types';
 
-export async function fetchYoukuRadar(): Promise<RadarItemInput[]> {
+async function fetchYouku(order: number, category: 'now_playing' | 'trending'): Promise<RadarItemInput[]> {
   try {
     const url = 'https://search.youku.com/api/search';
     const response = await axios.get(url, {
-      params: { keyword: '电影', cate: 96, order: 1, pg: 1, pz: 30 },
+      params: { keyword: '电影', cate: 96, order, pg: 1, pz: 30 },
       timeout: config.radar.requestTimeoutMs,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -30,7 +30,7 @@ export async function fetchYoukuRadar(): Promise<RadarItemInput[]> {
           posterPath: d.posterDTO?.vThumbUrl ?? undefined,
           releaseDate: undefined,
           platform: '优酷',
-          category: 'now_playing' as const,
+          category,
           voteAverage: undefined,
         };
       });
@@ -38,4 +38,14 @@ export async function fetchYoukuRadar(): Promise<RadarItemInput[]> {
     console.error('[Radar] Youku fetch error:', err.message);
     return [];
   }
+}
+
+/** 热门 — 综合排序 */
+export async function fetchYoukuRadar(): Promise<RadarItemInput[]> {
+  return fetchYouku(1, 'trending');
+}
+
+/** 新片 — 最新上映 */
+export async function fetchYoukuNewReleases(): Promise<RadarItemInput[]> {
+  return fetchYouku(2, 'now_playing');
 }

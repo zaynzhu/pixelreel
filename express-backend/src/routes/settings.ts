@@ -42,6 +42,8 @@ const CATEGORIES: CategoryDef[] = [
     fields: [
       { key: 'DATABASE_URL', labelZh: '数据库连接', labelEn: 'Database URL', sensitive: true, type: 'text' },
       { key: 'PORT', labelZh: '端口', labelEn: 'Port', sensitive: false, type: 'text' },
+      { key: 'IMAGE_PROXY_MAX_BYTES', labelZh: '图片代理最大字节', labelEn: 'Image Proxy Max Bytes', sensitive: false, type: 'number' },
+      { key: 'IMAGE_PROXY_CACHE_SECONDS', labelZh: '图片代理缓存(秒)', labelEn: 'Image Proxy Cache (s)', sensitive: false, type: 'number' },
     ],
   },
   {

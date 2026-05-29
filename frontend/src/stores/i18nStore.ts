@@ -217,6 +217,7 @@ const dictionaries = {
 
     // Radar
     "nav.radar": "RADAR",
+    "nav.popular": "POPULAR",
     "radar.kicker": "RADAR // DETECTION",
     "radar.title": "MEDIA RADAR",
     "radar.desc": "/// Scanning upcoming and trending media across all sources.",
@@ -524,6 +525,7 @@ const dictionaries = {
 
     // Radar
     "nav.radar": "雷达",
+    "nav.popular": "热门",
     "radar.kicker": "雷达 // 探测",
     "radar.title": "媒体雷达",
     "radar.desc": "/// 扫描所有数据源的即将上线和热门媒体。",

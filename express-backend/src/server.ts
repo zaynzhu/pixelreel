@@ -6,7 +6,7 @@ import { createActivityLogExtension } from './middlewares/activity-log';
 import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import cron from 'node-cron';
-import { runRadarSync } from './services/radar/radarSyncService';
+import { runRadarSync, runNewReleaseRadarSync } from './services/radar/radarSyncService';
 
 // JSON 序列化 BigInt 支持（Prisma 使用 BigInt 作为主键类型）
 (BigInt.prototype as any).toJSON = function () {
@@ -45,20 +45,31 @@ app.listen(config.port, () => {
   if (config.radar.enabled) {
     if (config.radar.syncOnStart) {
       setTimeout(() => {
-        console.log('[Radar] 启动同步...');
-        runRadarSync().catch(err => console.error('[Radar] 启动同步失败:', err.message));
+        console.log('[Radar] 启动热门同步...');
+        runRadarSync().catch(err => console.error('[Radar] 热门启动同步失败:', err.message));
       }, 5000);
+      setTimeout(() => {
+        console.log('[Radar] 启动新片同步...');
+        runNewReleaseRadarSync().catch(err => console.error('[Radar] 新片启动同步失败:', err.message));
+      }, 15000);
     }
     if (config.radar.cronEnabled) {
       cron.schedule(config.radar.syncCoreCron, () => {
-        console.log('[Radar] 定时同步 TMDB...');
-        runRadarSync('tmdb').catch(err => console.error('[Radar] TMDB 同步失败:', err.message));
+        console.log('[Radar] 定时同步热门 TMDB...');
+        runRadarSync('tmdb').catch(err => console.error('[Radar] 热门 TMDB 同步失败:', err.message));
+      });
+      cron.schedule(config.radar.syncCoreCron, () => {
+        console.log('[Radar] 定时同步新片 TMDB...');
+        runNewReleaseRadarSync('tmdb').catch(err => console.error('[Radar] 新片 TMDB 同步失败:', err.message));
       });
       if (config.radar.scrapersEnabled) {
-        // Scraper cron: full sync includes TMDB + Youku + Tencent (TMDB re-upsert is idempotent)
         cron.schedule(config.radar.syncScraperCron, () => {
-          console.log('[Radar] 定时同步所有源...');
-          runRadarSync().catch(err => console.error('[Radar] 定时同步失败:', err.message));
+          console.log('[Radar] 定时同步所有热门源...');
+          runRadarSync().catch(err => console.error('[Radar] 热门定时同步失败:', err.message));
+        });
+        cron.schedule(config.radar.syncScraperCron, () => {
+          console.log('[Radar] 定时同步所有新片源...');
+          runNewReleaseRadarSync().catch(err => console.error('[Radar] 新片定时同步失败:', err.message));
         });
       }
     }

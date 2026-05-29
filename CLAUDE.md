@@ -16,7 +16,7 @@
 
 ```bash
 # 数据库初始化（新环境首次）
-mysql -u root -p < db/init.sql           # 建库，然后配置 .env
+mysql -u root < db/init.sql              # 建库（本地 MySQL 无密码），然后配置 .env
 cd express-backend && npx prisma db push  # 建表（从 schema.prisma 生成）
 
 # Express 后端
@@ -59,11 +59,11 @@ express-backend/src/
   dto/            library.ts, timeline.ts, profile.ts, external-search.ts, import-summary.ts
 
 frontend/src/
-  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage, ActivityPage, ShowcasePage, AnalyticsPage, RadarPage
+  pages/          DashboardPage, LibraryPage, LoginPage, TimelinePage, SettingsPage, ActivityPage, ShowcasePage, AnalyticsPage, RadarPage, PopularPage
   components/     AppShell, RightActionDrawer, TaskPanel, Toast (ToastContainer + ConfirmDialog), MovieSearch, GameSearch, TvShowSearch, TimelinePopup, StarRating, ActivityFilters, ActivityTimeline
                   showcase/（StatsPanel, PosterCarousel, TimelineMini, RandomPick, ShowcaseControls）
                   analytics/（OverviewCards, MonthlyChart, RatingChart, SourcePieChart, CrossPlatformChart, TopRatedList）
-  stores/         authStore, profileStore, libraryStore, timelineStore, timelineDetailStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore, radarStore
+  stores/         authStore, profileStore, libraryStore, timelineStore, timelineDetailStore, gameRecordStore, i18nStore, taskStore, toastStore, activityStore, radarStore, newReleaseRadarStore
   types/          library.ts, timeline.ts, profile.ts, externalSearch.ts, movie.ts, settings.ts, analytics.ts, radar.ts
   api.ts          apiFetch 辅助函数（JWT Bearer，401 重定向，**已自动解析 JSON — 不要再调 .json()**）
   imageProxy.ts   proxiedImageUrl() 辅助函数（代理 TMDB/Steam/RAWG/豆瓣图片到 /api/search/proxy/image）
@@ -88,11 +88,14 @@ frontend/src/
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
-| `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=`（雷达列表，含 inLibrary 标记） |
-| `/radar` | `GET /api/radar/status`（各源同步状态） |
-| `/radar` | `POST /api/radar/sync`（触发全量同步） |
-| `/radar` | `POST /api/radar/sync/:source`（触发单源同步） |
-| `/radar` | `POST /api/radar/add-to-library`（加入想看，按 tmdbId/标题去重） |
+| `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=`（新片雷达列表，含 inLibrary 标记） |
+| `/radar` | `GET /api/radar/new-releases/status`（新片同步状态） |
+| `/radar` | `POST /api/radar/sync-new-releases`（触发新片全量同步） |
+| `/radar` | `POST /api/radar/sync-new-releases/:source`（触发新片单源同步） |
+| `/popular` | `GET /api/radar?...`（热门内容，复用同一 API，前端分类标签含 trending） |
+| `/popular` | `POST /api/radar/sync`（触发热门同步） |
+| `/popular` | `POST /api/radar/sync/:source`（触发热门单源同步） |
+| — | `POST /api/radar/add-to-library`（加入想看，按 tmdbId/标题去重） |
 | `/login` | `POST /api/auth/login` |
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
@@ -173,7 +176,7 @@ frontend/src/
 
 ## 数据库
 
-- MySQL 8.4 运行在 NAS Docker（192.168.50.233:13306），非本地
+- MySQL 运行在 NAS Docker（192.168.50.233:13306），本地开发时可用 `E:\gemini\antigravity\mysql\pixelreel\` 的本地 MySQL
 - 豆瓣导入的影视数据在 `movie` 和 `tv_show` 表，**不能动**（Trakt 数据可以操作）
 - TMDB 覆盖率约 93%，仅少数因 TMDB 无收录而缺失
 
@@ -191,4 +194,10 @@ frontend/src/
 - 不要用 Playwright 截图让模型分析页面效果 — 模型不支持图片输入，截图白费。需要理解页面时读代码或用 `browser_snapshot` 获取 DOM。
 - `tsx watch` 会在 git commit 时重启后端，丢失内存中的任务状态 — 跑回填任务时用 `npx tsx src/server.ts`（无 watch）启动。
 - Settings 备份路径是 `.env.backup.local`（不是 `.env.backup`，后者曾是敏感文件已被删除）。
-- **雷达模块：** TMDB 为核心源（now_playing/upcoming/trending/on_the_air），优酷和腾讯为可失败附加源（纯 JSON API，无需 Playwright）。流媒体平台筛选：Netflix/Disney+/Apple TV+/Max 通过 TMDB Discover API（`with_watch_providers` + `watch_region`）拉取，同步时存入 RadarItem 并设置 `platform` 字段（sourceKey 格式 `tmdb_<providerKey>:<type>:<id>`），前端平台标签（`PLATFORMS` 数组）直接过滤 `WHERE platform = ?`。同步有锁（同一时间只允许一个全量同步运行），单源失败不影响整体。RadarItem 用 sourceKey 去重 upsert，add-to-library 按 tmdbId 去重（无 tmdbId 时按标题去重）。优酷 API 响应数据在 `pageComponentList[].commonData`（不是 `searchResult`）。雷达 cron 配置：`RADAR_SYNC_CORE_CRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒延迟执行）、`RADAR_WATCH_REGION`（默认 `TW`，TMDB 流媒体平台地区）。
+- **雷达模块：** 拆分为「新片雷达」（`/radar`）和「热门」（`/popular`）两个页面，共享 `radarItem` 表。
+  - **新片雷达：** TMDB 新片源（now_playing/upcoming/on_the_air，无 trending），Netflix/Disney+/Apple TV+/Max 按上映日期排序 + 近 3 个月过滤，优酷 order=2（最新上映）。同步端点：`POST /api/radar/sync-new-releases`。
+  - **热门：** TMDB 全源（含 trending），流媒体平台按人气排序，优酷 order=1（综合排序）。同步端点：`POST /api/radar/sync`。
+  - 优酷和腾讯为可失败附加源（纯 JSON API，无需 Playwright）。RadarItem 用 sourceKey 去重 upsert，add-to-library 按 tmdbId 去重（无 tmdbId 时按标题去重）。优酷 API 响应数据在 `pageComponentList[].commonData`（不是 `searchResult`）。
+  - 同步有锁（新片和热门各自独立锁），单源失败不影响整体。
+  - 雷达 cron 配置：`RADAR_SYNC_CORE_CRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒热门+15秒新片）、`RADAR_WATCH_REGION`（默认 `TW`，TMDB 流媒体平台地区）。
+  - `RADAR_ENABLED=false` 时，手动同步和自动 cron 均返回 403。
