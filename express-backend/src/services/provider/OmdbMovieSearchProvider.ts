@@ -9,6 +9,13 @@ import {
 } from '../../dto/external-search';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+// 代理配置
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axiosProxyOpts: any = proxyUrl
+  ? { proxy: false, httpsAgent: new HttpsProxyAgent(proxyUrl) }
+  : {};
+
 function containsChinese(str: string): boolean {
   return /[一-鿿]/.test(str);
 }
@@ -18,6 +25,7 @@ async function tryOmdbWithEnglishTitles(query: string, page: number): Promise<an
     const tmdbRes = await axios.get(`${config.tmdb.baseUrl}/search/movie`, {
       params: { query, page: 1 },
       headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+      ...axiosProxyOpts,
     });
     const results = tmdbRes.data?.results ?? [];
     // 按 popularity 降序排列，优先选最热门的结果

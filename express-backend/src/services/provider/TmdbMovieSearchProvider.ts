@@ -9,6 +9,13 @@ import {
 } from '../../dto/external-search';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+// 代理配置
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axiosProxyOpts: any = proxyUrl
+  ? { proxy: false, httpsAgent: new HttpsProxyAgent(proxyUrl) }
+  : {};
+
 // TMDB 影视搜索 Provider，与 Java 端 TmdbMovieSearchService 完全对齐
 export class TmdbMovieSearchProvider implements MovieSearchProvider {
   id(): string {
@@ -39,8 +46,10 @@ export class TmdbMovieSearchProvider implements MovieSearchProvider {
       params: {
         query,
         page: normalizedPage,
+        language: 'zh-CN',
       },
       headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+      ...axiosProxyOpts,
     });
 
     const items = response.data?.results ?? [];
