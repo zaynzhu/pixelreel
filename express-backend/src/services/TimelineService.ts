@@ -178,9 +178,9 @@ export async function listTimelineYears(category: ListTimelineOptions['category'
 
   // Use raw SQL for efficient distinct year extraction (avoids loading all rows)
   const queries: Promise<{ year: number }[]>[] = [];
-  if (includeMovies) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(createdAt) AS year FROM movie ORDER BY year DESC`);
-  if (includeTvShows) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(createdAt) AS year FROM tv_show ORDER BY year DESC`);
-  if (includeGames) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(createdAt) AS year FROM game ORDER BY year DESC`);
+  if (includeMovies) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(created_at) AS year FROM movie ORDER BY year DESC`);
+  if (includeTvShows) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(created_at) AS year FROM tv_show ORDER BY year DESC`);
+  if (includeGames) queries.push(db.$queryRaw`SELECT DISTINCT YEAR(created_at) AS year FROM game ORDER BY year DESC`);
 
   const results = await Promise.all(queries);
   const years = new Set<number>();

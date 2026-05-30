@@ -4,7 +4,7 @@ import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
 import { ImgWithFallback } from "../components/ImgWithFallback";
 import { RotateCw } from "lucide-react";
-import { RescrapeModal } from "../components/RescrapeModal";
+import RescrapeModal from "../components/RescrapeModal";
 import ActivityTimeline from "../components/ActivityTimeline";
 import type {
   LibraryCategory,
