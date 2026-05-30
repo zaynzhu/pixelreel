@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { LibraryRecord, RecordStatus } from "../types/library";
 import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "./StarRating";
 import { ImgWithFallback } from "./ImgWithFallback";
 import { proxiedImageUrl } from "../imageProxy";
+import RescrapeModal from "./RescrapeModal";
 
 interface TimelinePopupProps {
   lightweightRecord: TimelineRecord | null;
@@ -12,10 +13,12 @@ interface TimelinePopupProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  onRescrapeComplete?: () => void;
 }
 
-export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose }: TimelinePopupProps) {
+export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose, onRescrapeComplete }: TimelinePopupProps) {
   const { t } = useI18nStore();
+  const [showRescrape, setShowRescrape] = useState(false);
 
   useEffect(() => {
     if (!lightweightRecord) return;
@@ -260,15 +263,38 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
             </div>
           )}
 
-          {/* 底部日期 */}
+          {/* 底部日期 + 重新刮削按钮 */}
           <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-[var(--dim)] border-t border-[var(--line)] pt-3">
             <span>{t("timeline.added")} {formatDate(createdAt)}</span>
-            {doubanDate && (
-              <span>豆瓣标记 {doubanDate}</span>
-            )}
+            <div className="flex items-center gap-3">
+              {doubanDate && (
+                <span>豆瓣标记 {doubanDate}</span>
+              )}
+              {fullRecord && (
+                <button
+                  onClick={() => setShowRescrape(true)}
+                  className="flex items-center gap-1.5 px-2 py-1 border border-[var(--line)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black transition-colors"
+                >
+                  <span>&#x21BB;</span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest">{t("lib.rescrape.btn")}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* 重新刮削弹窗 */}
+      {showRescrape && fullRecord && (
+        <RescrapeModal
+          record={fullRecord}
+          onClose={() => setShowRescrape(false)}
+          onUpdated={() => {
+            setShowRescrape(false);
+            onRescrapeComplete?.();
+          }}
+        />
+      )}
     </div>
   );
 }

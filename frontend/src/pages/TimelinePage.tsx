@@ -368,6 +368,9 @@ export default function TimelinePage() {
         loading={popupRecord ? detailLoading[`${popupRecord.category}:${popupRecord.id}`] ?? false : false}
         error={popupRecord ? detailErrors[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
         onClose={() => setPopupRecord(null)}
+        onRescrapeComplete={() => {
+          void fetchRecords({ limit: 96, category: selectedCategory, year: selectedYear });
+        }}
       />
     </div>
   );
