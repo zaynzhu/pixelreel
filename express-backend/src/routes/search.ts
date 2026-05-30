@@ -125,20 +125,43 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
   }
 
   try {
-    const [movieRes, creditsRes] = await Promise.all([
-      axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}`, {
-        params: { language: 'zh-CN' },
-        headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-      }),
-      axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
-        headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-      }),
-    ]);
+    // 先尝试电影，如果失败再尝试电视剧
+    let isTv = false;
+    let detailRes: any;
+    let creditsRes: any;
 
-    const d = movieRes.data;
+    try {
+      [detailRes, creditsRes] = await Promise.all([
+        axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}`, {
+          params: { language: 'zh-CN' },
+          headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+        }),
+        axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
+          headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+        }),
+      ]);
+    } catch (movieErr: any) {
+      // 电影端点失败，尝试电视剧
+      if (movieErr.response?.status === 404) {
+        isTv = true;
+        [detailRes, creditsRes] = await Promise.all([
+          axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {
+            params: { language: 'zh-CN' },
+            headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+          }),
+          axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
+            headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+          }),
+        ]);
+      } else {
+        throw movieErr;
+      }
+    }
+
+    const d = detailRes.data;
     const credits = creditsRes.data;
     const director = (credits?.crew ?? [])
-      .filter((c: any) => c.job === 'Director')
+      .filter((c: any) => c.job === 'Director' || (isTv && c.job === 'Executive Producer'))
       .map((c: any) => c.name)
       .join(', ');
     const actors = (credits?.cast ?? [])
@@ -148,16 +171,16 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
 
     res.json({
       tmdbId: d.id,
-      title: d.title,
-      year: d.release_date?.slice(0, 4) ?? '',
+      title: isTv ? d.name : d.title,
+      year: (isTv ? d.first_air_date : d.release_date)?.slice(0, 4) ?? '',
       rated: '',
-      runtime: d.runtime ? `${d.runtime} min` : '',
+      runtime: d.runtime ? `${d.runtime} min` : (d.episode_run_time?.[0] ? `${d.episode_run_time[0]} min` : ''),
       genre: (d.genres ?? []).map((g: any) => g.name).join(', '),
       director,
       actors,
       plot: d.overview ?? '',
       language: d.original_language ?? '',
-      country: (d.production_countries ?? []).map((c: any) => c.name).join(', '),
+      country: (isTv ? d.origin_countries : d.production_countries?.map((c: any) => c.name))?.join(', ') ?? '',
       awards: '',
       posterUrl: d.poster_path ? config.tmdb.imageBaseUrl + d.poster_path : null,
       imdbRating: d.vote_average ? String(d.vote_average) : '',
