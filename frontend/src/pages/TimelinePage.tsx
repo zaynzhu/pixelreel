@@ -5,6 +5,7 @@ import { useI18nStore } from "../stores/i18nStore";
 import type { TimelineRecord } from "../types/timeline";
 import type { LibraryRecord, LibraryCategory, RecordStatus } from "../types/library";
 import TimelinePopup from "../components/TimelinePopup";
+import RescrapeModal from "../components/RescrapeModal";
 import { StarRating } from "../components/StarRating";
 import { proxiedImageUrl } from "../imageProxy";
 
@@ -78,6 +79,7 @@ export default function TimelinePage() {
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("media");
   const [popupRecord, setPopupRecord] = useState<TimelineRecord | null>(null);
+  const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null);
 
   const INITIAL_VISIBLE_GROUPS = 8;
   const GROUP_INCREMENT = 4;
@@ -368,10 +370,22 @@ export default function TimelinePage() {
         loading={popupRecord ? detailLoading[`${popupRecord.category}:${popupRecord.id}`] ?? false : false}
         error={popupRecord ? detailErrors[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
         onClose={() => setPopupRecord(null)}
-        onRescrapeComplete={() => {
-          void fetchRecords({ limit: 96, category: selectedCategory, year: selectedYear });
+        onRescrape={(record) => {
+          setRescrapeRecord(record);
         }}
       />
+
+      {/* 重新刮削弹窗 */}
+      {rescrapeRecord && (
+        <RescrapeModal
+          record={rescrapeRecord}
+          onClose={() => setRescrapeRecord(null)}
+          onUpdated={() => {
+            setRescrapeRecord(null);
+            void fetchRecords({ limit: 96, category: selectedCategory, year: selectedYear });
+          }}
+        />
+      )}
     </div>
   );
 }

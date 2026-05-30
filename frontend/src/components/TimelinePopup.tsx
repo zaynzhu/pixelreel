@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { LibraryRecord, RecordStatus } from "../types/library";
 import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "./StarRating";
 import { ImgWithFallback } from "./ImgWithFallback";
 import { proxiedImageUrl } from "../imageProxy";
-import RescrapeModal from "./RescrapeModal";
 
 interface TimelinePopupProps {
   lightweightRecord: TimelineRecord | null;
@@ -13,12 +12,11 @@ interface TimelinePopupProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
-  onRescrapeComplete?: () => void;
+  onRescrape?: (record: LibraryRecord) => void;
 }
 
-export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose, onRescrapeComplete }: TimelinePopupProps) {
+export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose, onRescrape }: TimelinePopupProps) {
   const { t } = useI18nStore();
-  const [showRescrape, setShowRescrape] = useState(false);
 
   useEffect(() => {
     if (!lightweightRecord) return;
@@ -272,7 +270,10 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
               )}
               {fullRecord && (
                 <button
-                  onClick={() => setShowRescrape(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRescrape?.(fullRecord);
+                  }}
                   className="flex items-center gap-1.5 px-2 py-1 border border-[var(--line)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black transition-colors"
                 >
                   <span>&#x21BB;</span>
@@ -283,18 +284,6 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
           </div>
         </div>
       </div>
-
-      {/* 重新刮削弹窗 */}
-      {showRescrape && fullRecord && (
-        <RescrapeModal
-          record={fullRecord}
-          onClose={() => setShowRescrape(false)}
-          onUpdated={() => {
-            setShowRescrape(false);
-            onRescrapeComplete?.();
-          }}
-        />
-      )}
     </div>
   );
 }
