@@ -3,6 +3,8 @@ import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
 import { ImgWithFallback } from "../components/ImgWithFallback";
+import { RotateCw } from "lucide-react";
+import { RescrapeModal } from "../components/RescrapeModal";
 import ActivityTimeline from "../components/ActivityTimeline";
 import type {
   LibraryCategory,
@@ -47,6 +49,7 @@ export default function LibraryPage() {
   });
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null);
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -286,6 +289,18 @@ export default function LibraryPage() {
                       : "border-[var(--line)] bg-[var(--surface-hover)] hover:border-white"
                   }`}
                 >
+                  {/* 重新刮削按钮 */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setRescrapeRecord(record)
+                    }}
+                    className="absolute top-2 right-2 p-2 bg-[var(--surface)] border border-[var(--line)] opacity-0 group-hover:opacity-100 transition-opacity hover:border-[var(--accent)] hover:text-[var(--accent)] z-10"
+                    title={t("lib.rescrape.btn")}
+                  >
+                    <RotateCw className="w-4 h-4" />
+                  </button>
                   {active && (
                     <div className="absolute top-0 bottom-0 left-0 w-1 bg-[var(--accent)]" />
                   )}
@@ -532,6 +547,18 @@ export default function LibraryPage() {
           </div>
         )}
       </aside>
+
+      {/* 重新刮削弹窗 */}
+      {rescrapeRecord && (
+        <RescrapeModal
+          record={rescrapeRecord}
+          onClose={() => setRescrapeRecord(null)}
+          onUpdated={() => {
+            void fetchRecords()
+            setRescrapeRecord(null)
+          }}
+        />
+      )}
     </div>
   );
 }
