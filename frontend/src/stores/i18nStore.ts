@@ -140,6 +140,19 @@ const dictionaries = {
     "lib.edit.waiting": "/// WAITING FOR TARGET SELECTION. \nNO RECORD CURRENTLY IN FOCUS.",
     "lib.edit.success": "DATA_COMMITTED",
 
+    // Rescrape
+    "lib.rescrape.btn": "RESCRAPE",
+    "lib.rescrape.title": "RESCRAPE METADATA",
+    "lib.rescrape.search_placeholder": "Enter search query...",
+    "lib.rescrape.source": "SOURCE",
+    "lib.rescrape.searching": "SEARCHING...",
+    "lib.rescrape.search": "SEARCH",
+    "lib.rescrape.no_results": "NO RESULTS FOUND",
+    "lib.rescrape.updating": "UPDATING...",
+    "lib.rescrape.success": "METADATA UPDATED",
+    "lib.rescrape.failed": "UPDATE FAILED",
+    "lib.rescrape.detail_loading": "LOADING DETAIL...",
+
     // Search
     "search.movie.title": "MOVIE_SEARCH_NODE",
     "search.game.title": "GAME_SEARCH_NODE",
@@ -447,6 +460,19 @@ const dictionaries = {
     "lib.edit.commit": "提交更改",
     "lib.edit.waiting": "/// 等待目标选择。\n当前没有选中的记录。",
     "lib.edit.success": "数据已提交",
+
+    // Rescrape
+    "lib.rescrape.btn": "重新刮削",
+    "lib.rescrape.title": "重新刮削元数据",
+    "lib.rescrape.search_placeholder": "输入搜索关键词...",
+    "lib.rescrape.source": "来源",
+    "lib.rescrape.searching": "搜索中...",
+    "lib.rescrape.search": "搜索",
+    "lib.rescrape.no_results": "未找到结果",
+    "lib.rescrape.updating": "更新中...",
+    "lib.rescrape.success": "元数据已更新",
+    "lib.rescrape.failed": "更新失败",
+    "lib.rescrape.detail_loading": "加载详情中...",
 
     // Search
     "search.movie.title": "电影检索节点",
