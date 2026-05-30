@@ -132,45 +132,51 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
   }
 
   try {
-    // 先尝试电影，如果失败再尝试电视剧
+    // 并行请求电影和电视剧端点，使用先返回的结果
+    const moviePromise = axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}`, {
+      params: { language: 'zh-CN' },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+      ...axiosProxyOpts,
+    }).then(res => ({ type: 'movie' as const, data: res }))
+    .catch(err => ({ type: 'movie' as const, error: err }));
+
+    const tvPromise = axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {
+      params: { language: 'zh-CN' },
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+      ...axiosProxyOpts,
+    }).then(res => ({ type: 'tv' as const, data: res }))
+    .catch(err => ({ type: 'tv' as const, error: err }));
+
+    const [movieResult, tvResult] = await Promise.all([moviePromise, tvPromise]);
+
     let isTv = false;
     let detailRes: any;
     let creditsRes: any;
 
-    try {
-      [detailRes, creditsRes] = await Promise.all([
-        axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}`, {
-          params: { language: 'zh-CN' },
-          headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-          ...axiosProxyOpts,
-        }),
-        axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
-          headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-          ...axiosProxyOpts,
-        }),
-      ]);
-    } catch (movieErr: any) {
-      // 电影端点失败，尝试电视剧
-      if (movieErr.response?.status === 404) {
-        isTv = true;
-        [detailRes, creditsRes] = await Promise.all([
-          axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {
-            params: { language: 'zh-CN' },
-            headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-            ...axiosProxyOpts,
-          }),
-          axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
-            headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-            ...axiosProxyOpts,
-          }),
-        ]);
-      } else {
-        throw movieErr;
-      }
+    // 优先使用电视剧结果（如果存在且电影返回 404 或者电视剧标题更匹配）
+    if (tvResult.data && (!movieResult.data || movieResult.error?.response?.status === 404)) {
+      isTv = true;
+      detailRes = tvResult.data;
+      creditsRes = await axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
+        headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+        ...axiosProxyOpts,
+      });
+    } else if (movieResult.data) {
+      isTv = false;
+      detailRes = movieResult.data;
+      creditsRes = await axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
+        headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+        ...axiosProxyOpts,
+      });
+    } else {
+      throw movieResult.error || tvResult.error;
     }
 
     const d = detailRes.data;
     const credits = creditsRes.data;
+
+    console.log(`[TMDB Detail] tmdbId=${tmdbId}, isTv=${isTv}, name=${d.name}, title=${d.title}`);
+
     const director = (credits?.crew ?? [])
       .filter((c: any) => c.job === 'Director' || (isTv && c.job === 'Executive Producer'))
       .map((c: any) => c.name)
