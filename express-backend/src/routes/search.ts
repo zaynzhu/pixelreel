@@ -3,6 +3,13 @@ import axios from 'axios';
 import { config } from '../config';
 import { searchMovies, searchGames } from '../services/ExternalSearchService';
 
+// 代理配置
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axiosProxyOpts: any = proxyUrl
+  ? { proxy: false, httpsAgent: new HttpsProxyAgent(proxyUrl) }
+  : {};
+
 const router = Router();
 
 // GET /api/search/movies?query=xxx&page=1&providers=tmdb,omdb
@@ -135,9 +142,11 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
         axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}`, {
           params: { language: 'zh-CN' },
           headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+          ...axiosProxyOpts,
         }),
         axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
           headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+          ...axiosProxyOpts,
         }),
       ]);
     } catch (movieErr: any) {
@@ -148,9 +157,11 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
           axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {
             params: { language: 'zh-CN' },
             headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+            ...axiosProxyOpts,
           }),
           axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
             headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+            ...axiosProxyOpts,
           }),
         ]);
       } else {
