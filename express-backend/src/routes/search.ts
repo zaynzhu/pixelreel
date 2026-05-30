@@ -153,8 +153,8 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
     let detailRes: any;
     let creditsRes: any;
 
-    // 优先使用电视剧结果（如果存在且电影返回 404 或者电视剧标题更匹配）
-    if (tvResult.data && (!movieResult.data || movieResult.error?.response?.status === 404)) {
+    // 优先使用电视剧结果（电视剧 ID 更可能是正确的）
+    if (tvResult.data) {
       isTv = true;
       detailRes = tvResult.data;
       creditsRes = await axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
