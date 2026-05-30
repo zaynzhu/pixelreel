@@ -199,5 +199,20 @@ frontend/src/
   - **热门：** TMDB 全源（含 trending），流媒体平台按人气排序，优酷 order=1（综合排序）。同步端点：`POST /api/radar/sync`。
   - 优酷和腾讯为可失败附加源（纯 JSON API，无需 Playwright）。RadarItem 用 sourceKey 去重 upsert，add-to-library 按 tmdbId 去重（无 tmdbId 时按标题去重）。优酷 API 响应数据在 `pageComponentList[].commonData`（不是 `searchResult`）。
   - 同步有锁（新片和热门各自独立锁），单源失败不影响整体。
-  - 雷达 cron 配置：`RADAR_SYNC_CORE_CRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒热门+15秒新片）、`RADAR_WATCH_REGION`（默认 `TW`，TMDB 流媒体平台地区）。
+  - 雷达 cron 配置：`RADAR_SYNC_CORE_CRRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒热门+15秒新片）、`RADAR_WATCH_REGION`（默认 `TW`，TMDB 流媒体平台地区）。
   - `RADAR_ENABLED=false` 时，手动同步和自动 cron 均返回 403。
+
+## 重新刮削功能
+
+- **功能位置：** 记录库（`/library`）和时间线（`/timeline`）的卡片上都有"重新刮削"按钮
+- **交互流程：** 点击按钮弹出 RescrapeModal，搜索框自动填充记录标题，用户可修改关键词和选择搜索来源
+- **搜索来源：** 根据记录类型自动配置（movie: tmdb/omdb/douban/imdb/trakt, tv_show: tmdb/douban, game: rawg/steam），默认全选
+- **更新逻辑：** 选择搜索结果后，调用详情 API 获取完整元数据，然后调用 PUT API 更新记录
+- **字段处理：** 覆盖 posterUrl/title/overview/tmdbId/tmdbTitle/tmdbPosterUrl/tmdbReleaseDate/tmdbOverview/tmdbVoteAverage 等外部元数据，保留 status/rating/shortReview 用户个人数据
+- **TMDB 搜索中文：** TMDB 搜索 API 必须传 `language: 'zh-CN'` 参数，否则返回英文标题
+- **TMDB 详情 API：** 同时请求电影和电视剧端点，优先使用电视剧结果（因为电视剧 ID 更可能是正确的）
+- **代理配置：** 所有 TMDB API 调用必须使用代理（`HTTPS_PROXY` 环境变量），否则会超时
+- **时间线集成：** TimelinePopup 中的"重新刮削"按钮通过 `onRescrape` 回调通知 TimelinePage，由 TimelinePage 管理 RescrapeModal 状态
+- **数据源：** 豆瓣原始数据在 `express-backend/data/douban-harvester/collect.json`，包含 title/date/comment 等字段
+- **记录类别：** 电影在 `movie` 表，电视剧在 `tv_show` 表，游戏在 `game` 表。修改记录类别需要在数据库中移动记录（删除旧表记录，在新表创建记录）
+- **时间字段：** `createdAt` 和 `updatedAt` 是 Prisma 自动生成的，修改记录类别时会丢失原始时间。如需保留，需从 `collect.json` 中获取 `date` 字段手动更新 `doubanDate`
