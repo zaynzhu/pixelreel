@@ -46,6 +46,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
       if (platform) params.set('platform', platform);
       params.set('page', String(overrides?.page ?? page));
       params.set('limit', '40');
+      params.set('syncType', 'popular'); // 热门同步的数据
       const data = await apiFetch<RadarListResponse>(`/radar?${params}`);
       set({
         items: data.items,

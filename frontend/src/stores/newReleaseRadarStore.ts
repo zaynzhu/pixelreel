@@ -45,6 +45,7 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
       if (platform) params.set('platform', platform);
       params.set('page', String(overrides?.page ?? page));
       params.set('limit', '40');
+      params.set('syncType', 'new_release'); // 新片同步的数据
       const data = await apiFetch<RadarListResponse>(`/radar?${params}`);
       set({
         items: data.items,
