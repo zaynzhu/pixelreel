@@ -14,6 +14,7 @@ import analyticsRoutes from '../routes/analytics';
 import settingsRoutes from '../routes/settings';
 import timelineRoutes from '../routes/timeline';
 import radarRoutes from '../routes/radar';
+import toolsRoutes from '../routes/tools';
 
 const router = Router();
 
@@ -43,5 +44,8 @@ router.use('/timeline', timelineRoutes);
 
 // 雷达路由
 router.use('/radar', radarRoutes);
+
+// 工具路由
+router.use('/tools', toolsRoutes);
 
 export default router;
