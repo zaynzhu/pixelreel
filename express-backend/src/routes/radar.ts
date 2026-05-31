@@ -15,6 +15,7 @@ router.get('/', async (req: Request, res: Response) => {
   const type = req.query.type as string | undefined;
   const platform = req.query.platform as string | undefined;
   const source = req.query.source as string | undefined;
+  const syncType = req.query.syncType as string | undefined;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 40));
 
@@ -23,6 +24,7 @@ router.get('/', async (req: Request, res: Response) => {
   if (type && VALID_TYPES.includes(type)) where.type = type;
   if (platform && VALID_PLATFORMS.has(platform)) where.platform = platform;
   if (source) where.source = source;
+  if (syncType) where.syncType = syncType;
 
   try {
     const db = getDb();
