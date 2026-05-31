@@ -13,6 +13,7 @@ import ShowcasePage from "./pages/ShowcasePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import RadarPage from "./pages/RadarPage";
 import PopularPage from "./pages/PopularPage";
+import ToolsPage from "./pages/ToolsPage";
 import { useAuthStore } from "./stores/authStore";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="radar" element={<RadarPage />} />
           <Route path="popular" element={<PopularPage />} />
+          <Route path="tools" element={<ToolsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

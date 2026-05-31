@@ -25,6 +25,7 @@ export default function AppShell() {
     { to: "/radar", label: t("nav.radar") },
     { to: "/popular", label: t("nav.popular") },
     { to: "/analytics", label: t("nav.analytics") },
+    { to: "/tools", label: t("nav.tools") },
     { to: "/settings", label: t("nav.settings") },
   ];
 
