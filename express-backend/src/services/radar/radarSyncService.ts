@@ -4,7 +4,7 @@ import { createTask, completeTask, failTask, updateProgress, listTasks } from '.
 import { RadarItemInput, RadarSource, RadarSourceResult, CRITICAL_SOURCES, OPTIONAL_SOURCES } from './types';
 import { fetchTmdbRadar, fetchTmdbPlatformItems, fetchTmdbNewReleases, fetchTmdbPlatformNewReleases } from './tmdbRadarService';
 import { fetchYoukuRadar, fetchYoukuNewReleases } from './youkuRadarService';
-import { fetchTencentRadar } from './tencentRadarService';
+import { fetchTencentRadar, fetchTencentNewReleases } from './tencentRadarService';
 
 let syncLock = false;
 
@@ -17,7 +17,7 @@ async function fetchSourceItems(source: RadarSource): Promise<RadarItemInput[]> 
   }
 }
 
-async function syncSource(source: RadarSource): Promise<RadarSourceResult> {
+async function syncSource(source: RadarSource, syncType: 'new_release' | 'popular' = 'popular'): Promise<RadarSourceResult> {
   const result: RadarSourceResult = { source, ok: true, count: 0 };
   try {
     const items = await fetchSourceItems(source);
@@ -34,6 +34,7 @@ async function syncSource(source: RadarSource): Promise<RadarSourceResult> {
           category: item.category,
           voteAverage: item.voteAverage ?? null,
           platform: item.platform ?? null,
+          syncType: syncType,
           lastSyncedAt: new Date(),
         },
         create: {
@@ -52,6 +53,7 @@ async function syncSource(source: RadarSource): Promise<RadarSourceResult> {
           platform: item.platform ?? null,
           category: item.category,
           voteAverage: item.voteAverage ?? null,
+          syncType: syncType,
           lastSyncedAt: new Date(),
         },
       });
@@ -82,6 +84,7 @@ async function syncPlatformItems(): Promise<RadarSourceResult> {
           category: item.category,
           voteAverage: item.voteAverage ?? null,
           platform: item.platform ?? null,
+          syncType: 'popular',
           lastSyncedAt: new Date(),
         },
         create: {
@@ -100,6 +103,7 @@ async function syncPlatformItems(): Promise<RadarSourceResult> {
           platform: item.platform ?? null,
           category: item.category,
           voteAverage: item.voteAverage ?? null,
+          syncType: 'popular',
           lastSyncedAt: new Date(),
         },
       });
@@ -137,7 +141,7 @@ export async function runRadarSync(sourceFilter?: string): Promise<{ taskId: str
           total: sources.length,
           currentTitle: `Syncing ${source}...`,
         });
-        const result = await syncSource(source);
+        const result = await syncSource(source, 'popular');
         results.push(result);
         totalProcessed += result.count;
       }
@@ -182,14 +186,14 @@ export function getRadarSyncStatus() {
 
 let newReleaseSyncLock = false;
 
-async function syncNewReleaseSource(source: RadarSource): Promise<RadarSourceResult> {
+async function syncNewReleaseSource(source: RadarSource, syncType: 'new_release' | 'popular' = 'new_release'): Promise<RadarSourceResult> {
   const result: RadarSourceResult = { source, ok: true, count: 0 };
   try {
     let items: RadarItemInput[];
     switch (source) {
       case 'tmdb': items = await fetchTmdbNewReleases(); break;
       case 'youku': items = await fetchYoukuNewReleases(); break;
-      case 'tencent': items = await fetchTencentRadar(); break;
+      case 'tencent': items = await fetchTencentNewReleases(); break;
       default: items = []; break;
     }
     const db = getDb();
@@ -205,6 +209,7 @@ async function syncNewReleaseSource(source: RadarSource): Promise<RadarSourceRes
           category: item.category,
           voteAverage: item.voteAverage ?? null,
           platform: item.platform ?? null,
+          syncType: 'new_release',
           lastSyncedAt: new Date(),
         },
         create: {
@@ -223,6 +228,7 @@ async function syncNewReleaseSource(source: RadarSource): Promise<RadarSourceRes
           platform: item.platform ?? null,
           category: item.category,
           voteAverage: item.voteAverage ?? null,
+          syncType: 'new_release',
           lastSyncedAt: new Date(),
         },
       });
@@ -253,6 +259,7 @@ async function syncNewReleasePlatformItems(): Promise<RadarSourceResult> {
           category: item.category,
           voteAverage: item.voteAverage ?? null,
           platform: item.platform ?? null,
+          syncType: 'new_release',
           lastSyncedAt: new Date(),
         },
         create: {
@@ -271,6 +278,7 @@ async function syncNewReleasePlatformItems(): Promise<RadarSourceResult> {
           platform: item.platform ?? null,
           category: item.category,
           voteAverage: item.voteAverage ?? null,
+          syncType: 'new_release',
           lastSyncedAt: new Date(),
         },
       });
@@ -308,7 +316,7 @@ export async function runNewReleaseRadarSync(sourceFilter?: string): Promise<{ t
           total: sources.length,
           currentTitle: `新片同步 ${source}...`,
         });
-        const result = await syncNewReleaseSource(source);
+        const result = await syncNewReleaseSource(source, 'new_release');
         results.push(result);
         totalProcessed += result.count;
       }

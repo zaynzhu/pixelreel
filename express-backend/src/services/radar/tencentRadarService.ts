@@ -60,3 +60,39 @@ export async function fetchTencentRadar(): Promise<RadarItemInput[]> {
     return [];
   }
 }
+
+export async function fetchTencentNewReleases(): Promise<RadarItemInput[]> {
+  try {
+    const response = await axios.post(TENCENT_API_URL, TENCENT_REQUEST_BODY, {
+      timeout: config.radar.requestTimeoutMs,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://v.qq.com/',
+      },
+    });
+
+    const cards: any[] = response.data?.data?.card?.children_list?.list?.cards ?? [];
+    return cards.map((card: any) => {
+      const ratingText = card.marklabel_1_prime_text ?? '';
+      const ratingVal = parseFloat(ratingText);
+      return {
+        sourceKey: `tencent:${card.cid}`,
+        source: 'tencent' as const,
+        sourceId: card.cid ?? undefined,
+        sourceUrl: card.video_url ?? undefined,
+        type: 'movie' as const,
+        title: card.title ?? '',
+        titleZh: card.priority_title ?? card.title ?? undefined,
+        posterPath: card.pic_276x386 ?? undefined,
+        releaseDate: card.publish_date ?? undefined,
+        platform: '腾讯视频',
+        category: 'upcoming' as const,
+        voteAverage: !isNaN(ratingVal) ? ratingVal : undefined,
+      };
+    });
+  } catch (err: any) {
+    console.error('[Radar] Tencent new releases fetch error:', err.message);
+    return [];
+  }
+}

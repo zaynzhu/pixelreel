@@ -2,7 +2,7 @@ import axios from 'axios';
 import { config } from '../../config';
 import { RadarItemInput } from './types';
 
-async function fetchYouku(order: number, category: 'now_playing' | 'trending'): Promise<RadarItemInput[]> {
+async function fetchYouku(order: number, category: 'now_playing' | 'trending' | 'upcoming'): Promise<RadarItemInput[]> {
   try {
     const url = 'https://search.youku.com/api/search';
     const response = await axios.get(url, {
@@ -47,5 +47,5 @@ export async function fetchYoukuRadar(): Promise<RadarItemInput[]> {
 
 /** 新片 — 最新上映 */
 export async function fetchYoukuNewReleases(): Promise<RadarItemInput[]> {
-  return fetchYouku(2, 'now_playing');
+  return fetchYouku(2, 'upcoming');
 }
