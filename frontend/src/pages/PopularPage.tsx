@@ -32,7 +32,7 @@ export default function PopularPage() {
   };
 
   const justWatchUrl = (item: RadarItem) =>
-    `https://www.justwatch.com/cn/搜索?q=${encodeURIComponent(item.titleZh || item.title)}`;
+    item.sourceUrl || `https://www.justwatch.com/cn/搜索?q=${encodeURIComponent(item.titleZh || item.title)}`;
 
   const catLabel = (cat: string) => {
     const map: Record<string, string> = {
@@ -50,7 +50,7 @@ export default function PopularPage() {
       <section className="border border-[var(--line)] bg-[var(--surface)] px-6 py-8 sm:px-8">
         <span className="section-kicker">POPULAR</span>
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <h2 className="font-display text-3xl text-white">热门</h2>
+          <h2 className="font-display text-3xl text-white">{t('radar.headingPopular')}</h2>
           <div className="flex items-center gap-4 text-xs text-[var(--muted)]">
             <span>{t('radar.lastSync')}: {formatSyncTime(lastSyncedAt)}</span>
             <button

@@ -249,6 +249,9 @@ const dictionaries = {
     "radar.sourceTag.youku": "YOUKU",
     "radar.sourceTag.tencent": "TENCENT",
     "radar.noResults": "No items found. Try syncing first.",
+    "radar.heading": "NEW RELEASES",
+    "radar.headingPopular": "POPULAR",
+    "radar.loadingSync": "SYNCING NEW RELEASES...",
 
     // Settings
     "nav.settings": "SETTINGS",
@@ -589,6 +592,9 @@ const dictionaries = {
     "radar.sourceTag.youku": "优酷",
     "radar.sourceTag.tencent": "腾讯",
     "radar.noResults": "暂无数据，请先同步。",
+    "radar.heading": "新片雷达",
+    "radar.headingPopular": "热门",
+    "radar.loadingSync": "同步新片中...",
 
     // Settings
     "nav.settings": "系统设置",
