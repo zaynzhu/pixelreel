@@ -30,6 +30,7 @@ export interface RadarItemInput {
   platform?: string;
   category: RadarCategory;
   voteAverage?: number;
+  syncType?: 'new_release' | 'popular';
 }
 
 export interface RadarSourceResult {
