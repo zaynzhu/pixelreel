@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { RadarItem, RadarListResponse } from '../types/radar';
 import { apiFetch } from '../api';
+import { toast } from './toastStore';
 
 type RadarCategory = 'now_playing' | 'upcoming' | 'trending' | 'on_the_air';
 type RadarType = 'movie' | 'tv';
@@ -86,7 +87,9 @@ export const useRadarStore = create<RadarState>((set, get) => ({
         set({ syncing: false });
       }, 3000);
     } catch (err) {
-      set({ syncing: false, error: err instanceof Error ? err.message : '同步失败' });
+      const message = err instanceof Error ? err.message : '同步失败';
+      set({ syncing: false, error: message });
+      toast(message, 'error');
     }
   },
 
