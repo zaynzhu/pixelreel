@@ -252,6 +252,25 @@ const dictionaries = {
 
     // Settings
     "nav.settings": "SETTINGS",
+
+    // Tools
+    "nav.tools": "TOOLS",
+    "tools.kicker": "TOOLS // UTILITIES",
+    "tools.title": "TOOLBOX",
+    "tools.desc": "/// Data maintenance utilities.",
+    "tools.convert.title": "CONVERT RECORD TYPE",
+    "tools.convert.desc": "Convert between movie and TV show.",
+    "tools.convert.search_placeholder": "Enter search query...",
+    "tools.convert.search": "SEARCH",
+    "tools.convert.searching": "SEARCHING...",
+    "tools.convert.no_results": "NO RESULTS FOUND",
+    "tools.convert.to_tv": "CONVERT TO TV SHOW",
+    "tools.convert.to_movie": "CONVERT TO MOVIE",
+    "tools.convert.converting": "CONVERTING...",
+    "tools.convert.success": "CONVERT SUCCESS. NEW ID: {0}",
+    "tools.convert.failed": "CONVERT FAILED",
+    "tools.convert.confirm": "Are you sure you want to convert this record?",
+
     "settings.kicker": "CONFIG // SYSTEM",
     "settings.title": "ENV_REGISTRY",
     "settings.desc": "/// Runtime environment configuration. Changes require service restart.",
@@ -573,6 +592,25 @@ const dictionaries = {
 
     // Settings
     "nav.settings": "系统设置",
+
+    // Tools
+    "nav.tools": "工具",
+    "tools.kicker": "工具 // 实用工具",
+    "tools.title": "工具箱",
+    "tools.desc": "/// 数据维护工具集。",
+    "tools.convert.title": "修改记录类型",
+    "tools.convert.desc": "在电影和电视剧之间转换记录类型。",
+    "tools.convert.search_placeholder": "输入搜索关键词...",
+    "tools.convert.search": "搜索",
+    "tools.convert.searching": "搜索中...",
+    "tools.convert.no_results": "未找到结果",
+    "tools.convert.to_tv": "转换为电视剧",
+    "tools.convert.to_movie": "转换为电影",
+    "tools.convert.converting": "转换中...",
+    "tools.convert.success": "转换成功。新记录 ID: {0}",
+    "tools.convert.failed": "转换失败",
+    "tools.convert.confirm": "确定要转换这条记录的类型吗？",
+
     "settings.kicker": "配置 // 系统",
     "settings.title": "环境变量注册表",
     "settings.desc": "/// 运行时环境配置。更改需要重启服务后生效。",
