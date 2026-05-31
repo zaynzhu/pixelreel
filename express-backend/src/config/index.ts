@@ -65,7 +65,7 @@ export const config = {
   },
 
   radar: {
-    enabled: parseBoolean(process.env.RADAR_ENABLED, true),
+    enabled: parseBoolean(process.env.RADAR_ENABLED, false),
     cronEnabled: parseBoolean(process.env.RADAR_CRON_ENABLED, true),
     syncOnStart: parseBoolean(process.env.RADAR_SYNC_ON_START, true),
     scrapersEnabled: parseBoolean(process.env.RADAR_SCRAPERS_ENABLED, true),
