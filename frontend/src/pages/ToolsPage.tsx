@@ -64,8 +64,8 @@ export default function ToolsPage() {
         method: 'POST',
         body: JSON.stringify({
           id: record.id,
-          category: record.category,
-          targetCategory,
+          from: record.category,
+          to: targetCategory,
         }),
       });
       if (data.success) {

@@ -175,8 +175,6 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
     const d = detailRes.data;
     const credits = creditsRes.data;
 
-    console.log(`[TMDB Detail] tmdbId=${tmdbId}, isTv=${isTv}, name=${d.name}, title=${d.title}`);
-
     const director = (credits?.crew ?? [])
       .filter((c: any) => c.job === 'Director' || (isTv && c.job === 'Executive Producer'))
       .map((c: any) => c.name)

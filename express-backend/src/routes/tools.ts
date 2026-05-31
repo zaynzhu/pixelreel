@@ -69,7 +69,7 @@ router.post('/convert-category', async (req: Request, res: Response) => {
   const { id, from, to } = req.body
 
   // 参数验证
-  if (!id || !from || !to) {
+  if (id == null || !from || !to) {
     return res.status(400).json({ error: '缺少必填参数 id / from / to' })
   }
   if (from !== 'movie' && from !== 'tv_show') {
@@ -82,8 +82,15 @@ router.post('/convert-category', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'from 和 to 不能相同' })
   }
 
+  // BigInt 验证
+  let numericId: bigint
+  try {
+    numericId = BigInt(id)
+  } catch {
+    return res.status(400).json({ error: 'id 必须是有效的数字' })
+  }
+
   const db = getDb()
-  const numericId = BigInt(id)
 
   // 从源表读取完整记录
   let sourceRecord: any
@@ -97,7 +104,7 @@ router.post('/convert-category', async (req: Request, res: Response) => {
     return res.status(404).json({ error: `${from} 记录 ${id} 不存在` })
   }
 
-  // 备份原始数据
+  // 备份原始数据（保留，不自动删除）
   const timestamp = Date.now()
   const backupPath = path.join('temp', `convert_${id}_${timestamp}.json`)
   const absBackupPath = path.resolve(__dirname, '../../', backupPath)
@@ -107,43 +114,49 @@ router.post('/convert-category', async (req: Request, res: Response) => {
     typeof value === 'bigint' ? value.toString() : value
   , 2))
 
-  // 字段映射：构造目标记录
+  // 字段映射：构造目标记录（只保留目标表兼容的字段）
   const { id: _id, createdAt: _ca, updatedAt: _ua, releaseDate, firstAirDate, ...rest } = sourceRecord
 
+  // 移除源表独有字段，避免 Prisma 报错
   const targetData: any = { ...rest }
   if (from === 'movie' && to === 'tv_show') {
     targetData.firstAirDate = releaseDate
+    delete targetData.releaseDate
   } else {
     targetData.releaseDate = firstAirDate
+    delete targetData.firstAirDate
   }
 
-  // 在目标表创建新记录
-  let newRecord: any
-  if (to === 'movie') {
-    newRecord = await db.movie.create({ data: targetData })
-  } else {
-    newRecord = await db.tvShow.create({ data: targetData })
-  }
-
-  // 删除源表记录
-  if (from === 'movie') {
-    await db.movie.delete({ where: { id: numericId } })
-  } else {
-    await db.tvShow.delete({ where: { id: numericId } })
-  }
-
-  // 删除备份文件
+  // 使用事务保护 create + delete 操作
   try {
-    fs.unlinkSync(absBackupPath)
-  } catch {
-    // 备份删除失败不影响主流程
-  }
+    const result = await db.$transaction(async (tx) => {
+      // 在目标表创建新记录
+      let newRecord: any
+      if (to === 'movie') {
+        newRecord = await tx.movie.create({ data: targetData })
+      } else {
+        newRecord = await tx.tvShow.create({ data: targetData })
+      }
 
-  res.json({
-    success: true,
-    newId: Number(newRecord.id),
-    backupPath,
-  })
+      // 删除源表记录
+      if (from === 'movie') {
+        await tx.movie.delete({ where: { id: numericId } })
+      } else {
+        await tx.tvShow.delete({ where: { id: numericId } })
+      }
+
+      return newRecord
+    })
+
+    res.json({
+      success: true,
+      newId: Number(result.id),
+      backupPath,
+    })
+  } catch (err: any) {
+    // 事务失败，保留备份文件供排查
+    res.status(500).json({ error: err.message ?? '转换失败' })
+  }
 })
 
 export default router
