@@ -88,7 +88,8 @@ frontend/src/
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
-| `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=`（新片雷达列表，含 inLibrary 标记） |
+| `/tools` | `GET /api/tools/search?query=`（搜索电影/电视剧记录）, `POST /api/tools/convert-category`（转换记录类型） |
+| `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=&syncType=`（新片雷达列表，含 inLibrary 标记） |
 | `/radar` | `GET /api/radar/new-releases/status`（新片同步状态） |
 | `/radar` | `POST /api/radar/sync-new-releases`（触发新片全量同步） |
 | `/radar` | `POST /api/radar/sync-new-releases/:source`（触发新片单源同步） |
@@ -195,12 +196,22 @@ frontend/src/
 - `tsx watch` 会在 git commit 时重启后端，丢失内存中的任务状态 — 跑回填任务时用 `npx tsx src/server.ts`（无 watch）启动。
 - Settings 备份路径是 `.env.backup.local`（不是 `.env.backup`，后者曾是敏感文件已被删除）。
 - **雷达模块：** 拆分为「新片雷达」（`/radar`）和「热门」（`/popular`）两个页面，共享 `radarItem` 表。
+  - **数据区分：** `syncType` 字段区分数据来源（`new_release` | `popular`），前端按 `syncType` 过滤。
   - **新片雷达：** TMDB 新片源（now_playing/upcoming/on_the_air，无 trending），Netflix/Disney+/Apple TV+/Max 按上映日期排序 + 近 3 个月过滤，优酷 order=2（最新上映）。同步端点：`POST /api/radar/sync-new-releases`。
   - **热门：** TMDB 全源（含 trending），流媒体平台按人气排序，优酷 order=1（综合排序）。同步端点：`POST /api/radar/sync`。
   - 优酷和腾讯为可失败附加源（纯 JSON API，无需 Playwright）。RadarItem 用 sourceKey 去重 upsert，add-to-library 按 tmdbId 去重（无 tmdbId 时按标题去重）。优酷 API 响应数据在 `pageComponentList[].commonData`（不是 `searchResult`）。
   - 同步有锁（新片和热门各自独立锁），单源失败不影响整体。
-  - 雷达 cron 配置：`RADAR_SYNC_CORE_CRRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒热门+15秒新片）、`RADAR_WATCH_REGION`（默认 `TW`，TMDB 流媒体平台地区）。
-  - `RADAR_ENABLED=false` 时，手动同步和自动 cron 均返回 403。
+  - 雷达 cron 配置：`RADAR_SYNC_CORE_CRON`（默认每小时）、`RADAR_SYNC_SCRAPER_CRON`（默认每6小时）、`RADAR_SYNC_ON_START`（默认 true，启动后5秒热门+15秒新片）、`RADAR_WATCH_REGION`（默认 `TW`，TMDB 流媒体平台地区）。
+  - `RADAR_ENABLED` 默认 `false`，需在设置中手动启用才能同步。
+
+## 工具页面
+
+- **路径：** `/tools`
+- **功能：** 搜索记录并转换类型（movie ↔ tv_show）
+- **搜索：** `GET /api/tools/search?query=` 搜索 movie 和 tv_show 表的 title/doubanTitle/tmdbTitle
+- **转换：** `POST /api/tools/convert-category` 参数 `{ id, from, to }`，使用事务保护 create + delete 操作
+- **备份：** 转换前自动备份到 `express-backend/temp/convert_{id}_{timestamp}.json`，保留不自动删除
+- **字段映射：** movie → tv_show 时 `releaseDate` 映射到 `firstAirDate`，反向同理
 
 ## 重新刮削功能
 
