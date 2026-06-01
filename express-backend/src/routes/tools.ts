@@ -59,7 +59,12 @@ router.get('/search', async (req: Request, res: Response) => {
   const results = [
     ...movies.map((m) => ({ ...m, category: 'movie' as const })),
     ...tvShows.map((t) => ({ ...t, category: 'tv_show' as const })),
-  ].sort((a, b) => (b.doubanDate || '').localeCompare(a.doubanDate || ''))
+  ].sort((a, b) => {
+    // null 值排到最后
+    const dateA = a.doubanDate || '9999'
+    const dateB = b.doubanDate || '9999'
+    return dateB.localeCompare(dateA)
+  })
 
   res.json({ results })
 })
@@ -114,17 +119,37 @@ router.post('/convert-category', async (req: Request, res: Response) => {
     typeof value === 'bigint' ? value.toString() : value
   , 2))
 
-  // 字段映射：构造目标记录（只保留目标表兼容的字段）
-  const { id: _id, createdAt: _ca, updatedAt: _ua, releaseDate, firstAirDate, ...rest } = sourceRecord
+  // 字段映射：显式提取兼容字段，避免 spread 导入不兼容字段
+  const {
+    id: _id,
+    createdAt: _ca,
+    updatedAt: _ua,
+    releaseDate,
+    firstAirDate,
+    // 通用字段（movie 和 tv_show 都有）
+    title, posterUrl, overview, status, rating, shortReview,
+    doubanId, doubanTitle, doubanAltTitle, doubanIntro, doubanRating,
+    doubanDate, doubanComment, doubanLink, doubanAvgRating,
+    tmdbId, tmdbTitle, tmdbPosterUrl, tmdbReleaseDate, tmdbOverview,
+    tmdbVoteAverage, tmdbPopularity, tmdbGenreIds,
+    imdbId, imdbRating, traktId,
+  } = sourceRecord
 
-  // 移除源表独有字段，避免 Prisma 报错
-  const targetData: any = { ...rest }
+  // 构造目标记录（只包含目标表兼容的字段）
+  const targetData: any = {
+    title, posterUrl, overview, status, rating, shortReview,
+    doubanId, doubanTitle, doubanAltTitle, doubanIntro, doubanRating,
+    doubanDate, doubanComment, doubanLink, doubanAvgRating,
+    tmdbId, tmdbTitle, tmdbPosterUrl, tmdbReleaseDate, tmdbOverview,
+    tmdbVoteAverage, tmdbPopularity, tmdbGenreIds,
+    imdbId, imdbRating, traktId,
+  }
+
+  // 处理日期字段映射
   if (from === 'movie' && to === 'tv_show') {
     targetData.firstAirDate = releaseDate
-    delete targetData.releaseDate
   } else {
     targetData.releaseDate = firstAirDate
-    delete targetData.firstAirDate
   }
 
   // 使用事务保护 create + delete 操作
@@ -150,7 +175,7 @@ router.post('/convert-category', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      newId: Number(result.id),
+      newId: result.id.toString(), // 返回字符串避免 BigInt 精度丢失
       backupPath,
     })
   } catch (err: any) {

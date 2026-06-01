@@ -22,7 +22,7 @@ interface SearchResponse {
 
 interface ConvertResponse {
   success: boolean;
-  newId?: number;
+  newId?: string;
   error?: string;
 }
 
