@@ -63,7 +63,7 @@ export default function ShowcasePage() {
   }
 
   return (
-    <div className="showcase-bg flex flex-col h-[calc(100vh-80px)]">
+    <div className="showcase-bg flex min-h-[680px] flex-col">
       {/* 顶部控制栏 */}
       <div className="flex items-center justify-between mb-4 relative z-10">
         <div>
@@ -87,23 +87,23 @@ export default function ShowcasePage() {
 
       {/* 内容区域 */}
       {mode === "grid" ? (
-        <div className="flex-1 flex flex-col gap-4 min-h-0 relative z-10">
+        <div className="relative z-10 flex flex-1 flex-col gap-4 overflow-visible">
           {/* 顶部：统计横条 */}
           <StatsPanel summary={summary} />
 
           {/* 底部：海报 + 时间线/随机 */}
-          <div className="flex-1 flex gap-4 min-h-0">
+          <div className="flex min-h-[560px] flex-1 gap-4">
             {/* 左侧海报墙 60% */}
-            <div className="w-[60%] min-w-0">
+            <div className="h-full min-h-0 w-[60%] min-w-0 overflow-hidden">
               <PosterCarousel items={summary.recentItems} />
             </div>
 
             {/* 右侧 40%：时间线 + 随机推荐堆叠 */}
-            <div className="w-[40%] min-w-0 flex flex-col gap-4">
+            <div className="flex min-h-0 w-[40%] min-w-0 flex-col gap-4 overflow-hidden">
               <div className="flex-1 min-h-0">
                 <TimelineMini items={summary.recentItems} yearlyTimeline={summary.yearlyTimeline} />
               </div>
-              <div className="h-[200px]">
+              <div className="h-[300px] min-h-[260px]">
                 <RandomPick />
               </div>
             </div>

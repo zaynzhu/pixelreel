@@ -6,6 +6,9 @@ import { useI18nStore } from "../../stores/i18nStore"
 import { useTimelineDetailStore } from "../../stores/timelineDetailStore"
 import { ImgWithFallback } from "../ImgWithFallback"
 import TimelinePopup from "../TimelinePopup"
+import { apiFetch } from "../../api"
+
+const POSTER_BATCH_SIZE = 15
 
 /** Extract lightweight TimelineRecord fields from a full LibraryRecord */
 function toLightweight(r: LibraryRecord): TimelineRecord {
@@ -31,27 +34,54 @@ interface PosterCarouselProps {
 export function PosterCarousel({ items, compact }: PosterCarouselProps) {
   const { t } = useI18nStore()
   const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore()
-  const [batchIndex, setBatchIndex] = useState(0)
+  const [displayItems, setDisplayItems] = useState<RecentRecordItem[]>(() => items.slice(0, POSTER_BATCH_SIZE))
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
   const [transitionKey, setTransitionKey] = useState(0)
 
-  const batchSize = compact ? 15 : 15
   const cols = compact ? 5 : 5
   const rows = compact ? 3 : 3
-  const totalBatches = Math.ceil(items.length / batchSize) || 1
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setBatchIndex((prev) => {
-        const next = (prev + 1) % totalBatches
-        return next
-      })
-      setTransitionKey((k) => k + 1)
-    }, 5000)
-    return () => clearInterval(timer)
-  }, [totalBatches])
+    setDisplayItems(items.slice(0, POSTER_BATCH_SIZE))
+  }, [items])
 
-  const batch = items.slice(batchIndex * batchSize, batchIndex * batchSize + batchSize)
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchRandomBatch = async () => {
+      try {
+        const data = await apiFetch<LibraryRecord[] | LibraryRecord>(
+          `/library/random?limit=${POSTER_BATCH_SIZE}&t=${Date.now()}`,
+          { cache: "no-store" },
+        )
+        if (cancelled) return
+        const records = Array.isArray(data) ? data : [data]
+        setDisplayItems(records.map(toRecentItem))
+        setTransitionKey((k) => k + 1)
+      } catch {
+        if (cancelled) return
+        setDisplayItems(items.slice(0, POSTER_BATCH_SIZE))
+      }
+    }
+
+    void fetchRandomBatch()
+    const timer = setInterval(() => {
+      void fetchRandomBatch()
+    }, 5000)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [items])
+
+  useEffect(() => {
+    if (displayItems.length === 0) return
+    const timer = window.setTimeout(() => {
+      setTransitionKey((k) => k + 1)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [displayItems])
 
   const handlePosterClick = (item: RecentRecordItem) => {
     const record = {
@@ -70,8 +100,8 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
 
   return (
     <>
-      <div className="showcase-panel h-full flex flex-col p-5">
-        <div className="flex items-center justify-between mb-3">
+      <div className="showcase-panel flex h-full min-h-0 flex-col overflow-hidden p-5">
+        <div className="mb-3 flex shrink-0 items-center justify-between">
           <div className="section-kicker">{t("showcase.posters.kicker")}</div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full" style={{
@@ -86,17 +116,17 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
         </div>
 
         <div
-          className="flex-1 grid gap-1.5"
+          className="grid min-h-0 flex-1 gap-1.5 overflow-hidden"
           style={{
             gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gridTemplateRows: `repeat(${rows}, 1fr)`,
+            gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
           }}
           key={transitionKey}
         >
-          {batch.map((item, i) => (
+          {displayItems.map((item, i) => (
             <div
               key={`${item.category}-${item.id}`}
-              className="showcase-poster group"
+              className="showcase-poster group h-full min-h-0 overflow-hidden"
               style={{
                 animation: `poster-enter 0.4s ease-out ${i * 30}ms both`,
               }}
@@ -135,6 +165,19 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
       />
     </>
   )
+}
+
+function toRecentItem(record: LibraryRecord): RecentRecordItem {
+  return {
+    id: record.id,
+    category: record.category,
+    title: record.title,
+    subtitle: record.sourceLabel,
+    posterUrl: record.posterUrl,
+    status: record.status,
+    rating: record.rating,
+    createdAt: record.createdAt,
+  }
 }
 
 function PosterPlaceholder({ title }: { title: string }) {

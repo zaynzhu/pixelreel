@@ -19,6 +19,7 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /api/library/random — 随机获取记录（?limit=N，默认 1）
 router.get('/random', async (req: Request, res: Response) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const limit = Math.min(parseInt(req.query.limit as string) || 1, 20);
     if (limit === 1) {
       const record = await getRandomRecord();

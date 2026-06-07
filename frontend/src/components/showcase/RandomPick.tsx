@@ -7,6 +7,8 @@ import { ImgWithFallback } from "../ImgWithFallback"
 import TimelinePopup from "../TimelinePopup"
 import { apiFetch } from "../../api"
 
+const RANDOM_PICK_LIMIT = 10
+
 /** Extract lightweight TimelineRecord fields from a full LibraryRecord */
 function toLightweight(r: LibraryRecord): TimelineRecord {
   return {
@@ -36,7 +38,10 @@ export function RandomPick({ compact }: RandomPickProps) {
 
   const fetchRandom = useCallback(async () => {
     try {
-      const data = await apiFetch<LibraryRecord[] | LibraryRecord>("/library/random?limit=5")
+      const data = await apiFetch<LibraryRecord[] | LibraryRecord>(
+        `/library/random?limit=${RANDOM_PICK_LIMIT}&t=${Date.now()}`,
+        { cache: "no-store" },
+      )
       setRecords(Array.isArray(data) ? data : [data])
       setRefreshKey((k) => k + 1)
     } catch {
@@ -59,8 +64,8 @@ export function RandomPick({ compact }: RandomPickProps) {
 
   return (
     <>
-      <div className="showcase-panel h-full flex flex-col p-5">
-        <div className="flex items-center justify-between mb-3">
+      <div className="showcase-panel flex h-full min-h-0 flex-col overflow-hidden p-5">
+        <div className="mb-3 flex shrink-0 items-center justify-between">
           <div className="section-kicker">{t("showcase.random.kicker")}</div>
           <button
             className="text-[10px] uppercase tracking-wider cursor-pointer px-2 py-0.5"
@@ -85,22 +90,21 @@ export function RandomPick({ compact }: RandomPickProps) {
         </div>
 
         {records.length > 0 ? (
-          <div className="flex-1 flex items-center gap-2 min-h-0" key={refreshKey}>
+          <div className="grid min-h-0 flex-1 grid-cols-5 grid-rows-2 gap-2 overflow-hidden" key={refreshKey}>
             {records.map((record, i) => (
               <div
                 key={`${record.category}-${record.id}`}
-                className="flex-1 flex flex-col items-center gap-1.5 min-w-0"
+                className="flex min-h-0 min-w-0 flex-col items-center gap-1"
                 style={{ animation: `poster-enter 0.35s ease-out ${i * 60}ms both` }}
               >
                 <div
-                  className="showcase-poster group w-full"
+                  className="showcase-poster group min-h-0 w-full flex-1"
                   style={{
-                    aspectRatio: "2/3",
                     borderColor: "var(--accent)",
                   }}
                   onClick={() => {
-                    setSelectedRecord(record);
-                    void fetchDetail(record.category, record.id);
+                    setSelectedRecord(record)
+                    void fetchDetail(record.category, record.id)
                   }}
                 >
                   {record.posterUrl ? (
@@ -115,12 +119,12 @@ export function RandomPick({ compact }: RandomPickProps) {
                   )}
                 </div>
 
-                <div className="text-center w-full">
-                  <div className="text-[10px] font-display font-bold truncate" style={{ color: "var(--ink)" }}>
+                <div className="w-full shrink-0 text-center">
+                  <div className="truncate text-[9px] font-display font-bold" style={{ color: "var(--ink)" }}>
                     {record.title}
                   </div>
                   {record.rating != null && (
-                    <div className="text-[9px] mt-0.5" style={{ color: "var(--accent)" }}>
+                    <div className="mt-0.5 text-[8px]" style={{ color: "var(--accent)" }}>
                       {record.rating}/5
                     </div>
                   )}
