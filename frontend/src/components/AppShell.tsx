@@ -78,21 +78,18 @@ export default function AppShell() {
                   {t("nav.terminate")}
                 </button>
               </div>
-              <nav className="flex flex-wrap items-center gap-2">
-                {NAV_ITEMS.map((item) => (
+              <nav className="command-nav" aria-label="Primary navigation">
+                {NAV_ITEMS.map((item, index) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.to === "/"}
                     className={({ isActive }) =>
-                      `px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                        isActive
-                          ? "bg-[var(--accent)] text-black shadow-[0_0_15px_rgba(212,255,0,0.3)]"
-                          : "border border-[var(--line)] bg-[var(--surface-hover)] text-[var(--muted)] hover:text-white hover:border-white"
-                      }`
+                      `command-nav-item ${isActive ? "command-nav-item-active" : ""}`
                     }
                   >
-                    {item.label}
+                    <span className="command-nav-index">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="command-nav-label">{item.label}</span>
                   </NavLink>
                 ))}
               </nav>
