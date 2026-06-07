@@ -3,7 +3,7 @@ import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
 import { ImgWithFallback } from "../components/ImgWithFallback";
-import { RotateCw } from "lucide-react";
+import { ChevronDown, RotateCw } from "lucide-react";
 import RescrapeModal from "../components/RescrapeModal";
 import ActivityTimeline from "../components/ActivityTimeline";
 import type {
@@ -181,18 +181,19 @@ export default function LibraryPage() {
           <LibraryMetric label={t("lib.met.done")} value={overview.completed} caption={t("lib.met.done_cap")} />
         </div>
 
-        <div className="mt-8 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
-          <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
+        <div className="library-filter-panel mt-8">
+          <div className="absolute top-0 right-0 w-10 h-1 bg-[var(--accent)] opacity-70 shadow-[0_0_16px_rgba(212,255,0,0.45)]" />
+          <div className="absolute bottom-0 left-0 h-px w-24 bg-gradient-to-r from-[var(--accent)]/45 to-transparent" />
           <div className="grid gap-4 lg:grid-cols-[1.3fr_repeat(4,minmax(0,1fr))]">
             <label className="block">
-              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
+              <span className="library-control-label">
                 {t("lib.search.param")}
               </span>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={t("lib.search.placeholder")}
-                className="tech-input mt-2"
+                className="tech-input cyber-field mt-2"
               />
             </label>
 
@@ -234,7 +235,7 @@ export default function LibraryPage() {
             />
           </div>
 
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 flex flex-col gap-4 border-t border-[var(--line)] pt-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "all", label: t("lib.search.all") },
@@ -246,7 +247,7 @@ export default function LibraryPage() {
                   key={item.value}
                   type="button"
                   onClick={() => setCategory(item.value as CategoryFilter)}
-                  className={category === item.value ? "brutal-btn-accent" : "brutal-btn"}
+                  className={category === item.value ? "cyber-tab cyber-tab-active" : "cyber-tab"}
                 >
                   {item.label}
                 </button>
@@ -578,20 +579,23 @@ function FilterSelect({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] block mb-2">
+      <span className="library-control-label mb-2">
         {label}
       </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={`tech-input ${compact ? "mt-0" : ""}`}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value} className="bg-[var(--surface)]">
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className={`cyber-select-frame ${compact ? "min-w-[160px]" : ""}`}>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="cyber-select"
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value} className="bg-[var(--surface)]">
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--accent)]" />
+      </div>
     </label>
   );
 }
