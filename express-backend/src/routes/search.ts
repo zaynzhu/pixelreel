@@ -154,14 +154,14 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
     let creditsRes: any;
 
     // 优先使用电视剧结果（电视剧 ID 更可能是正确的）
-    if (tvResult.data) {
+    if ('data' in tvResult) {
       isTv = true;
       detailRes = tvResult.data;
       creditsRes = await axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
         headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
         ...axiosProxyOpts,
       });
-    } else if (movieResult.data) {
+    } else if ('data' in movieResult) {
       isTv = false;
       detailRes = movieResult.data;
       creditsRes = await axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
