@@ -10,6 +10,7 @@ import { ToastContainer, ConfirmDialog } from "./Toast";
 export default function AppShell() {
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const logout = useAuthStore((s) => s.logout);
+  const authRequired = useAuthStore((s) => s.authRequired)
   const { lang, toggleLang, t } = useI18nStore();
   const runningTasks = useTaskStore((s) => s.tasks.filter((t) => t.status === 'running').length);
 
@@ -71,12 +72,14 @@ export default function AppShell() {
                     </span>
                   )}
                 </button>
-                <button
-                  onClick={logout}
-                  className="brutal-btn"
-                >
-                  {t("nav.terminate")}
-                </button>
+                {authRequired && (
+                  <button
+                    onClick={logout}
+                    className="brutal-btn"
+                  >
+                    {t("nav.terminate")}
+                  </button>
+                )}
               </div>
               <nav className="command-nav" aria-label="Primary navigation">
                 {NAV_ITEMS.map((item, index) => (

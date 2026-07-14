@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import AppShell from "./components/AppShell"
 import { useAuthStore } from "./stores/authStore"
@@ -21,17 +21,35 @@ const PopularPage = lazy(() => import("./pages/PopularPage"))
 const ToolsPage = lazy(() => import("./pages/ToolsPage"))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const initialized = useAuthStore((s) => s.initialized)
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  if (!initialized) return <div className="p-6 text-xs text-[var(--muted)]">LOADING...</div>
   if (!isLoggedIn) return <Navigate to="/login" replace />
   return <>{children}</>
 }
 
+function LoginRoute() {
+  const initialized = useAuthStore((s) => s.initialized)
+  const authRequired = useAuthStore((s) => s.authRequired)
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+
+  if (!initialized) return <div className="p-6 text-xs text-[var(--muted)]">LOADING...</div>
+  if (!authRequired || isLoggedIn) return <Navigate to="/" replace />
+  return <LoginPage />
+}
+
 export default function App() {
+  const initializeAuth = useAuthStore((s) => s.initialize)
+
+  useEffect(() => {
+    void initializeAuth()
+  }, [initializeAuth])
+
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="p-6 text-xs text-[var(--muted)]">LOADING...</div>}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginRoute />} />
           <Route
             path="/"
             element={

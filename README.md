@@ -219,6 +219,7 @@ GET    /api/profile/summary
 GET    /api/analytics?year=
 GET    /api/activity
 POST   /api/activity/:id/undo
+GET    /api/auth/status
 POST   /api/auth/login
 GET    /api/settings
 PUT    /api/settings

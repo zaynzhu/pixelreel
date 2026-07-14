@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { Request, Response } from 'express';
 import { config } from '../config';
 import { authMiddleware } from '../middlewares/auth';
+import { getAuthStatus } from '../routes/auth';
 import { serializeSettingValue } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { resolveSteamImportStatus } from '../services/import/SteamOwnedGamesImportService';
@@ -47,6 +48,21 @@ test('关闭认证时放行请求，开启认证时拒绝无令牌请求', () =>
     assert.equal(nextCalled, false);
     assert.equal(statusCode, 401);
     assert.deepEqual(responseBody, { error: '未提供认证令牌' });
+  } finally {
+    mutableConfig.authEnabled = originalAuthEnabled;
+  }
+});
+
+test('认证状态接口与后端配置保持一致', () => {
+  const mutableConfig = config as unknown as { authEnabled: boolean };
+  const originalAuthEnabled = mutableConfig.authEnabled;
+
+  try {
+    mutableConfig.authEnabled = false;
+    assert.deepEqual(getAuthStatus(), { enabled: false });
+
+    mutableConfig.authEnabled = true;
+    assert.deepEqual(getAuthStatus(), { enabled: true });
   } finally {
     mutableConfig.authEnabled = originalAuthEnabled;
   }

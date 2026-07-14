@@ -93,7 +93,7 @@ frontend/src/
 | `/tools` | `GET /api/tools/search?query=`, `POST /api/tools/convert-category` |
 | `/radar` | `GET /api/radar?...&syncType=new_release`, `POST /api/radar/sync-new-releases` |
 | `/popular` | `GET /api/radar?...&syncType=popular`, `POST /api/radar/sync` |
-| `/login` | `POST /api/auth/login` |
+| `/login` | `GET /api/auth/status`, `POST /api/auth/login` |
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
 | — | `GET /api/import/douban-harvest/status` (任务进度) |
@@ -108,6 +108,8 @@ frontend/src/
 
 - **服务边界：** 后端默认监听 `127.0.0.1`，CORS 默认只允许 `localhost:18888` 和 `127.0.0.1:18888`；如需局域网访问，必须显式配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
 - **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。设为 `true` 后，除 `/api/auth/login` 外的 API 都必须携带有效 Bearer Token。
+- **前端鉴权门禁：** 应用启动时先读取 `GET /api/auth/status`；关闭认证时直接进入系统且隐藏退出按钮，开启认证时才要求本地 Token。
+- **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
 - **Settings 页面：** 敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值，输入新值才会覆盖。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。

@@ -4,6 +4,15 @@ import { config } from '../config';
 
 const router = Router();
 
+export function getAuthStatus() {
+  return { enabled: config.authEnabled };
+}
+
+// 前端启动时据此决定是否展示登录页
+router.get('/status', (_req: Request, res: Response) => {
+  res.json(getAuthStatus());
+});
+
 // 登录接口：简单的单用户验证
 router.post('/login', (req: Request, res: Response) => {
   const { username, password } = req.body;
