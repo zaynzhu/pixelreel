@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import { config, validateAuthConfiguration } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
 import { authMiddleware } from '../middlewares/auth';
+import { errorHandler, getHttpErrorResponse } from '../middlewares/errorHandler';
 import {
   assertRecordDeletionAllowed,
   ProtectedDoubanDataError,
@@ -95,6 +96,43 @@ test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', rating: 6 }), RequestValidationError);
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', shortReview: 'a'.repeat(1001) }), RequestValidationError);
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', doubanId: null }), RequestValidationError);
+});
+
+test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {
+  const requestError = getHttpErrorResponse(
+    Object.assign(new Error('limit 必须是正整数'), { status: 400 }),
+  );
+  assert.equal(requestError.status, 400);
+  assert.equal(requestError.message, 'limit 必须是正整数');
+  assert.equal(requestError.internalMessage, 'limit 必须是正整数');
+  assert.match(requestError.stack ?? '', /limit 必须是正整数/);
+  const internalError = getHttpErrorResponse(new Error('DATABASE_URL=/secret/path'));
+  assert.equal(internalError.status, 500);
+  assert.equal(internalError.message, '内部服务器错误');
+  assert.equal(internalError.internalMessage, 'DATABASE_URL=/secret/path');
+  assert.equal(getHttpErrorResponse(Object.assign(new Error('bad status'), { status: 200 })).status, 500);
+
+  let statusCode = 200;
+  let responseBody: unknown;
+  const response = {
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(body: unknown) {
+      responseBody = body;
+      return this;
+    },
+  } as unknown as Response;
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    errorHandler(new Error('mysql://user:password@private-host/database'), {} as Request, response, () => {});
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert.equal(statusCode, 500);
+  assert.deepEqual(responseBody, { error: '内部服务器错误' });
 });
 
 test('启用认证时拒绝示例凭证和弱密码', () => {

@@ -36,6 +36,7 @@ if (recoveredTaskCount > 0) {
 registerExternalApiRateLimiter();
 
 const app = express();
+app.disable('x-powered-by');
 
 // 中间件
 app.use(cors({

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { config } from '../config';
 import { getDb } from '../config/db';
@@ -19,7 +19,7 @@ router.get('/auth', (_req: Request, res: Response) => {
 });
 
 // GET /api/trakt/callback — Trakt OAuth 回调
-router.get('/callback', async (req: Request, res: Response) => {
+router.get('/callback', async (req: Request, res: Response, next: NextFunction) => {
   const code = req.query.code as string;
   if (!code) {
     res.status(400).json({ error: '缺少授权码' });
@@ -40,8 +40,8 @@ router.get('/callback', async (req: Request, res: Response) => {
       message: 'Trakt 授权成功！请将以下 access_token 配置到 .env 的 TRAKT_ACCESS_TOKEN',
       access_token: accessToken,
     });
-  } catch (ex: any) {
-    res.status(500).json({ error: `Trakt 授权失败: ${ex.message}` });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -74,7 +74,7 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
 }
 
 // POST /api/trakt/import/movies?accessToken=xxx&status=DONE
-router.post('/import/movies', async (req: Request, res: Response) => {
+router.post('/import/movies', async (req: Request, res: Response, next: NextFunction) => {
   const accessToken = (req.query.accessToken as string) || config.trakt.accessToken;
   if (!accessToken) {
     res.status(400).json({ error: '需要 Trakt access_token，请先完成 OAuth 授权' });
@@ -173,13 +173,13 @@ router.post('/import/movies', async (req: Request, res: Response) => {
     }
 
     res.json({ total: allMovies.length, imported, skipped, errors });
-  } catch (ex: any) {
-    res.status(500).json({ error: `Trakt 导入失败: ${ex.message}` });
+  } catch (err) {
+    next(err);
   }
 });
 
 // POST /api/trakt/import/shows?accessToken=xxx&status=DONE
-router.post('/import/shows', async (req: Request, res: Response) => {
+router.post('/import/shows', async (req: Request, res: Response, next: NextFunction) => {
   const accessToken = (req.query.accessToken as string) || config.trakt.accessToken;
   if (!accessToken) {
     res.status(400).json({ error: '需要 Trakt access_token，请先完成 OAuth 授权' });
@@ -279,8 +279,8 @@ router.post('/import/shows', async (req: Request, res: Response) => {
     }
 
     res.json({ total: allShows.length, imported, skipped, errors });
-  } catch (ex: any) {
-    res.status(500).json({ error: `Trakt 导入失败: ${ex.message}` });
+  } catch (err) {
+    next(err);
   }
 });
 

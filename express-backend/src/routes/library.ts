@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords, normalizeCategory, parseYear, normalizeStatus } from '../services/LibraryService';
 import {
   parseLibraryRecordUpdateBody,
@@ -21,7 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/library/random — 随机获取记录（?limit=N，默认 1）
-router.get('/random', async (req: Request, res: Response) => {
+router.get('/random', async (req: Request, res: Response, next: NextFunction) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const limit = Math.min(parseInt(req.query.limit as string) || 1, 20);
@@ -40,25 +40,25 @@ router.get('/random', async (req: Request, res: Response) => {
       }
       res.json(records);
     }
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
 // GET /api/library/:category/:id — 获取单条完整记录
-router.get('/:category/:id', async (req: Request, res: Response) => {
+router.get('/:category/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const category = req.params.category as string;
     const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
     const result = await getRecord(category, id);
     res.json(result);
-  } catch (err: any) {
-    res.status(err.status || 400).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
 // PATCH /api/library/:category/:id — 更新记录状态/评分/短评（不变）
-router.patch('/:category/:id', async (req: Request, res: Response) => {
+router.patch('/:category/:id', async (req: Request, res: Response, next: NextFunction) => {
   const category = req.params.category as string;
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   const request = parseLibraryRecordUpdateBody(req.body);
@@ -70,9 +70,8 @@ router.patch('/:category/:id', async (req: Request, res: Response) => {
       shortReview: request.shortReview,
     });
     res.json(result);
-  } catch (err: any) {
-    const status = err.status || 400;
-    res.status(status).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 

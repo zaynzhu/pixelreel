@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { config } from '../config';
 import { searchMovies, searchGames } from '../services/ExternalSearchService';
@@ -43,7 +43,7 @@ router.get('/games', async (req: Request, res: Response) => {
 });
 
 // GET /api/search/douban/:doubanId — 通过豆瓣 ID 获取详情
-router.get('/douban/:doubanId', async (req: Request, res: Response) => {
+router.get('/douban/:doubanId', async (req: Request, res: Response, next: NextFunction) => {
   const doubanId = req.params.doubanId;
   if (!doubanId) {
     res.status(400).json({ error: 'doubanId required' });
@@ -78,13 +78,13 @@ router.get('/douban/:doubanId', async (req: Request, res: Response) => {
       imdbVotes: '',
       boxOffice: '',
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message ?? 'Douban request failed' });
+  } catch (err) {
+    next(err);
   }
 });
 
 // GET /api/search/imdb/:imdbId — 通过 IMDb ID 获取详情（OMDb）
-router.get('/imdb/:imdbId', async (req: Request, res: Response) => {
+router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFunction) => {
   const imdbId = req.params.imdbId;
   if (!imdbId || !config.omdb.apiKey) {
     res.status(400).json({ error: 'imdbId required or OMDb not configured' });
@@ -118,13 +118,13 @@ router.get('/imdb/:imdbId', async (req: Request, res: Response) => {
       imdbVotes: d.imdbVotes,
       boxOffice: d.BoxOffice,
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message ?? 'OMDb request failed' });
+  } catch (err) {
+    next(err);
   }
 });
 
 // GET /api/search/tmdb/:tmdbId — 通过 TMDB ID 获取详情
-router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
+router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFunction) => {
   const tmdbId = req.params.tmdbId;
   if (!tmdbId || !config.tmdb.apiKey) {
     res.status(400).json({ error: 'tmdbId required or TMDB not configured' });
@@ -202,13 +202,13 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response) => {
       imdbVotes: d.vote_count ? String(d.vote_count) : '',
       boxOffice: d.revenue ? `$${d.revenue.toLocaleString()}` : '',
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message ?? 'TMDB request failed' });
+  } catch (err) {
+    next(err);
   }
 });
 
 // GET /api/search/rawg/:rawgId — 通过 RAWG ID 获取游戏详情
-router.get('/rawg/:rawgId', async (req: Request, res: Response) => {
+router.get('/rawg/:rawgId', async (req: Request, res: Response, next: NextFunction) => {
   const rawgId = req.params.rawgId;
   if (!rawgId || !config.rawg.apiKey) {
     res.status(400).json({ error: 'rawgId required or RAWG not configured' });
@@ -243,13 +243,13 @@ router.get('/rawg/:rawgId', async (req: Request, res: Response) => {
       description: d.description_raw ?? '',
       screenshots,
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message ?? 'RAWG request failed' });
+  } catch (err) {
+    next(err);
   }
 });
 
 // GET /api/search/steam/:steamAppId — 通过 Steam App ID 获取游戏详情
-router.get('/steam/:steamAppId', async (req: Request, res: Response) => {
+router.get('/steam/:steamAppId', async (req: Request, res: Response, next: NextFunction) => {
   const steamAppId = req.params.steamAppId as string;
   if (!steamAppId) {
     res.status(400).json({ error: 'steamAppId required' });
@@ -294,8 +294,8 @@ router.get('/steam/:steamAppId', async (req: Request, res: Response) => {
       steamUrl: d.steam_appid ? `https://store.steampowered.com/app/${d.steam_appid}` : '',
       screenshots,
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message ?? 'Steam request failed' });
+  } catch (err) {
+    next(err);
   }
 });
 

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { validateAuthConfiguration } from '../config';
@@ -230,10 +230,10 @@ export function validateAuthSettingValues(
 }
 
 // ── GET /api/settings ──
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', (_req: Request, res: Response, next: NextFunction) => {
   try {
     if (!fs.existsSync(ENV_PATH)) {
-      res.status(500).json({ error: '.env 文件不存在' });
+      next(new Error('.env 文件不存在'));
       return;
     }
     const content = fs.readFileSync(ENV_PATH, 'utf-8');
@@ -254,13 +254,13 @@ router.get('/', (_req: Request, res: Response) => {
     }));
 
     res.json({ categories });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
 // ── PUT /api/settings ──
-router.put('/', (req: Request, res: Response) => {
+router.put('/', (req: Request, res: Response, next: NextFunction) => {
   try {
     const values = (req.body as { values?: Record<string, unknown> } | null)?.values;
     if (!values || typeof values !== 'object' || Array.isArray(values)) {
@@ -275,7 +275,7 @@ router.put('/', (req: Request, res: Response) => {
     }
 
     if (!fs.existsSync(ENV_PATH)) {
-      res.status(500).json({ error: '.env 文件不存在' });
+      next(new Error('.env 文件不存在'));
       return;
     }
 
@@ -311,8 +311,8 @@ router.put('/', (req: Request, res: Response) => {
     fs.renameSync(ENV_TEMP_PATH, ENV_PATH);
 
     res.json({ success: true, restartRequired: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 

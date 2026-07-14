@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 import { getDb } from '../config/db';
 import { runRadarSync, isSyncRunning, getRadarSyncStatus, runNewReleaseRadarSync, isNewReleaseSyncRunning, getNewReleaseRadarSyncStatus } from '../services/radar/radarSyncService';
@@ -10,7 +10,7 @@ const VALID_TYPES = ['movie', 'tv'];
 const VALID_PLATFORMS = new Set(['Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '腾讯视频']);
 
 // GET /api/radar — list with filters
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   const category = req.query.category as string | undefined;
   const type = req.query.type as string | undefined;
   const platform = req.query.platform as string | undefined;
@@ -74,8 +74,8 @@ router.get('/', async (req: Request, res: Response) => {
       lastSyncedAt: latestSync?.lastSyncedAt ?? null,
       warnings: [],
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -86,7 +86,7 @@ router.get('/status', (_req: Request, res: Response) => {
 });
 
 // POST /api/radar/sync — trigger full sync
-router.post('/sync', async (_req: Request, res: Response) => {
+router.post('/sync', async (_req: Request, res: Response, next: NextFunction) => {
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -98,13 +98,13 @@ router.post('/sync', async (_req: Request, res: Response) => {
   try {
     const { taskId } = await runRadarSync();
     res.json({ taskId, status: 'running' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
 // POST /api/radar/sync/:source — trigger single-source sync
-router.post('/sync/:source', async (req: Request, res: Response) => {
+router.post('/sync/:source', async (req: Request, res: Response, next: NextFunction) => {
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -117,8 +117,8 @@ router.post('/sync/:source', async (req: Request, res: Response) => {
   try {
     const { taskId } = await runRadarSync(source);
     res.json({ taskId, status: 'running' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -129,7 +129,7 @@ router.get('/new-releases/status', (_req: Request, res: Response) => {
 });
 
 // POST /api/radar/sync-new-releases — trigger new release sync
-router.post('/sync-new-releases', async (_req: Request, res: Response) => {
+router.post('/sync-new-releases', async (_req: Request, res: Response, next: NextFunction) => {
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -141,13 +141,13 @@ router.post('/sync-new-releases', async (_req: Request, res: Response) => {
   try {
     const { taskId } = await runNewReleaseRadarSync();
     res.json({ taskId, status: 'running' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
 // POST /api/radar/sync-new-releases/:source — trigger single-source new release sync
-router.post('/sync-new-releases/:source', async (req: Request, res: Response) => {
+router.post('/sync-new-releases/:source', async (req: Request, res: Response, next: NextFunction) => {
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -160,13 +160,13 @@ router.post('/sync-new-releases/:source', async (req: Request, res: Response) =>
   try {
     const { taskId } = await runNewReleaseRadarSync(source);
     res.json({ taskId, status: 'running' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 
 // POST /api/radar/add-to-library
-router.post('/add-to-library', async (req: Request, res: Response) => {
+router.post('/add-to-library', async (req: Request, res: Response, next: NextFunction) => {
   const { radarItemId } = req.body;
   if (!radarItemId) {
     res.status(400).json({ error: 'radarItemId required' });
@@ -242,8 +242,8 @@ router.post('/add-to-library', async (req: Request, res: Response) => {
       });
       res.json({ exists: false, recordId: movie.id, category });
     }
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 });
 

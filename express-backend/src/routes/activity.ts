@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import { logActivity, EntityType } from '../services/activity-log'
 
@@ -41,7 +41,7 @@ function entityDelegate(entityType: string) {
 }
 
 // GET /api/activity — 活动日志列表（游标分页）
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100)
     const cursorStr = req.query.cursor as string | undefined
@@ -86,14 +86,13 @@ router.get('/', async (req: Request, res: Response) => {
       records: items.map(serializeLog),
       nextCursor,
     })
-  } catch (err: any) {
-    console.error('[Activity] 查询失败:', err)
-    res.status(500).json({ error: err.message })
+  } catch (err) {
+    next(err)
   }
 })
 
 // POST /api/activity/:id/undo — 撤销操作
-router.post('/:id/undo', async (req: Request, res: Response) => {
+router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = BigInt(req.params.id as string)
 
@@ -206,9 +205,8 @@ router.post('/:id/undo', async (req: Request, res: Response) => {
     }
 
     res.json({ success: true, message: '撤销成功' })
-  } catch (err: any) {
-    console.error('[Activity] 撤销失败:', err)
-    res.status(err.status || 500).json({ error: err.message })
+  } catch (err) {
+    next(err)
   }
 })
 

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import fs from 'fs'
 import path from 'path'
@@ -70,7 +70,7 @@ router.get('/search', async (req: Request, res: Response) => {
 })
 
 // 转换记录类型（movie ↔ tv_show）
-router.post('/convert-category', async (req: Request, res: Response) => {
+router.post('/convert-category', async (req: Request, res: Response, next: NextFunction) => {
   const { id, from, to } = req.body
 
   // 参数验证
@@ -179,9 +179,9 @@ router.post('/convert-category', async (req: Request, res: Response) => {
       newId: result.id.toString(), // 返回字符串避免 BigInt 精度丢失
       backupPath,
     })
-  } catch (err: any) {
+  } catch (err) {
     // 事务失败，保留备份文件供排查
-    res.status(500).json({ error: err.message ?? '转换失败' })
+    next(err)
   }
 })
 
