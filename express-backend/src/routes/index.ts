@@ -15,12 +15,16 @@ import settingsRoutes from '../routes/settings';
 import timelineRoutes from '../routes/timeline';
 import radarRoutes from '../routes/radar';
 import toolsRoutes from '../routes/tools';
+import healthRoutes from '../routes/health';
 import { authMiddleware } from '../middlewares/auth';
 
 const router = Router();
 
 // 认证路由（无需鉴权）
 router.use('/auth', authRoutes);
+
+// 健康检查（无需鉴权，包含数据库可用性）
+router.use('/health', healthRoutes);
 
 // 其余 API 根据 AUTH_ENABLED 统一鉴权
 router.use(authMiddleware);

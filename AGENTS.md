@@ -95,6 +95,7 @@ frontend/src/
 | `/popular` | `GET /api/radar?...&syncType=popular`, `POST /api/radar/sync` |
 | `/login` | `GET /api/auth/status`, `POST /api/auth/login` |
 | `/settings` | `GET/PUT /api/settings` (环境变量配置) |
+| — | `GET /api/health`（公开健康检查，包含数据库可用性） |
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
 | — | `GET /api/import/douban-harvest/status` (任务进度) |
 | — | `GET /api/import/tasks` (所有任务列表) |
@@ -108,6 +109,7 @@ frontend/src/
 
 - **服务边界：** 后端默认监听 `127.0.0.1`，CORS 默认只允许 `localhost:18888` 和 `127.0.0.1:18888`；如需局域网访问，必须显式配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
 - **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。设为 `true` 后，除 `/api/auth/login` 外的 API 都必须携带有效 Bearer Token。
+- **健康检查：** `GET /api/health` 无需鉴权；数据库正常返回 200，数据库不可用时返回 503，响应不包含底层错误或连接信息。
 - **前端鉴权门禁：** 应用启动时先读取 `GET /api/auth/status`；关闭认证时直接进入系统且隐藏退出按钮，开启认证时才要求本地 Token。
 - **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
 - **Settings 页面：** 敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值，输入新值才会覆盖。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。

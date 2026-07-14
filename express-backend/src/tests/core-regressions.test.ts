@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import { config } from '../config';
 import { authMiddleware } from '../middlewares/auth';
 import { getAuthStatus } from '../routes/auth';
+import { getHealthStatus } from '../routes/health';
 import { formatEnvLine, serializeSettingValue, validateSettingValues } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { resolveSteamImportStatus } from '../services/import/SteamOwnedGamesImportService';
@@ -167,6 +168,21 @@ test('认证状态接口与后端配置保持一致', () => {
   } finally {
     mutableConfig.authEnabled = originalAuthEnabled;
   }
+});
+
+test('健康检查区分数据库正常和不可用', async () => {
+  assert.deepEqual(await getHealthStatus(async () => {}), {
+    status: 'ok',
+    service: 'ok',
+    database: 'ok',
+  });
+  assert.deepEqual(await getHealthStatus(async () => {
+    throw new Error('database credentials leaked here');
+  }), {
+    status: 'degraded',
+    service: 'ok',
+    database: 'unavailable',
+  });
 });
 
 test('已游玩的想玩游戏按进行中统计', () => {

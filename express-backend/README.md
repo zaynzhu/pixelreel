@@ -104,6 +104,7 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/activity/:id/undo` | 撤销操作 |
 | GET | `/api/auth/status` | 查询是否启用登录鉴权 |
 | POST | `/api/auth/login` | 登录获取 JWT Token |
+| GET | `/api/health` | 公开健康检查，包含数据库可用性 |
 | GET | `/api/settings` | 获取环境变量配置（敏感值脱敏） |
 | PUT | `/api/settings` | 更新环境变量配置 |
 
