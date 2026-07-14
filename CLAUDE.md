@@ -118,7 +118,7 @@ frontend/src/
 - **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。设为 `true` 后，除 `/api/auth/login` 外的 API 都必须携带有效 Bearer Token。
 - **前端鉴权门禁：** 应用启动时先读取 `GET /api/auth/status`；关闭认证时直接进入系统且隐藏退出按钮，开启认证时才要求本地 Token。
 - **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
-- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
+- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。带速率限制（250ms 间隔，429 重试）。

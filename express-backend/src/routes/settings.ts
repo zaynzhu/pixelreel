@@ -6,6 +6,7 @@ const router = Router();
 
 const ENV_PATH = path.resolve(__dirname, '../../.env');
 const ENV_BACKUP_PATH = path.resolve(__dirname, '../../.env.backup.local');
+const ENV_TEMP_PATH = path.resolve(__dirname, '../../.env.tmp.local');
 
 // ── 分类定义 ──
 interface FieldDef {
@@ -42,7 +43,7 @@ const CATEGORIES: CategoryDef[] = [
     fields: [
       { key: 'DATABASE_URL', labelZh: '数据库连接', labelEn: 'Database URL', sensitive: true, type: 'text' },
       { key: 'HOST', labelZh: '监听地址', labelEn: 'Listen Host', sensitive: false, type: 'text' },
-      { key: 'PORT', labelZh: '端口', labelEn: 'Port', sensitive: false, type: 'text' },
+      { key: 'PORT', labelZh: '端口', labelEn: 'Port', sensitive: false, type: 'number' },
       { key: 'CORS_ALLOWED_ORIGINS', labelZh: '允许的前端来源', labelEn: 'Allowed Frontend Origins', sensitive: false, type: 'text' },
       { key: 'IMAGE_PROXY_MAX_BYTES', labelZh: '图片代理最大字节', labelEn: 'Image Proxy Max Bytes', sensitive: false, type: 'number' },
       { key: 'IMAGE_PROXY_CACHE_SECONDS', labelZh: '图片代理缓存(秒)', labelEn: 'Image Proxy Cache (s)', sensitive: false, type: 'number' },
@@ -155,14 +156,44 @@ const CATEGORIES: CategoryDef[] = [
   },
 ];
 
-// 所有已知 key 的集合，用于验证 PUT 请求
-const KNOWN_KEYS = new Set(CATEGORIES.flatMap(c => c.fields.map(f => f.key)));
+const FIELD_BY_KEY = new Map(CATEGORIES.flatMap(c => c.fields.map(f => [f.key, f] as const)));
 
 export function serializeSettingValue(sensitive: boolean, value: string) {
   return {
     value: sensitive ? '' : value,
     configured: sensitive && Boolean(value),
   };
+}
+
+export function validateSettingValues(values: Record<string, unknown>): string | null {
+  for (const [key, value] of Object.entries(values)) {
+    const field = FIELD_BY_KEY.get(key);
+    if (!field) return `未知配置项: ${key}`;
+    if (typeof value !== 'string') return `${key} 必须是字符串`;
+    if (/\r|\n/.test(value)) return `${key} 不能包含换行`;
+    if (/['"]/.test(value)) return `${key} 不能包含引号`;
+
+    if (field.type === 'boolean' && value !== 'true' && value !== 'false') {
+      return `${key} 必须是 true 或 false`;
+    }
+
+    if (field.type === 'number') {
+      const numberValue = Number(value);
+      if (value.trim() === '' || !Number.isFinite(numberValue) || numberValue < 0) {
+        return `${key} 必须是非负数字`;
+      }
+      if (key === 'PORT' && (!Number.isInteger(numberValue) || numberValue < 1 || numberValue > 65535)) {
+        return 'PORT 必须是 1 到 65535 之间的整数';
+      }
+    }
+  }
+
+  return null;
+}
+
+export function formatEnvLine(key: string, value: string): string {
+  const formattedValue = /\s|#/.test(value) ? `"${value}"` : value;
+  return `${key}=${formattedValue}`;
 }
 
 // ── 解析 .env 文件 ──
@@ -217,16 +248,15 @@ router.get('/', (_req: Request, res: Response) => {
 // ── PUT /api/settings ──
 router.put('/', (req: Request, res: Response) => {
   try {
-    const { values } = req.body as { values: Record<string, string> };
-    if (!values || typeof values !== 'object') {
+    const values = (req.body as { values?: Record<string, unknown> } | null)?.values;
+    if (!values || typeof values !== 'object' || Array.isArray(values)) {
       res.status(400).json({ error: '缺少 values 参数' });
       return;
     }
 
-    // 验证：只接受已知 key
-    const unknownKeys = Object.keys(values).filter(k => !KNOWN_KEYS.has(k));
-    if (unknownKeys.length > 0) {
-      res.status(400).json({ error: `未知配置项: ${unknownKeys.join(', ')}` });
+    const validationError = validateSettingValues(values);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
       return;
     }
 
@@ -241,11 +271,12 @@ router.put('/', (req: Request, res: Response) => {
     const content = fs.readFileSync(ENV_PATH, 'utf-8');
     let updated = content;
 
-    for (const [key, value] of Object.entries(values)) {
+    for (const [key, rawValue] of Object.entries(values)) {
+      const value = rawValue as string;
       // 转义正则特殊字符
       const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`^${escapedKey}=.*$`, 'm');
-      const newLine = `${key}=${value.includes(' ') || value.includes('#') ? `"${value}"` : value}`;
+      const newLine = formatEnvLine(key, value);
 
       if (regex.test(updated)) {
         updated = updated.replace(regex, newLine);
@@ -255,7 +286,9 @@ router.put('/', (req: Request, res: Response) => {
       }
     }
 
-    fs.writeFileSync(ENV_PATH, updated, 'utf-8');
+    // 同目录写入临时文件后原子替换，避免中途失败破坏现有配置
+    fs.writeFileSync(ENV_TEMP_PATH, updated, 'utf-8');
+    fs.renameSync(ENV_TEMP_PATH, ENV_PATH);
 
     res.json({ success: true, restartRequired: true });
   } catch (err: any) {

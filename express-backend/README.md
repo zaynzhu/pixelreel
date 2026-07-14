@@ -142,7 +142,7 @@ express-backend/
 1. **Express 5 依赖**：依赖 Express 5 原生 async 错误转发。降级到 Express 4.x 需手动包裹 try-catch。
 2. **服务边界**：默认监听 `127.0.0.1`，CORS 仅允许本机前端；局域网部署需显式配置 `HOST` 与 `CORS_ALLOWED_ORIGINS`。
 3. **JWT 鉴权可选**：默认关闭（`AUTH_ENABLED=false`）；启用后除 `/api/auth/login` 外的 API 都要求有效 Bearer Token。
-4. **配置脱敏**：敏感配置只返回 `configured` 状态，不回传现有明文；空密码值表示保留原配置。
+4. **配置安全**：敏感配置只返回 `configured` 状态，不回传现有明文；空密码值表示保留原配置。更新接口校验字段类型和危险字符，并以临时文件原子替换 `.env`。
 5. **BigInt 序列化**：`server.ts` 中有 `BigInt.prototype.toJSON` 补丁，切勿移除。
 6. **`getDb()`**：所有路由和服务必须用 `getDb()` 获取 Prisma 扩展客户端，不能直接 import 原始 prisma。
 7. **TMDB API 代理**：国内必须设置 `HTTPS_PROXY`，否则 TMDB 请求超时。

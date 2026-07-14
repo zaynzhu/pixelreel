@@ -4,7 +4,7 @@ import type { Request, Response } from 'express';
 import { config } from '../config';
 import { authMiddleware } from '../middlewares/auth';
 import { getAuthStatus } from '../routes/auth';
-import { serializeSettingValue } from '../routes/settings';
+import { formatEnvLine, serializeSettingValue, validateSettingValues } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { resolveSteamImportStatus } from '../services/import/SteamOwnedGamesImportService';
 
@@ -17,6 +17,22 @@ test('敏感配置只返回已配置标记', () => {
     value: 'visible-value',
     configured: false,
   });
+});
+
+test('配置更新拒绝无效类型和危险字符', () => {
+  assert.equal(validateSettingValues({ AUTH_ENABLED: 'yes' }), 'AUTH_ENABLED 必须是 true 或 false');
+  assert.equal(validateSettingValues({ PORT: '70000' }), 'PORT 必须是 1 到 65535 之间的整数');
+  assert.equal(validateSettingValues({ IMAGE_PROXY_MAX_BYTES: '-1' }), 'IMAGE_PROXY_MAX_BYTES 必须是非负数字');
+  assert.equal(validateSettingValues({ HOST: '127.0.0.1\nINJECTED=true' }), 'HOST 不能包含换行');
+  assert.equal(validateSettingValues({ HOST: '"127.0.0.1"' }), 'HOST 不能包含引号');
+  assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');
+  assert.equal(validateSettingValues({ AUTH_ENABLED: 'false', PORT: '18889' }), null);
+});
+
+test('配置值仅在需要时添加引号', () => {
+  assert.equal(formatEnvLine('HOST', '127.0.0.1'), 'HOST=127.0.0.1');
+  assert.equal(formatEnvLine('DOUBAN_DATA_DIR', '/path/with space'), 'DOUBAN_DATA_DIR="/path/with space"');
+  assert.equal(formatEnvLine('CORS_ALLOWED_ORIGINS', 'http://localhost:18888#local'), 'CORS_ALLOWED_ORIGINS="http://localhost:18888#local"');
 });
 
 test('关闭认证时放行请求，开启认证时拒绝无令牌请求', () => {
