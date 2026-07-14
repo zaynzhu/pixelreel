@@ -158,6 +158,13 @@ const CATEGORIES: CategoryDef[] = [
 // 所有已知 key 的集合，用于验证 PUT 请求
 const KNOWN_KEYS = new Set(CATEGORIES.flatMap(c => c.fields.map(f => f.key)));
 
+export function serializeSettingValue(sensitive: boolean, value: string) {
+  return {
+    value: sensitive ? '' : value,
+    configured: sensitive && Boolean(value),
+  };
+}
+
 // ── 解析 .env 文件 ──
 function parseEnvFile(content: string): Record<string, string> {
   const result: Record<string, string> = {};
@@ -195,8 +202,7 @@ router.get('/', (_req: Request, res: Response) => {
         key: f.key,
         labelZh: f.labelZh,
         labelEn: f.labelEn,
-        value: f.sensitive ? '' : envValues[f.key] ?? '',
-        configured: f.sensitive && Boolean(envValues[f.key]),
+        ...serializeSettingValue(f.sensitive, envValues[f.key] ?? ''),
         sensitive: f.sensitive,
         type: f.type,
       })),

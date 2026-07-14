@@ -4,6 +4,10 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+export function resolveSteamImportStatus(status: string | null | undefined, playtimeMinutes: number): string {
+  return status || (playtimeMinutes > 0 ? RecordStatus.IN_PROGRESS : RecordStatus.WANT);
+}
+
 // Steam 已购游戏导入服务，与 Java 端 SteamOwnedGamesImportService 完全对齐
 export async function importSteamOwnedGames(steamId?: string | null, status?: string | null): Promise<ImportSummary> {
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
@@ -55,7 +59,7 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
       posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appid}/header.jpg`,
       playtimeMinutes: owned.playtime_forever ?? null,
       importedAt: new Date(),
-      status: status || ((owned.playtime_forever ?? 0) > 0 ? RecordStatus.IN_PROGRESS : RecordStatus.WANT),
+      status: resolveSteamImportStatus(status, owned.playtime_forever ?? 0),
       rating: null,
       shortReview: null,
     });
