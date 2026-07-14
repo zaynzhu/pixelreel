@@ -147,4 +147,5 @@ express-backend/
 6. **`getDb()`**：所有路由和服务必须用 `getDb()` 获取 Prisma 扩展客户端，不能直接 import 原始 prisma。
 7. **TMDB API 代理**：国内必须设置 `HTTPS_PROXY`，否则 TMDB 请求超时。
 8. **TMDB Bearer Token**：`TMDB_API_KEY` 存的是 JWT（eyJ 开头），必须通过 `Authorization: Bearer` 传递。
-9. **tsx watch 陷阱**：git commit 会触发重启，丢失内存中的任务状态。跑回填任务时用 `npx tsx src/server.ts`。
+9. **外部 API 限流**：全局 Axios `RateLimiter` 按服务主域名保证请求起始时间至少间隔 2 秒；图片代理二进制下载除外。
+10. **tsx watch 陷阱**：git commit 会触发重启，丢失内存中的任务状态。跑回填任务时用 `npx tsx src/server.ts`。

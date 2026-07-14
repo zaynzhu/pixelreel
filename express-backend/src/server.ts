@@ -7,6 +7,7 @@ import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import cron from 'node-cron';
 import { runRadarSync, runNewReleaseRadarSync } from './services/radar/radarSyncService';
+import { registerExternalApiRateLimiter } from './services/external-api-rate-limiter';
 
 // JSON 序列化 BigInt 支持（Prisma 使用 BigInt 作为主键类型）
 (BigInt.prototype as any).toJSON = function () {
@@ -15,6 +16,9 @@ import { runRadarSync, runNewReleaseRadarSync } from './services/radar/radarSync
 
 // 注册活动日志 Prisma 扩展（必须在路由挂载前）
 registerExtensions(createActivityLogExtension());
+
+// 所有 Axios 外部 API 请求按服务统一限流
+registerExternalApiRateLimiter();
 
 const app = express();
 

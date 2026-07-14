@@ -7,6 +7,11 @@ import { getAuthStatus } from '../routes/auth';
 import { formatEnvLine, serializeSettingValue, validateSettingValues } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { resolveSteamImportStatus } from '../services/import/SteamOwnedGamesImportService';
+import {
+  getExternalServiceKey,
+  RateLimiter,
+  shouldRateLimitRequest,
+} from '../services/external-api-rate-limiter';
 
 test('敏感配置只返回已配置标记', () => {
   assert.deepEqual(serializeSettingValue(true, 'secret-value'), {
@@ -33,6 +38,33 @@ test('配置值仅在需要时添加引号', () => {
   assert.equal(formatEnvLine('HOST', '127.0.0.1'), 'HOST=127.0.0.1');
   assert.equal(formatEnvLine('DOUBAN_DATA_DIR', '/path/with space'), 'DOUBAN_DATA_DIR="/path/with space"');
   assert.equal(formatEnvLine('CORS_ALLOWED_ORIGINS', 'http://localhost:18888#local'), 'CORS_ALLOWED_ORIGINS="http://localhost:18888#local"');
+});
+
+test('同一外部服务的并发请求按两秒间隔排队', async () => {
+  let now = 0;
+  const waits: number[] = [];
+  const limiter = new RateLimiter(2000, () => now, async (ms) => {
+    waits.push(ms);
+    now += ms;
+  });
+
+  await Promise.all([
+    limiter.wait('themoviedb.org'),
+    limiter.wait('themoviedb.org'),
+    limiter.wait('themoviedb.org'),
+  ]);
+
+  assert.deepEqual(waits, [2000, 2000]);
+  assert.equal(now, 4000);
+});
+
+test('外部 API 按服务主域名限流并排除图片代理下载', () => {
+  assert.equal(getExternalServiceKey({ url: 'https://api.themoviedb.org/3/movie/1' }), 'themoviedb.org');
+  assert.equal(getExternalServiceKey({ url: '/api/storesearch', baseURL: 'https://store.steampowered.com' }), 'steampowered.com');
+  assert.equal(getExternalServiceKey({ url: 'http://127.0.0.1:18889/api/profile/summary' }), null);
+  assert.equal(shouldRateLimitRequest({ url: 'https://api.rawg.io/api/games' }), true);
+  assert.equal(shouldRateLimitRequest({ url: 'https://image.tmdb.org/poster.jpg', method: 'HEAD' }), false);
+  assert.equal(shouldRateLimitRequest({ url: 'https://image.tmdb.org/poster.jpg', responseType: 'arraybuffer' }), false);
 });
 
 test('关闭认证时放行请求，开启认证时拒绝无令牌请求', () => {
