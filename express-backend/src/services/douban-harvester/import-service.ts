@@ -1,4 +1,5 @@
 import path from 'path';
+import type { Prisma } from '@prisma/client';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
@@ -16,6 +17,17 @@ const LABELS: Record<string, string> = {
   incremental: '豆瓣增量数据导入',
 };
 
+export interface DoubanRawData {
+  doubanId: string | null;
+  doubanTitle: string;
+  doubanAltTitle: string;
+  doubanIntro: string;
+  doubanRating: number | null;
+  doubanDate: string;
+  doubanComment: string;
+  doubanLink: string;
+}
+
 // 从豆瓣链接提取 doubanId
 function extractDoubanId(link: string): string | null {
   const idx = link.indexOf('/subject/');
@@ -31,6 +43,56 @@ function convertRating(rating: string): number | null {
   const n = parseFloat(rating);
   if (isNaN(n) || n <= 0) return null;
   return Math.min(Math.round(n), 5);
+}
+
+export function buildDoubanRawData(item: CollectItem): DoubanRawData {
+  return {
+    doubanId: extractDoubanId(item.link),
+    doubanTitle: item.title,
+    doubanAltTitle: item.altTitle,
+    doubanIntro: item.intro,
+    doubanRating: convertRating(item.rating),
+    doubanDate: item.date,
+    doubanComment: item.comment,
+    doubanLink: item.link,
+  };
+}
+
+export function buildMissingDoubanRawData(
+  record: Record<string, unknown>,
+  item: CollectItem,
+): Partial<DoubanRawData> {
+  const rawData = buildDoubanRawData(item);
+  if (record.doubanId != null && record.doubanId !== rawData.doubanId) return {};
+  return Object.fromEntries(
+    Object.entries(rawData).filter(([key, value]) => record[key] == null && value != null),
+  ) as Partial<DoubanRawData>;
+}
+
+async function updateMissingDoubanRawFields(
+  model: 'movie' | 'tvShow',
+  record: Record<string, unknown>,
+  item: CollectItem,
+): Promise<boolean> {
+  const data = buildMissingDoubanRawData(record, item);
+  if (Object.keys(data).length === 0) return false;
+
+  const id = record.id as bigint;
+  const nullFields = Object.keys(data).map(key => ({ [key]: null }));
+  // 原始来源字段回填不属于用户编辑，使用 updateMany 避免污染活动日志。
+  if (model === 'movie') {
+    const result = await getDb().movie.updateMany({
+      where: { id, AND: nullFields as Prisma.MovieWhereInput[] },
+      data,
+    });
+    return result.count > 0;
+  } else {
+    const result = await getDb().tvShow.updateMany({
+      where: { id, AND: nullFields as Prisma.TvShowWhereInput[] },
+      data,
+    });
+    return result.count > 0;
+  }
 }
 
 // 从 CollectItem 的 intro 中提取年份
@@ -92,8 +154,14 @@ export async function importFromJson(
 
       // 按 doubanId 查重
       if (doubanId) {
-        if (existingDoubanMovies.has(doubanId) || existingDoubanTvShows.has(doubanId)) {
-          summary.skipped++;
+        const existingMovie = existingDoubanMovies.get(doubanId);
+        const existingTvShow = existingDoubanTvShows.get(doubanId);
+        if (existingMovie || existingTvShow) {
+          const updated = existingMovie
+            ? await updateMissingDoubanRawFields('movie', existingMovie, item)
+            : await updateMissingDoubanRawFields('tvShow', existingTvShow, item);
+          if (updated) summary.imported++;
+          else summary.skipped++;
           continue;
         }
       }
@@ -103,6 +171,7 @@ export async function importFromJson(
 
       // 评分转换
       const rating = convertRating(item.rating);
+      const doubanRawData = buildDoubanRawData(item);
       const watchedDate = item.date ? new Date(item.date + 'T00:00:00.000Z') : undefined;
 
       // 判断类型并写入对应表
@@ -111,18 +180,16 @@ export async function importFromJson(
         if (enrich.tmdbId) {
           const existing = await getDb().tvShow.findFirst({ where: { tmdbId: enrich.tmdbId } });
           if (existing) {
-            // 补充 doubanId
-            if (!existing.doubanId && doubanId) {
-              await getDb().tvShow.update({ where: { id: existing.id }, data: { doubanId } });
-            }
-            summary.skipped++;
+            const updated = await updateMissingDoubanRawFields('tvShow', existing, item);
+            if (updated) summary.imported++;
+            else summary.skipped++;
             continue;
           }
         }
 
         await getDb().tvShow.create({
           data: {
-            doubanId: doubanId,
+            ...doubanRawData,
             tmdbId: enrich.tmdbId ?? undefined,
             title: item.title,
             posterUrl: enrich.posterUrl,
@@ -132,7 +199,6 @@ export async function importFromJson(
             tmdbPopularity: enrich.popularity,
             status: RecordStatus.DONE,
             rating,
-            doubanRating: rating,
             shortReview: item.comment || null,
             createdAt: watchedDate,
           },
@@ -142,17 +208,16 @@ export async function importFromJson(
         if (enrich.tmdbId) {
           const existing = await getDb().movie.findFirst({ where: { tmdbId: enrich.tmdbId } });
           if (existing) {
-            if (!existing.doubanId && doubanId) {
-              await getDb().movie.update({ where: { id: existing.id }, data: { doubanId } });
-            }
-            summary.skipped++;
+            const updated = await updateMissingDoubanRawFields('movie', existing, item);
+            if (updated) summary.imported++;
+            else summary.skipped++;
             continue;
           }
         }
 
         await getDb().movie.create({
           data: {
-            doubanId: doubanId,
+            ...doubanRawData,
             tmdbId: enrich.tmdbId ?? undefined,
             title: item.title,
             posterUrl: enrich.posterUrl,
@@ -160,7 +225,6 @@ export async function importFromJson(
             tmdbPopularity: enrich.popularity,
             status: RecordStatus.DONE,
             rating,
-            doubanRating: rating,
             shortReview: item.comment || null,
             createdAt: watchedDate,
           },
@@ -328,4 +392,3 @@ export function startIncrementalHarvestTask() {
 
   return task;
 }
-

@@ -38,6 +38,10 @@ import {
   RateLimiter,
   shouldRateLimitRequest,
 } from '../services/external-api-rate-limiter';
+import {
+  buildDoubanRawData,
+  buildMissingDoubanRawData,
+} from '../services/douban-harvester/import-service';
 import { INTERRUPTED_TASK_ERROR, TaskConflictError, TaskManager } from '../services/task-manager';
 
 test('敏感配置只返回已配置标记', () => {
@@ -330,6 +334,48 @@ test('豆瓣影视记录在 Prisma 写入层禁止删除', () => {
   );
   assert.doesNotThrow(() => assertRecordDeletionAllowed('Movie', { doubanId: null }));
   assert.doesNotThrow(() => assertRecordDeletionAllowed('Game', { doubanId: 'not-applicable' }));
+});
+
+test('豆瓣导入保留原始字段并且只补空值', () => {
+  const item = {
+    title: '测试片名',
+    altTitle: '',
+    intro: '2026 / 剧情',
+    rating: '4.6',
+    date: '2026-07-15',
+    comment: '豆瓣原始短评',
+    link: 'https://movie.douban.com/subject/12345678/',
+  };
+
+  assert.deepEqual(buildDoubanRawData(item), {
+    doubanId: '12345678',
+    doubanTitle: '测试片名',
+    doubanAltTitle: '',
+    doubanIntro: '2026 / 剧情',
+    doubanRating: 5,
+    doubanDate: '2026-07-15',
+    doubanComment: '豆瓣原始短评',
+    doubanLink: 'https://movie.douban.com/subject/12345678/',
+  });
+  assert.deepEqual(buildMissingDoubanRawData({
+    doubanId: '12345678',
+    doubanTitle: '已有标题',
+    doubanAltTitle: null,
+    doubanIntro: null,
+    doubanRating: 3,
+    doubanDate: null,
+    doubanComment: '已有短评',
+    doubanLink: null,
+  }, item), {
+    doubanAltTitle: '',
+    doubanIntro: '2026 / 剧情',
+    doubanDate: '2026-07-15',
+    doubanLink: 'https://movie.douban.com/subject/12345678/',
+  });
+  assert.deepEqual(buildMissingDoubanRawData({
+    doubanId: '87654321',
+    doubanTitle: null,
+  }, item), {});
 });
 
 test('已游玩的想玩游戏按进行中统计', () => {
