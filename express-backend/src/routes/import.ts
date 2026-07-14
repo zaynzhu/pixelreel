@@ -11,17 +11,27 @@ import { startEnrichBackfillTask } from '../services/import/TmdbEnrichBackfillSe
 import { startTmdbDetailBackfillTask } from '../services/import/TmdbDetailBackfillService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { config } from '../config';
+import { RecordStatus } from '../enums/RecordStatus';
+import {
+  parsePositiveIntegerParameter,
+  parseRecordStatusParameter,
+  parseStringParameter,
+  RequestValidationError,
+} from './request-validation';
 
 const router = Router();
+const IMPORT_DEFAULT_LIMIT = 50;
+const IMPORT_MAX_LIMIT = 100;
+const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
 
 // multer 内存存储，用于豆瓣 CSV 上传
 const upload = multer({ storage: multer.memoryStorage() });
 
 // POST /api/import/steam/owned?steamId=xxx&status=WANT
 router.post('/steam/owned', async (req: Request, res: Response) => {
-  const steamId = req.query.steamId as string | undefined;
-  const status = req.query.status as string | undefined;
-  const result = await importSteamOwnedGames(steamId || null, status || null);
+  const steamId = parseStringParameter(req.query.steamId, 'steamId');
+  const status = parseRecordStatusParameter(req.query.status, null);
+  const result = await importSteamOwnedGames(steamId, status);
   res.json(result);
 });
 
@@ -33,56 +43,51 @@ router.post('/steam/backfill', async (_req: Request, res: Response) => {
 
 // POST /api/import/xbox/owned?gamertag=xxx&status=UNSET
 router.post('/xbox/owned', async (req: Request, res: Response) => {
-  const gamertag = req.query.gamertag as string;
-  const status = req.query.status as string | undefined;
-  if (!gamertag) {
-    res.status(400).json({ error: '缺少 gamertag 参数' });
-    return;
-  }
-  const result = await importXboxOwnedGames(gamertag, status || null);
+  const gamertag = parseStringParameter(req.query.gamertag, 'gamertag', true)!;
+  const status = parseRecordStatusParameter(req.query.status, null);
+  const result = await importXboxOwnedGames(gamertag, status);
   res.json(result);
 });
 
 // POST /api/import/psn/owned?psnId=xxx&status=UNSET
 router.post('/psn/owned', async (req: Request, res: Response) => {
-  const psnId = req.query.psnId as string;
-  const status = req.query.status as string | undefined;
-  if (!psnId) {
-    res.status(400).json({ error: '缺少 psnId 参数' });
-    return;
-  }
-  const result = await importPsnOwnedGames(psnId, status || null);
+  const psnId = parseStringParameter(req.query.psnId, 'psnId', true)!;
+  const status = parseRecordStatusParameter(req.query.status, null);
+  const result = await importPsnOwnedGames(psnId, status);
   res.json(result);
 });
 
 // POST /api/import/douban — multipart 文件上传
 router.post('/douban', upload.single('file'), async (req: Request, res: Response) => {
-  const defaultStatus = req.query.status as string | undefined;
+  const defaultStatus = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
   const file = req.file;
-  const result = await importDoubanCsv(file, defaultStatus || null);
+  const result = await importDoubanCsv(file, defaultStatus);
   res.json(result);
 });
 
 // POST /api/import/covers/fill?limit=50
 router.post('/covers/fill', async (req: Request, res: Response) => {
-  const limitParam = req.query.limit as string | undefined;
-  const limit = limitParam ? parseInt(limitParam, 10) : null;
+  const limit = parsePositiveIntegerParameter(
+    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
+  );
   const result = await fillMissingCovers(limit);
   res.json(result);
 });
 
 // POST /api/import/tmdb-covers/fill?limit=50
 router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
-  const limitParam = req.query.limit as string | undefined;
-  const limit = limitParam ? parseInt(limitParam, 10) : null;
+  const limit = parsePositiveIntegerParameter(
+    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
+  );
   const result = await fillTmdbCovers(limit);
   res.json(result);
 });
 
 // POST /api/import/tmdb-enrich/backfill?limit=50 — 为已有记录补充 TMDB 数据
 router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
-  const limitParam = req.query.limit as string | undefined;
-  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+  const limit = parsePositiveIntegerParameter(
+    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
+  );
   const task = startEnrichBackfillTask(limit);
   res.json({
     taskId: task.taskId,
@@ -94,8 +99,9 @@ router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-detail/backfill?limit=50
 router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
-  const limitParam = req.query.limit as string | undefined;
-  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+  const limit = parsePositiveIntegerParameter(
+    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
+  );
   const task = startTmdbDetailBackfillTask(limit);
   res.json({
     taskId: task.taskId,
@@ -107,7 +113,10 @@ router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
 
 // POST /api/import/douban-harvest?mode=json|full|incremental
 router.post('/douban-harvest', async (req: Request, res: Response) => {
-  const mode = (req.query.mode as string) || 'json';
+  const mode = parseStringParameter(req.query.mode, 'mode') ?? 'json';
+  if (!DOUBAN_HARVEST_MODES.has(mode)) {
+    throw new RequestValidationError('mode 必须是 json、full、incremental 之一');
+  }
 
   let task;
   switch (mode) {
@@ -164,11 +173,7 @@ router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response
 
 // GET /api/import/douban-harvest/status?taskId=xxx
 router.get('/douban-harvest/status', (req: Request, res: Response) => {
-  const taskId = req.query.taskId as string;
-  if (!taskId) {
-    res.status(400).json({ error: '缺少 taskId 参数' });
-    return;
-  }
+  const taskId = parseStringParameter(req.query.taskId, 'taskId', true)!;
   const task = getTask(taskId);
   if (!task) {
     res.status(404).json({ error: '任务不存在' });

@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import type { Request, Response } from 'express';
 import { config, validateAuthConfiguration } from '../config';
+import { RecordStatus } from '../enums/RecordStatus';
 import { authMiddleware } from '../middlewares/auth';
 import {
   assertRecordDeletionAllowed,
@@ -12,6 +13,12 @@ import {
 } from '../middlewares/activity-log';
 import { getAuthStatus } from '../routes/auth';
 import { getHealthStatus } from '../routes/health';
+import {
+  parsePositiveIntegerParameter,
+  parseRecordStatusParameter,
+  parseStringParameter,
+  RequestValidationError,
+} from '../routes/request-validation';
 import {
   formatEnvLine,
   serializeSettingValue,
@@ -52,6 +59,20 @@ test('配置值仅在需要时添加引号', () => {
   assert.equal(formatEnvLine('HOST', '127.0.0.1'), 'HOST=127.0.0.1');
   assert.equal(formatEnvLine('DOUBAN_DATA_DIR', '/path/with space'), 'DOUBAN_DATA_DIR="/path/with space"');
   assert.equal(formatEnvLine('CORS_ALLOWED_ORIGINS', 'http://localhost:18888#local'), 'CORS_ALLOWED_ORIGINS="http://localhost:18888#local"');
+});
+
+test('导入参数拒绝无效 limit、status 和标识值', () => {
+  assert.equal(parsePositiveIntegerParameter(undefined, 'limit', 50, 100), 50);
+  assert.equal(parsePositiveIntegerParameter('100', 'limit', 50, 100), 100);
+  assert.throws(() => parsePositiveIntegerParameter('0', 'limit', 50, 100), RequestValidationError);
+  assert.throws(() => parsePositiveIntegerParameter('1.5', 'limit', 50, 100), RequestValidationError);
+  assert.throws(() => parsePositiveIntegerParameter('101', 'limit', 50, 100), RequestValidationError);
+  assert.equal(parseRecordStatusParameter(undefined, null), null);
+  assert.equal(parseRecordStatusParameter('done', RecordStatus.WANT), RecordStatus.DONE);
+  assert.throws(() => parseRecordStatusParameter('INVALID', RecordStatus.WANT), RequestValidationError);
+  assert.equal(parseStringParameter('  player-id  ', 'steamId'), 'player-id');
+  assert.throws(() => parseStringParameter([], 'steamId'), RequestValidationError);
+  assert.throws(() => parseStringParameter('  ', 'gamertag', true), RequestValidationError);
 });
 
 test('启用认证时拒绝示例凭证和弱密码', () => {

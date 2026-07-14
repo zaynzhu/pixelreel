@@ -4,6 +4,7 @@ import { config } from '../config';
 import { getDb } from '../config/db';
 import { RecordStatus } from '../enums/RecordStatus';
 import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
+import { parseRecordStatusParameter } from './request-validation';
 
 const router = Router();
 
@@ -80,7 +81,7 @@ router.post('/import/movies', async (req: Request, res: Response) => {
     return;
   }
 
-  const status = (req.query.status as string) || RecordStatus.WANT;
+  const status = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
 
   try {
     // 使用自动分页并发拉取所有页面的数据
@@ -185,7 +186,7 @@ router.post('/import/shows', async (req: Request, res: Response) => {
     return;
   }
 
-  const status = (req.query.status as string) || RecordStatus.WANT;
+  const status = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
 
   try {
     // 使用自动分页并发拉取所有页面的数据

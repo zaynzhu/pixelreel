@@ -116,6 +116,7 @@ frontend/src/
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
+- **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。受全局 2 秒外部 API 限流并支持 429 重试。
 - **搜索 Provider：** 电影搜索支持 OMDb/TMDB/豆瓣/IMDb/Trakt；剧集支持 TMDB/豆瓣；游戏支持 RAWG/Steam。IMDb Provider 复用 OMDb API。OMDb/IMDb 搜索中文关键词时自动通过 TMDB 获取英文原名回退（按 vote_count 排序）。RAWG 和 Steam 搜索中文关键词时通过 MyMemory API 翻译为英文再搜索。Steam 海报使用 CDN 地址 `cdn.akamai.steamstatic.com`。豆瓣搜索使用公开接口 `/j/subject_suggest`，不需要 Cookie。
 - **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。
