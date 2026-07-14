@@ -17,6 +17,11 @@ import { getAuthStatus } from '../routes/auth';
 import { parseActivityCursor } from '../routes/activity';
 import { getHealthStatus } from '../routes/health';
 import {
+  parseRadarItemIdBody,
+  parseRadarListParameters,
+  parseRadarSyncSource,
+} from '../routes/radar';
+import {
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
   parseDateParameter,
@@ -161,6 +166,7 @@ test('直接 CRUD 写入仅接受已知字段和有效类型', () => {
 
 test('活动日志参数拒绝非法游标、ID 和日期', () => {
   assert.equal(parsePositiveBigIntParameter('9007199254740993', 'entityId'), 9007199254740993n);
+  assert.equal(parsePositiveBigIntParameter(42, 'entityId'), 42n);
   assert.throws(() => parsePositiveBigIntParameter('not-a-number', 'entityId'), RequestValidationError);
   assert.equal(parseDateParameter('2026-07-15T00:00:00.000Z', 'from')?.toISOString(), '2026-07-15T00:00:00.000Z');
   assert.throws(() => parseDateParameter('not-a-date', 'from'), RequestValidationError);
@@ -171,6 +177,46 @@ test('活动日志参数拒绝非法游标、ID 和日期', () => {
   assert.throws(() => parseActivityCursor('2026-07-15T00:00:00.000Z__bad'), RequestValidationError);
   assert.throws(() => parseActivityCursor('invalid-cursor'), RequestValidationError);
   assert.equal(parseActivityCursor(undefined), null);
+});
+
+test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {
+  assert.deepEqual(parseRadarListParameters({}), {
+    category: null,
+    type: null,
+    platform: null,
+    source: null,
+    syncType: null,
+    page: 1,
+    limit: 40,
+  });
+  assert.deepEqual(parseRadarListParameters({
+    category: 'upcoming',
+    type: 'movie',
+    platform: 'Netflix',
+    source: 'tmdb',
+    syncType: 'new_release',
+    page: '2',
+    limit: '50',
+  }), {
+    category: 'upcoming',
+    type: 'movie',
+    platform: 'Netflix',
+    source: 'tmdb',
+    syncType: 'new_release',
+    page: 2,
+    limit: 50,
+  });
+  assert.equal(parseRadarSyncSource('tencent'), 'tencent');
+  assert.equal(parseRadarItemIdBody({ radarItemId: '9007199254740993' }), 9007199254740993n);
+  assert.equal(parseRadarItemIdBody({ radarItemId: 42 }), 42n);
+
+  assert.throws(() => parseRadarListParameters({ category: 'invalid' }), RequestValidationError);
+  assert.throws(() => parseRadarListParameters({ page: '1.5' }), RequestValidationError);
+  assert.throws(() => parseRadarListParameters({ limit: '101' }), RequestValidationError);
+  assert.throws(() => parseRadarListParameters({ source: ['tmdb'] }), RequestValidationError);
+  assert.throws(() => parseRadarSyncSource('douban'), RequestValidationError);
+  assert.throws(() => parseRadarItemIdBody({ radarItemId: 0 }), RequestValidationError);
+  assert.throws(() => parseRadarItemIdBody({ radarItemId: 1, extra: true }), RequestValidationError);
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {

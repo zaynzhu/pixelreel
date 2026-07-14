@@ -2,27 +2,58 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 import { getDb } from '../config/db';
 import { runRadarSync, isSyncRunning, getRadarSyncStatus, runNewReleaseRadarSync, isNewReleaseSyncRunning, getNewReleaseRadarSyncStatus } from '../services/radar/radarSyncService';
+import {
+  parseEnumParameter,
+  parsePositiveBigIntParameter,
+  parsePositiveIntegerParameter,
+  RequestValidationError,
+} from './request-validation';
 
 const router = Router();
 
-const VALID_CATEGORIES = ['now_playing', 'upcoming', 'trending', 'on_the_air'];
-const VALID_TYPES = ['movie', 'tv'];
-const VALID_PLATFORMS = new Set(['Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '腾讯视频']);
+const VALID_CATEGORIES = ['now_playing', 'upcoming', 'trending', 'on_the_air'] as const;
+const VALID_TYPES = ['movie', 'tv'] as const;
+const VALID_PLATFORMS = ['Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '腾讯视频'] as const;
+const VALID_SOURCES = ['tmdb', 'youku', 'tencent', 'douban'] as const;
+const SYNC_SOURCES = ['tmdb', 'youku', 'tencent'] as const;
+const VALID_SYNC_TYPES = ['new_release', 'popular'] as const;
+
+export function parseRadarListParameters(query: Record<string, unknown>) {
+  return {
+    category: parseEnumParameter(query.category, 'category', VALID_CATEGORIES),
+    type: parseEnumParameter(query.type, 'type', VALID_TYPES),
+    platform: parseEnumParameter(query.platform, 'platform', VALID_PLATFORMS),
+    source: parseEnumParameter(query.source, 'source', VALID_SOURCES),
+    syncType: parseEnumParameter(query.syncType, 'syncType', VALID_SYNC_TYPES),
+    page: parsePositiveIntegerParameter(query.page, 'page', 1, 10000),
+    limit: parsePositiveIntegerParameter(query.limit, 'limit', 40, 100),
+  };
+}
+
+export function parseRadarSyncSource(value: unknown) {
+  return parseEnumParameter(value, 'source', SYNC_SOURCES, true)!;
+}
+
+export function parseRadarItemIdBody(value: unknown): bigint {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RequestValidationError('请求体必须是对象');
+  }
+  const body = value as Record<string, unknown>;
+  const unknownKey = Object.keys(body).find(key => key !== 'radarItemId');
+  if (unknownKey) throw new RequestValidationError(`未知字段: ${unknownKey}`);
+  return parsePositiveBigIntParameter(body.radarItemId, 'radarItemId', true)!;
+}
 
 // GET /api/radar — list with filters
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-  const category = req.query.category as string | undefined;
-  const type = req.query.type as string | undefined;
-  const platform = req.query.platform as string | undefined;
-  const source = req.query.source as string | undefined;
-  const syncType = req.query.syncType as string | undefined;
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 40));
+  const { category, type, platform, source, syncType, page, limit } = parseRadarListParameters(
+    req.query as Record<string, unknown>,
+  );
 
   const where: any = {};
-  if (category && VALID_CATEGORIES.includes(category)) where.category = category;
-  if (type && VALID_TYPES.includes(type)) where.type = type;
-  if (platform && VALID_PLATFORMS.has(platform)) where.platform = platform;
+  if (category) where.category = category;
+  if (type) where.type = type;
+  if (platform) where.platform = platform;
   if (source) where.source = source;
   if (syncType) where.syncType = syncType;
 
@@ -105,6 +136,7 @@ router.post('/sync', async (_req: Request, res: Response, next: NextFunction) =>
 
 // POST /api/radar/sync/:source — trigger single-source sync
 router.post('/sync/:source', async (req: Request, res: Response, next: NextFunction) => {
+  const source = parseRadarSyncSource(req.params.source);
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -113,7 +145,6 @@ router.post('/sync/:source', async (req: Request, res: Response, next: NextFunct
     res.status(409).json({ error: '同步正在运行中' });
     return;
   }
-  const source = req.params.source as string;
   try {
     const { taskId } = await runRadarSync(source);
     res.json({ taskId, status: 'running' });
@@ -148,6 +179,7 @@ router.post('/sync-new-releases', async (_req: Request, res: Response, next: Nex
 
 // POST /api/radar/sync-new-releases/:source — trigger single-source new release sync
 router.post('/sync-new-releases/:source', async (req: Request, res: Response, next: NextFunction) => {
+  const source = parseRadarSyncSource(req.params.source);
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -156,7 +188,6 @@ router.post('/sync-new-releases/:source', async (req: Request, res: Response, ne
     res.status(409).json({ error: '新片同步正在运行中' });
     return;
   }
-  const source = req.params.source as string;
   try {
     const { taskId } = await runNewReleaseRadarSync(source);
     res.json({ taskId, status: 'running' });
@@ -167,15 +198,11 @@ router.post('/sync-new-releases/:source', async (req: Request, res: Response, ne
 
 // POST /api/radar/add-to-library
 router.post('/add-to-library', async (req: Request, res: Response, next: NextFunction) => {
-  const { radarItemId } = req.body;
-  if (!radarItemId) {
-    res.status(400).json({ error: 'radarItemId required' });
-    return;
-  }
+  const radarItemId = parseRadarItemIdBody(req.body);
 
   try {
     const db = getDb();
-    const radarItem = await db.radarItem.findUnique({ where: { id: Number(radarItemId) } });
+    const radarItem = await db.radarItem.findUnique({ where: { id: radarItemId } });
     if (!radarItem) {
       res.status(404).json({ error: 'RadarItem not found' });
       return;

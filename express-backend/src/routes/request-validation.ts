@@ -45,12 +45,20 @@ export function parsePositiveBigIntParameter(
   name: string,
   required = false,
 ): bigint | null {
-  const parsed = parseStringParameter(value, name, required);
-  if (!parsed) return null;
-  if (!/^[1-9]\d*$/.test(parsed)) {
+  if (value == null || value === '') {
+    if (required) throw new RequestValidationError(`缺少 ${name} 参数`);
+    return null;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      throw new RequestValidationError(`${name} 必须是正整数`);
+    }
+    return BigInt(value);
+  }
+  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value.trim())) {
     throw new RequestValidationError(`${name} 必须是正整数`);
   }
-  return BigInt(parsed);
+  return BigInt(value.trim());
 }
 
 export function parseDateParameter(value: unknown, name: string): Date | null {
@@ -76,6 +84,20 @@ export function parseStringParameter(value: unknown, name: string, required = fa
     return null;
   }
   return parsed;
+}
+
+export function parseEnumParameter<T extends string>(
+  value: unknown,
+  name: string,
+  allowedValues: readonly T[],
+  required = false,
+): T | null {
+  const parsed = parseStringParameter(value, name, required);
+  if (!parsed) return null;
+  if (!allowedValues.includes(parsed as T)) {
+    throw new RequestValidationError(`${name} 必须是 ${allowedValues.join('、')} 之一`);
+  }
+  return parsed as T;
 }
 
 export function parseRecordStatusParameter(value: unknown, defaultValue: RecordStatus): RecordStatus;
@@ -154,17 +176,7 @@ function parseNullableIdentifierField(value: unknown, name: string, maxLength: n
 }
 
 function parseNullablePositiveBigIntField(value: unknown, name: string): bigint | null {
-  if (value == null) return null;
-  if (typeof value === 'number') {
-    if (!Number.isSafeInteger(value) || value <= 0) {
-      throw new RequestValidationError(`${name} 必须是正整数`);
-    }
-    return BigInt(value);
-  }
-  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value.trim())) {
-    throw new RequestValidationError(`${name} 必须是正整数`);
-  }
-  return BigInt(value.trim());
+  return parsePositiveBigIntParameter(value, name);
 }
 
 function parseNullableIntegerField(
