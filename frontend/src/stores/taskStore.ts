@@ -17,7 +17,6 @@ interface TaskState {
   tasks: Task[];
   pollTasks: () => Promise<void>;
   cancelTask: (taskId: string) => Promise<void>;
-  clearDoubanData: () => Promise<{ deletedMovies: number; deletedTvShows: number }>;
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -35,10 +34,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   cancelTask: async (taskId: string) => {
     await apiFetch(`/import/tasks/${taskId}`, { method: 'DELETE' });
     await get().pollTasks();
-  },
-  clearDoubanData: async () => {
-    const result = await apiFetch<{ deletedMovies: number; deletedTvShows: number }>('/import/douban/clear-data', { method: 'POST' });
-    return result;
   },
 }));
 

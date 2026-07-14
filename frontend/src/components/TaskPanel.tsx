@@ -1,6 +1,4 @@
 import { useTaskStore } from '../stores/taskStore';
-import { confirmDialog } from './Toast';
-import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
@@ -143,25 +141,6 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
       {/* 失败信息 */}
       {task.status === 'failed' && (
         <p className="text-[10px] text-red-400 mt-1">{task.error}</p>
-      )}
-
-      {/* 清空豆瓣数据按钮 */}
-      {(task.status === 'cancelled' || task.status === 'failed') && task.type === 'douban-harvest' && (
-        <button
-          onClick={async () => {
-            if (!(await confirmDialog('确定要清空所有豆瓣来源的数据吗？此操作不可恢复。', true))) return;
-            try {
-              const result = await useTaskStore.getState().clearDoubanData();
-              toast(`已删除 ${result.deletedMovies} 部电影, ${result.deletedTvShows} 部剧集`);
-              await useTaskStore.getState().pollTasks();
-            } catch (e: any) {
-              toast(`清空失败: ${e.message}`, 'error');
-            }
-          }}
-          className="mt-2 w-full text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 py-1 hover:bg-red-400/10 transition-colors"
-        >
-          清空豆瓣数据 _DANGER
-        </button>
       )}
 
       {/* 时间 */}

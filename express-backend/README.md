@@ -73,7 +73,6 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | GET | `/api/import/douban-harvest/status?taskId=xxx` | 任务进度 |
 | GET | `/api/import/tasks` | 所有任务列表 |
 | DELETE | `/api/import/tasks/:taskId` | 取消任务 |
-| POST | `/api/import/douban/clear-data` | 清空豆瓣来源数据 |
 | POST | `/api/import/tmdb-enrich/backfill?limit=50` | 批量补充 TMDB 数据 |
 | POST | `/api/import/tmdb-detail/backfill?limit=50` | 按 tmdbId 回填详情 |
 | POST | `/api/import/steam/backfill` | 回填 Steam 海报和游玩时间 |

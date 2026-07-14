@@ -10,7 +10,6 @@ import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask 
 import { startEnrichBackfillTask } from '../services/import/TmdbEnrichBackfillService';
 import { startTmdbDetailBackfillTask } from '../services/import/TmdbDetailBackfillService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
-import { getDb } from '../config/db';
 import { config } from '../config';
 
 const router = Router();
@@ -161,24 +160,6 @@ router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response
     return;
   }
   res.json({ ok: true });
-});
-
-// POST /api/import/douban/clear-data — 清空豆瓣来源数据
-router.post('/douban/clear-data', async (_req: Request, res: Response) => {
-  try {
-    const deletedMovies = await getDb().movie.deleteMany({
-      where: { doubanId: { not: null } },
-    });
-    const deletedTvShows = await getDb().tvShow.deleteMany({
-      where: { doubanId: { not: null } },
-    });
-    res.json({
-      deletedMovies: deletedMovies.count,
-      deletedTvShows: deletedTvShows.count,
-    });
-  } catch (ex: any) {
-    res.status(500).json({ error: ex.message });
-  }
 });
 
 // GET /api/import/douban-harvest/status?taskId=xxx

@@ -108,7 +108,6 @@ frontend/src/
 | — | `GET /api/import/douban-harvest/status` (任务进度) |
 | — | `GET /api/import/tasks` (所有任务列表) |
 | — | `DELETE /api/import/tasks/:taskId` (取消任务) |
-| — | `POST /api/import/douban/clear-data` (清空豆瓣来源数据) |
 | — | `POST /api/import/tmdb-enrich/backfill?limit=50` (批量为已有记录补充 TMDB 数据) |
 | — | `POST /api/import/tmdb-detail/backfill?limit=50` (按 tmdbId 回填完整详情：imdbId/voteAverage/title/overview/genres 等) |
 | — | `POST /api/import/steam/backfill` (回填已有 Steam 游戏的海报和游玩时间) |
@@ -154,7 +153,7 @@ frontend/src/
 - **增量数据导入：** `POST /api/import/douban-harvest?mode=incremental` — 只抓新数据（需先全量同步过，或手动创建 `sync_state.json`）。日期比较用 `<`（严格小于），同一天的数据不会被过滤。
 - **查询进度：** `GET /api/import/douban-harvest/status?taskId=xxx`
 - **取消任务：** `DELETE /api/import/tasks/:taskId`
-- **清空豆瓣数据：** `POST /api/import/douban/clear-data`
+- 豆瓣来源影视数据受保护，系统不提供批量清空接口；失败或取消任务只能重试，不能删除已有豆瓣数据。
 - 任务管理统一使用 `services/task-manager.ts`（不再有专用 task-manager），状态持久化到 `express-backend/data/tasks.json`。服务启动时将遗留 `running` 任务标记为因重启中断，终态保留 30 分钟。
 - 同一任务类型最多允许一个 `running` 实例，重复启动由后端统一返回 409，不能只依赖前端按钮禁用。
 - 前端 `AppShell` 生命周期内持续轮询任务列表，顶部 TASKS 数量不依赖任务面板是否打开。
