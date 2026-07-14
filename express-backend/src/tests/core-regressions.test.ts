@@ -9,6 +9,7 @@ import { RecordStatus } from '../enums/RecordStatus';
 import { authMiddleware } from '../middlewares/auth';
 import { errorHandler, getHttpErrorResponse } from '../middlewares/errorHandler';
 import {
+  assertProtectedDoubanFieldsUnchanged,
   assertRecordDeletionAllowed,
   ProtectedDoubanDataError,
 } from '../middlewares/activity-log';
@@ -334,6 +335,34 @@ test('豆瓣影视记录在 Prisma 写入层禁止删除', () => {
   );
   assert.doesNotThrow(() => assertRecordDeletionAllowed('Movie', { doubanId: null }));
   assert.doesNotThrow(() => assertRecordDeletionAllowed('Game', { doubanId: 'not-applicable' }));
+});
+
+test('豆瓣影视记录的原始字段在 Prisma 写入层禁止改写', () => {
+  const record = {
+    doubanId: '35517044',
+    doubanTitle: '低智商犯罪',
+    doubanRating: 3,
+  };
+
+  assert.doesNotThrow(() => assertProtectedDoubanFieldsUnchanged('Movie', record, {
+    status: 'DONE',
+    title: '新显示标题',
+    doubanId: '35517044',
+  }));
+  assert.throws(
+    () => assertProtectedDoubanFieldsUnchanged('Movie', record, { doubanId: null }),
+    (error: unknown) => error instanceof ProtectedDoubanDataError && error.status === 403,
+  );
+  assert.throws(
+    () => assertProtectedDoubanFieldsUnchanged('Movie', record, { doubanTitle: '被篡改的标题' }),
+    ProtectedDoubanDataError,
+  );
+  assert.throws(
+    () => assertProtectedDoubanFieldsUnchanged('Movie', record, { doubanRating: { set: 5 } }),
+    ProtectedDoubanDataError,
+  );
+  assert.doesNotThrow(() => assertProtectedDoubanFieldsUnchanged('Game', record, { doubanId: null }));
+  assert.doesNotThrow(() => assertProtectedDoubanFieldsUnchanged('TvShow', { doubanId: null }, { doubanTitle: '新记录' }));
 });
 
 test('豆瓣导入保留原始字段并且只补空值', () => {

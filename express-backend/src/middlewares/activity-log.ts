@@ -16,12 +16,23 @@ const MODEL_DELEGATE_MAP: Record<string, string> = {
 }
 
 const PROTECTED_DOUBAN_MODELS = new Set(['Movie', 'TvShow'])
+const PROTECTED_DOUBAN_FIELDS = new Set([
+  'doubanId',
+  'doubanTitle',
+  'doubanAltTitle',
+  'doubanIntro',
+  'doubanRating',
+  'doubanDate',
+  'doubanComment',
+  'doubanLink',
+  'doubanAvgRating',
+])
 
 export class ProtectedDoubanDataError extends Error {
   readonly status = 403
 
-  constructor() {
-    super('豆瓣来源影视数据受保护，禁止删除')
+  constructor(message = '豆瓣来源影视数据受保护，禁止删除') {
+    super(message)
     this.name = 'ProtectedDoubanDataError'
   }
 }
@@ -29,6 +40,40 @@ export class ProtectedDoubanDataError extends Error {
 export function assertRecordDeletionAllowed(model: string, record: Record<string, unknown> | null) {
   if (PROTECTED_DOUBAN_MODELS.has(model) && record?.doubanId != null) {
     throw new ProtectedDoubanDataError()
+  }
+}
+
+function hasProtectedDoubanField(data: Record<string, unknown> | null | undefined): boolean {
+  if (!data) return false
+  return Object.keys(data).some((key) => PROTECTED_DOUBAN_FIELDS.has(key) && data[key] !== undefined)
+}
+
+function unwrapUpdateValue(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'set' in value) {
+    return (value as { set: unknown }).set
+  }
+  return value
+}
+
+function valuesEqual(currentValue: unknown, nextValue: unknown): boolean {
+  if (currentValue === nextValue) return true
+  if (currentValue == null || nextValue == null) return false
+  return String(currentValue) === String(nextValue)
+}
+
+export function assertProtectedDoubanFieldsUnchanged(
+  model: string,
+  record: Record<string, unknown> | null,
+  data: Record<string, unknown> | null | undefined,
+) {
+  if (!PROTECTED_DOUBAN_MODELS.has(model) || record?.doubanId == null || !data) return
+
+  for (const field of PROTECTED_DOUBAN_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(data, field) || data[field] === undefined) continue
+    const nextValue = unwrapUpdateValue(data[field])
+    if (!valuesEqual(record[field], nextValue)) {
+      throw new ProtectedDoubanDataError('豆瓣来源原始字段受保护，禁止修改')
+    }
   }
 }
 
@@ -81,6 +126,7 @@ export function createActivityLogExtension() {
               // ── 更新：先查旧记录，执行后对比差异 ──
               case 'update': {
                 const entityId = args.where?.id
+                const touchesProtectedField = hasProtectedDoubanField(args.data)
                 let oldRecord: Record<string, unknown> | null = null
 
                 if (entityId != null) {
@@ -91,11 +137,13 @@ export function createActivityLogExtension() {
                     oldRecord = await (db as any)[delegateName].findUnique({
                       where: { id: entityId },
                     })
-                  } catch {
+                  } catch (error) {
+                    if (touchesProtectedField && PROTECTED_DOUBAN_MODELS.has(model)) throw error
                     // 查询旧记录失败不阻断业务
                   }
                 }
 
+                assertProtectedDoubanFieldsUnchanged(model, oldRecord, args.data)
                 const result = await query(args)
 
                 try {

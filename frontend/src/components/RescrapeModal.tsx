@@ -246,8 +246,8 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
         ...base,
         title: gameDetail?.title || result.title,
         posterUrl: gameDetail?.posterUrl || result.posterUrl || null,
-        rawgId: result.rawgId ?? null,
-        steamAppId: result.steamAppId ?? null,
+        ...(result.rawgId != null ? { rawgId: result.rawgId } : {}),
+        ...(result.steamAppId != null ? { steamAppId: result.steamAppId } : {}),
       }
     }
 
@@ -263,10 +263,10 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
       [dateField]: result.releaseDate || null,
       overview: movieDetail?.plot || result.overview || null,
       // 外部 ID
-      tmdbId: result.tmdbId ?? null,
-      imdbId: result.imdbId ?? null,
-      doubanId: result.doubanId ?? null,
-      traktId: result.traktId ?? null,
+      ...(result.tmdbId != null ? { tmdbId: result.tmdbId } : {}),
+      ...(result.imdbId != null ? { imdbId: result.imdbId } : {}),
+      ...(result.doubanId != null ? { doubanId: result.doubanId } : {}),
+      ...(result.traktId != null ? { traktId: result.traktId } : {}),
       // TMDB 原始字段
       tmdbTitle: result.tmdbId ? (movieDetail?.title || result.title) : rec.tmdbTitle,
       tmdbPosterUrl: result.tmdbId ? (movieDetail?.posterUrl || result.posterUrl || null) : rec.tmdbPosterUrl,
