@@ -138,6 +138,7 @@ router.post('/convert-category', async (req: Request, res: Response) => {
   // 构造目标记录（只包含目标表兼容的字段）
   const targetData: any = {
     title, posterUrl, overview, status, rating, shortReview,
+    createdAt: _ca, updatedAt: _ua,
     doubanId, doubanTitle, doubanAltTitle, doubanIntro, doubanRating,
     doubanDate, doubanComment, doubanLink, doubanAvgRating,
     tmdbId, tmdbTitle, tmdbPosterUrl, tmdbReleaseDate, tmdbOverview,
@@ -163,11 +164,11 @@ router.post('/convert-category', async (req: Request, res: Response) => {
         newRecord = await tx.tvShow.create({ data: targetData })
       }
 
-      // 删除源表记录
+      // 类型转换已在同一事务创建完整目标记录，使用原始删除避免被豆瓣数据删除保护误判
       if (from === 'movie') {
-        await tx.movie.delete({ where: { id: numericId } })
+        await tx.$executeRaw`DELETE FROM movie WHERE id = ${numericId}`
       } else {
-        await tx.tvShow.delete({ where: { id: numericId } })
+        await tx.$executeRaw`DELETE FROM tv_show WHERE id = ${numericId}`
       }
 
       return newRecord

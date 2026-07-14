@@ -6,6 +6,10 @@ import test from 'node:test';
 import type { Request, Response } from 'express';
 import { config, validateAuthConfiguration } from '../config';
 import { authMiddleware } from '../middlewares/auth';
+import {
+  assertRecordDeletionAllowed,
+  ProtectedDoubanDataError,
+} from '../middlewares/activity-log';
 import { getAuthStatus } from '../routes/auth';
 import { getHealthStatus } from '../routes/health';
 import {
@@ -215,6 +219,19 @@ test('健康检查区分数据库正常和不可用', async () => {
     service: 'ok',
     database: 'unavailable',
   });
+});
+
+test('豆瓣影视记录在 Prisma 写入层禁止删除', () => {
+  assert.throws(
+    () => assertRecordDeletionAllowed('Movie', { doubanId: '35517044' }),
+    (error: unknown) => error instanceof ProtectedDoubanDataError && error.status === 403,
+  );
+  assert.throws(
+    () => assertRecordDeletionAllowed('TvShow', { doubanId: '30170894' }),
+    ProtectedDoubanDataError,
+  );
+  assert.doesNotThrow(() => assertRecordDeletionAllowed('Movie', { doubanId: null }));
+  assert.doesNotThrow(() => assertRecordDeletionAllowed('Game', { doubanId: 'not-applicable' }));
 });
 
 test('已游玩的想玩游戏按进行中统计', () => {

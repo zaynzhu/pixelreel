@@ -9,6 +9,29 @@ const MODEL_ENTITY_MAP: Record<string, EntityType> = {
   Game: 'GAME',
 }
 
+const MODEL_DELEGATE_MAP: Record<string, string> = {
+  Movie: 'movie',
+  TvShow: 'tvShow',
+  Game: 'game',
+}
+
+const PROTECTED_DOUBAN_MODELS = new Set(['Movie', 'TvShow'])
+
+export class ProtectedDoubanDataError extends Error {
+  readonly status = 403
+
+  constructor() {
+    super('豆瓣来源影视数据受保护，禁止删除')
+    this.name = 'ProtectedDoubanDataError'
+  }
+}
+
+export function assertRecordDeletionAllowed(model: string, record: Record<string, unknown> | null) {
+  if (PROTECTED_DOUBAN_MODELS.has(model) && record?.doubanId != null) {
+    throw new ProtectedDoubanDataError()
+  }
+}
+
 // 支持日志记录的模型列表
 const TRACKED_MODELS = new Set(Object.keys(MODEL_ENTITY_MAP))
 
@@ -34,6 +57,7 @@ export function createActivityLogExtension() {
             }
 
             const entityType = MODEL_ENTITY_MAP[model]
+            const delegateName = MODEL_DELEGATE_MAP[model]
 
             switch (operation) {
               // ── 创建：执行后记录完整快照 ──
@@ -64,7 +88,7 @@ export function createActivityLogExtension() {
                     // 用延迟 import 避免循环依赖
                     const { getDb } = await import('../config/db')
                     const db = getDb()
-                    oldRecord = await (db as any)[model].findUnique({
+                    oldRecord = await (db as any)[delegateName].findUnique({
                       where: { id: entityId },
                     })
                   } catch {
@@ -115,14 +139,15 @@ export function createActivityLogExtension() {
                   try {
                     const { getDb } = await import('../config/db')
                     const db = getDb()
-                    oldRecord = await (db as any)[model].findUnique({
+                    oldRecord = await (db as any)[delegateName].findUnique({
                       where: { id: entityId },
                     })
-                  } catch {
-                    // 查询旧记录失败不阻断业务
+                  } catch (error) {
+                    if (PROTECTED_DOUBAN_MODELS.has(model)) throw error
                   }
                 }
 
+                assertRecordDeletionAllowed(model, oldRecord)
                 const result = await query(args)
 
                 try {
@@ -146,6 +171,22 @@ export function createActivityLogExtension() {
                   // 日志写入不阻断业务
                 }
                 return result
+              }
+
+              // ── 批量删除：命中任意豆瓣影视记录时整体拒绝 ──
+              case 'deleteMany': {
+                if (PROTECTED_DOUBAN_MODELS.has(model)) {
+                  const { getDb } = await import('../config/db')
+                  const db = getDb()
+                  const protectedRecord = await (db as any)[delegateName].findFirst({
+                    where: {
+                      AND: [args.where ?? {}, { doubanId: { not: null } }],
+                    },
+                    select: { doubanId: true },
+                  })
+                  assertRecordDeletionAllowed(model, protectedRecord)
+                }
+                return query(args)
               }
 
               default:

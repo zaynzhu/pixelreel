@@ -208,7 +208,7 @@ router.post('/:id/undo', async (req: Request, res: Response) => {
     res.json({ success: true, message: '撤销成功' })
   } catch (err: any) {
     console.error('[Activity] 撤销失败:', err)
-    res.status(500).json({ error: err.message })
+    res.status(err.status || 500).json({ error: err.message })
   }
 })
 
