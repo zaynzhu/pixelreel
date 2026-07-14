@@ -81,7 +81,7 @@ TMDB_API_KEY="your_tmdb_bearer_token"    # TMDB API v4 Bearer Token
 OMDB_API_KEY="your_omdb_key"             # OMDb API Key
 TRAKT_CLIENT_ID="your_trakt_client_id"   # Trakt API
 RAWG_API_KEY="your_rawg_key"             # RAWG API
-STEAM_API_KEY="your_steam_key"           # Steam API
+STEAM_WEB_API_KEY="your_steam_key"       # Steam Web API
 HTTPS_PROXY="http://127.0.0.1:7897"      # Required for TMDB in China
 ```
 
@@ -242,17 +242,19 @@ Three core tables with fields grouped by source (Douban primary, TMDB secondary)
 |----------|-------------|---------|
 | `DATABASE_URL` | MySQL connection string | -- |
 | `PORT` | Backend port | `18889` |
+| `HOST` | Backend bind address | `127.0.0.1` |
+| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins, comma-separated | Local frontend origins |
 | `JWT_SECRET` | JWT signing secret | -- |
 | `AUTH_ENABLED` | Enable login auth | `false` |
 | `TMDB_API_KEY` | TMDB API v4 Bearer Token | -- |
 | `OMDB_API_KEY` | OMDb API Key | -- |
 | `TRAKT_CLIENT_ID` | Trakt Client ID | -- |
 | `RAWG_API_KEY` | RAWG API Key | -- |
-| `STEAM_API_KEY` | Steam API Key | -- |
+| `STEAM_WEB_API_KEY` | Steam Web API Key | -- |
 | `HTTPS_PROXY` | HTTPS proxy (required for TMDB in China) | -- |
 | `DOUBAN_USER_ID` | Douban user ID | -- |
 | `DOUBAN_HARVEST_ENABLED` | Enable browser harvesting | `true` |
-| `RADAR_ENABLED` | Radar module master switch | `true` |
+| `RADAR_ENABLED` | Radar module master switch | `false` |
 | `RADAR_SYNC_CORE_CRON` | Core source sync cron | `0 * * * *` |
 | `RADAR_SYNC_SCRAPER_CRON` | Scraper source sync cron | `0 */6 * * *` |
 | `RADAR_WATCH_REGION` | TMDB streaming platform region | `TW` |
@@ -300,7 +302,14 @@ All sources can be toggled via `RADAR_ENABLED` and `RADAR_SCRAPERS_ENABLED`.
 <details>
 <summary>How to disable login authentication?</summary>
 
-By default `AUTH_ENABLED=false` — no login required. Set to `true` to require JWT tokens from `POST /api/auth/login`.
+By default `AUTH_ENABLED=false` — no login required. When set to `true`, every API except `POST /api/auth/login` requires a valid JWT token. The backend binds to `127.0.0.1` by default; configure both `HOST` and `CORS_ALLOWED_ORIGINS` for LAN access.
+
+</details>
+
+<details>
+<summary>Does the Settings page reveal saved API keys?</summary>
+
+No. Sensitive settings only return whether a value is configured. Leaving a password field empty keeps the current value; entering a new value replaces it.
 
 </details>
 

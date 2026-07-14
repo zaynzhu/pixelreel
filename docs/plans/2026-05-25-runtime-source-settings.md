@@ -70,7 +70,7 @@ RADAR_IQIYI_ENABLED=false
 
 | 环境变量 | 默认值 | 说明 |
 |---------|--------|------|
-| `RADAR_ENABLED` | `true` | 是否启用雷达模块 |
+| `RADAR_ENABLED` | `false` | 是否启用雷达模块 |
 | `RADAR_CRON_ENABLED` | `true` | 是否启用定时同步 |
 | `RADAR_SYNC_ON_START` | `true` | 启动时是否执行一次核心源同步 |
 | `RADAR_SCRAPERS_ENABLED` | `true` | 是否启用国内页面爬虫 |

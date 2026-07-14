@@ -35,7 +35,7 @@ export const config = {
     password: process.env.JWT_PASSWORD || '123456',
   },
 
-  // 是否启用 JWT 鉴权（默认关闭，与 Java 端当前行为保持一致）
+  // 是否启用 JWT 鉴权（默认关闭）
   authEnabled: process.env.AUTH_ENABLED === 'true',
 
   tmdb: {

@@ -81,7 +81,7 @@ TMDB_API_KEY="your_tmdb_bearer_token"    # TMDB API v4 Bearer Token
 OMDB_API_KEY="your_omdb_key"             # OMDb API Key
 TRAKT_CLIENT_ID="your_trakt_client_id"   # Trakt API
 RAWG_API_KEY="your_rawg_key"             # RAWG API
-STEAM_API_KEY="your_steam_key"           # Steam API
+STEAM_WEB_API_KEY="your_steam_key"       # Steam Web API
 HTTPS_PROXY="http://127.0.0.1:7897"      # TMDB 国内必需
 ```
 
@@ -242,17 +242,19 @@ PUT    /api/settings
 |------|------|--------|
 | `DATABASE_URL` | MySQL 连接字符串 | -- |
 | `PORT` | 后端端口 | `18889` |
+| `HOST` | 后端监听地址 | `127.0.0.1` |
+| `CORS_ALLOWED_ORIGINS` | 允许的前端 Origin，逗号分隔 | 本机前端地址 |
 | `JWT_SECRET` | JWT 签名密钥 | -- |
 | `AUTH_ENABLED` | 启用登录鉴权 | `false` |
 | `TMDB_API_KEY` | TMDB API v4 Bearer Token | -- |
 | `OMDB_API_KEY` | OMDb API Key | -- |
 | `TRAKT_CLIENT_ID` | Trakt Client ID | -- |
 | `RAWG_API_KEY` | RAWG API Key | -- |
-| `STEAM_API_KEY` | Steam API Key | -- |
+| `STEAM_WEB_API_KEY` | Steam Web API Key | -- |
 | `HTTPS_PROXY` | HTTPS 代理（TMDB 国内必需） | -- |
 | `DOUBAN_USER_ID` | 豆瓣用户 ID | -- |
 | `DOUBAN_HARVEST_ENABLED` | 启用浏览器收割 | `true` |
-| `RADAR_ENABLED` | 雷达模块总开关 | `true` |
+| `RADAR_ENABLED` | 雷达模块总开关 | `false` |
 | `RADAR_SYNC_CORE_CRON` | 核心源同步 cron | `0 * * * *` |
 | `RADAR_SYNC_SCRAPER_CRON` | 附加源同步 cron | `0 */6 * * *` |
 | `RADAR_WATCH_REGION` | TMDB 流媒体平台地区 | `TW` |
@@ -300,7 +302,14 @@ TMDB API 在国内需要代理访问。在 `.env` 中配置 `HTTPS_PROXY=http://
 <details>
 <summary>如何关闭登录鉴权？</summary>
 
-默认 `AUTH_ENABLED=false`，无需登录即可使用。设置为 `true` 后需要通过 `POST /api/auth/login` 获取 JWT Token。
+默认 `AUTH_ENABLED=false`，无需登录即可使用。设置为 `true` 后，除 `POST /api/auth/login` 外的 API 都需要有效 JWT Token。服务默认只监听 `127.0.0.1`；局域网部署时请同时配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
+
+</details>
+
+<details>
+<summary>设置页面会显示已保存的 API Key 吗？</summary>
+
+不会。敏感配置只返回是否已配置，后端不会把现有明文回传给浏览器。密码框留空会保留原值，输入新值才会覆盖。
 
 </details>
 

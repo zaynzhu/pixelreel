@@ -34,6 +34,8 @@ cp .env.example .env
 - `DATABASE_URL` — MySQL 连接串，格式：`mysql://用户名:密码@localhost:3306/pixelreel`
 - `TMDB_API_KEY` — TMDB API 密钥（搜索电影/电视剧需要）
 
+后端默认只监听 `127.0.0.1`，CORS 默认允许本机 `18888` 前端。需要从局域网访问时，再显式设置 `HOST=0.0.0.0` 和对应的 `CORS_ALLOWED_ORIGINS`。
+
 ### 4. 安装依赖 & 建表
 
 ```bash
@@ -63,6 +65,15 @@ npm run dev
 ```
 
 前端运行在 http://localhost:18888，自动代理 `/api` 到后端。
+
+### 7. 运行交付检查
+
+```bash
+cd express-backend && npm run check
+cd frontend && npm run check
+```
+
+后端检查包含 TypeScript 构建和核心回归测试，前端检查包含 TypeScript 与 Vite 生产构建。
 
 ## 数据说明
 

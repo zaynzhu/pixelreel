@@ -12,6 +12,7 @@ cp .env.example .env   # 编辑 .env，填入数据库连接和 API Key
 npx prisma generate
 npx prisma db push
 npm run dev             # http://localhost:18889
+npm run check           # TypeScript 构建 + 核心回归测试
 ```
 
 完整搭建步骤见 [db/setup.md](../db/setup.md)。
@@ -24,6 +25,8 @@ npm run dev             # http://localhost:18889
 |------|------|------|
 | `DATABASE_URL` | MySQL 连接字符串 | 是 |
 | `PORT` | 服务端口（默认 18889） | 否 |
+| `HOST` | 监听地址（默认 127.0.0.1） | 否 |
+| `CORS_ALLOWED_ORIGINS` | 允许的前端 Origin，逗号分隔 | 否 |
 | `JWT_SECRET` | JWT 密钥 | 是 |
 | `AUTH_ENABLED` | 启用 JWT 鉴权（默认 false） | 否 |
 | `TMDB_API_KEY` | TMDB API v4 Bearer Token | 按需 |
@@ -32,7 +35,7 @@ npm run dev             # http://localhost:18889
 | `STEAM_WEB_API_KEY` | Steam Web API Key | 按需 |
 | `HTTPS_PROXY` | HTTPS 代理（TMDB 国内必需） | 按需 |
 | `DOUBAN_USER_ID` | 豆瓣用户 ID（爬取用） | 按需 |
-| `RADAR_ENABLED` | 雷达模块总开关（默认 true） | 否 |
+| `RADAR_ENABLED` | 雷达模块总开关（默认 false） | 否 |
 
 ## API 接口
 
@@ -100,7 +103,7 @@ npm run dev             # http://localhost:18889
 | GET | `/api/activity` | 操作日志（游标分页 + 筛选） |
 | POST | `/api/activity/:id/undo` | 撤销操作 |
 | POST | `/api/auth/login` | 登录获取 JWT Token |
-| GET | `/api/settings` | 获取环境变量配置 |
+| GET | `/api/settings` | 获取环境变量配置（敏感值脱敏） |
 | PUT | `/api/settings` | 更新环境变量配置 |
 
 ## 项目结构
@@ -136,9 +139,11 @@ express-backend/
 ## 注意事项
 
 1. **Express 5 依赖**：依赖 Express 5 原生 async 错误转发。降级到 Express 4.x 需手动包裹 try-catch。
-2. **JWT 鉴权可选**：默认关闭（`AUTH_ENABLED=false`）。
-3. **BigInt 序列化**：`server.ts` 中有 `BigInt.prototype.toJSON` 补丁，切勿移除。
-4. **`getDb()`**：所有路由和服务必须用 `getDb()` 获取 Prisma 扩展客户端，不能直接 import 原始 prisma。
-5. **TMDB API 代理**：国内必须设置 `HTTPS_PROXY`，否则 TMDB 请求超时。
-6. **TMDB Bearer Token**：`TMDB_API_KEY` 存的是 JWT（eyJ 开头），必须通过 `Authorization: Bearer` 传递。
-7. **tsx watch 陷阱**：git commit 会触发重启，丢失内存中的任务状态。跑回填任务时用 `npx tsx src/server.ts`。
+2. **服务边界**：默认监听 `127.0.0.1`，CORS 仅允许本机前端；局域网部署需显式配置 `HOST` 与 `CORS_ALLOWED_ORIGINS`。
+3. **JWT 鉴权可选**：默认关闭（`AUTH_ENABLED=false`）；启用后除 `/api/auth/login` 外的 API 都要求有效 Bearer Token。
+4. **配置脱敏**：敏感配置只返回 `configured` 状态，不回传现有明文；空密码值表示保留原配置。
+5. **BigInt 序列化**：`server.ts` 中有 `BigInt.prototype.toJSON` 补丁，切勿移除。
+6. **`getDb()`**：所有路由和服务必须用 `getDb()` 获取 Prisma 扩展客户端，不能直接 import 原始 prisma。
+7. **TMDB API 代理**：国内必须设置 `HTTPS_PROXY`，否则 TMDB 请求超时。
+8. **TMDB Bearer Token**：`TMDB_API_KEY` 存的是 JWT（eyJ 开头），必须通过 `Authorization: Bearer` 传递。
+9. **tsx watch 陷阱**：git commit 会触发重启，丢失内存中的任务状态。跑回填任务时用 `npx tsx src/server.ts`。

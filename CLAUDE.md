@@ -25,6 +25,10 @@ cd express-backend && npm run dev        # tsx watch, 端口 18889
 # 前端
 cd frontend && npm run dev               # Vite, 端口 18888, 代理 /api → 18889
 
+# 交付前检查
+cd express-backend && npm run check      # TypeScript 构建 + 核心回归测试
+cd frontend && npm run check             # TypeScript 构建 + Vite 生产构建
+
 # Prisma
 cd express-backend && npx prisma generate  # 修改 schema 后重新生成客户端
 cd express-backend && npx prisma db push   # 将 schema 推送到数据库
@@ -54,7 +58,7 @@ express-backend/src/
                   douban-harvester/（爬虫核心、TMDB 丰富、导入服务、任务管理）
                   radar/（types、tmdbRadarService、youkuRadarService、tencentRadarService、radarSyncService）
                   LibraryService, TimelineService, ProfileSummaryService, ExternalSearchService, activity-log
-  middlewares/    auth.ts（JWT，当前未启用）, errorHandler.ts, activity-log.ts（Prisma 扩展，自动记录 CRUD）
+  middlewares/    auth.ts（JWT，按 AUTH_ENABLED 条件启用）, errorHandler.ts, activity-log.ts（Prisma 扩展，自动记录 CRUD）
   enums/          RecordStatus.ts（UNSET|WANT|IN_PROGRESS|DONE|DROPPED）
   dto/            library.ts, timeline.ts, profile.ts, external-search.ts, import-summary.ts
 
@@ -110,15 +114,16 @@ frontend/src/
 
 ## 关键模式
 
-- **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。中间件已存在但未接入路由。
-- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
+- **服务边界：** 后端默认监听 `127.0.0.1`，CORS 默认只允许 `localhost:18888` 和 `127.0.0.1:18888`；如需局域网访问，必须显式配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
+- **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。设为 `true` 后，除 `/api/auth/login` 外的 API 都必须携带有效 Bearer Token。
+- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。带速率限制（250ms 间隔，429 重试）。
 - **搜索 Provider：** 电影搜索支持 OMDb/TMDB/豆瓣/IMDb/Trakt；剧集支持 TMDB/豆瓣；游戏支持 RAWG/Steam。IMDb Provider 复用 OMDb API。OMDb/IMDb 搜索中文关键词时自动通过 TMDB 获取英文原名回退（按 vote_count 排序）。RAWG 和 Steam 搜索中文关键词时通过 MyMemory API 翻译为英文再搜索。Steam 海报使用 CDN 地址 `cdn.akamai.steamstatic.com`。豆瓣搜索使用公开接口 `/j/subject_suggest`，不需要 Cookie。
 - **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。
 - **海报图片：** Steam 海报有两种 CDN 格式——旧格式 `cdn.akamai.steamstatic.com/steam/apps/{id}/header.jpg`（大部分游戏可用）和新格式 `shared.akamai.steamstatic.com/store_item_assets/steam/apps/{id}/{hash}/header.jpg`（新游戏必须用这个）。图片加载失败时自动显示赛博朋克占位符（`ImgWithFallback` 组件）。
-- **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）的游戏不显示"想玩"状态标签——已玩过的游戏不应标记为 WANT。
+- **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）且原状态为 WANT 的游戏，在统计和新 Steam 导入中按 IN_PROGRESS 处理；不批量改写已有数据库记录。
 - **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣/优酷/腾讯），未知域名返回 400。代理先发 HEAD 请求检查 Content-Type 再下载 body（避免浪费带宽下载非图片响应）。响应带 `Cache-Control: public, max-age=7d, immutable`。前端统一用 `proxiedImageUrl()` 路由代理，搜索组件（MovieSearch/TvShowSearch）和 TimelinePopup 都必须使用此函数。
 - **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录，前端用 `timelineDetailStore` 缓存（key 格式 `category:id`）。`/api/timeline/years?category=` 用 `SELECT DISTINCT YEAR(createdAt)` 高效返回年份列表。
 - **记录库服务端过滤：** `GET /api/library` 支持 `category=movie|tv_show|game|media|all`、`year=2026`、`status=DONE` 筛选参数。`category=media` 是产品约定，等于 `movie + tv_show`。`normalizeStatus` 只接受有效 RecordStatus 值，非法 status 参数被忽略（返回 undefined）。
