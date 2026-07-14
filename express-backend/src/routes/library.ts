@@ -1,5 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords, normalizeCategory, parseYear, normalizeStatus } from '../services/LibraryService';
+import {
+  parseLibraryRecordUpdateBody,
+  parseRequiredPositiveIntegerParameter,
+} from './request-validation';
 
 const router = Router();
 
@@ -45,11 +49,7 @@ router.get('/random', async (req: Request, res: Response) => {
 router.get('/:category/:id', async (req: Request, res: Response) => {
   try {
     const category = req.params.category as string;
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) {
-      res.status(400).json({ error: 'Invalid id parameter' });
-      return;
-    }
+    const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
     const result = await getRecord(category, id);
     res.json(result);
   } catch (err: any) {
@@ -60,8 +60,8 @@ router.get('/:category/:id', async (req: Request, res: Response) => {
 // PATCH /api/library/:category/:id — 更新记录状态/评分/短评（不变）
 router.patch('/:category/:id', async (req: Request, res: Response) => {
   const category = req.params.category as string;
-  const id = Number(req.params.id);
-  const request = req.body;
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
+  const request = parseLibraryRecordUpdateBody(req.body);
 
   try {
     const result = await updateRecord(category, id, {

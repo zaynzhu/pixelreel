@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../config/db';
+import { parseRequiredPositiveIntegerParameter } from './request-validation';
 
 const router = Router();
 
@@ -11,7 +12,8 @@ router.get('/', async (_req: Request, res: Response) => {
 
 // GET /api/tv-shows/:id
 router.get('/:id', async (req: Request, res: Response) => {
-  const show = await getDb().tvShow.findUnique({ where: { id: Number(req.params.id) } });
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
+  const show = await getDb().tvShow.findUnique({ where: { id } });
   if (!show) {
     res.status(404).json({ error: '电视剧不存在' });
     return;
@@ -28,7 +30,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 // PUT /api/tv-shows/:id
 router.put('/:id', async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   const { id: _id, createdAt, updatedAt, ...data } = req.body;
   await getDb().tvShow.update({ where: { id }, data });
   const show = await getDb().tvShow.findUnique({ where: { id } });
@@ -37,7 +39,8 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 // DELETE /api/tv-shows/:id
 router.delete('/:id', async (req: Request, res: Response) => {
-  await getDb().tvShow.delete({ where: { id: Number(req.params.id) } });
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
+  await getDb().tvShow.delete({ where: { id } });
   res.status(204).end();
 });
 

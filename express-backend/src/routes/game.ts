@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../config/db';
+import { parseRequiredPositiveIntegerParameter } from './request-validation';
 
 const router = Router();
 
@@ -11,7 +12,8 @@ router.get('/', async (_req: Request, res: Response) => {
 
 // GET /api/games/:id - 获取单个游戏
 router.get('/:id', async (req: Request, res: Response) => {
-  const game = await getDb().game.findUnique({ where: { id: Number(req.params.id) } });
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
+  const game = await getDb().game.findUnique({ where: { id } });
   if (!game) {
     res.status(404).json({ error: '游戏不存在' });
     return;
@@ -28,7 +30,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 // PUT /api/games/:id - 更新游戏
 router.put('/:id', async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   const { id: _id, createdAt, updatedAt, ...data } = req.body;
   await getDb().game.update({ where: { id }, data });
   const game = await getDb().game.findUnique({ where: { id } });
@@ -37,7 +39,8 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 // DELETE /api/games/:id - 删除游戏
 router.delete('/:id', async (req: Request, res: Response) => {
-  await getDb().game.delete({ where: { id: Number(req.params.id) } });
+  const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
+  await getDb().game.delete({ where: { id } });
   res.status(204).end();
 });
 

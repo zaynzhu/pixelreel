@@ -15,7 +15,9 @@ import { getAuthStatus } from '../routes/auth';
 import { getHealthStatus } from '../routes/health';
 import {
   parsePositiveIntegerParameter,
+  parseLibraryRecordUpdateBody,
   parseRecordStatusParameter,
+  parseRequiredPositiveIntegerParameter,
   parseStringParameter,
   RequestValidationError,
 } from '../routes/request-validation';
@@ -73,6 +75,26 @@ test('导入参数拒绝无效 limit、status 和标识值', () => {
   assert.equal(parseStringParameter('  player-id  ', 'steamId'), 'player-id');
   assert.throws(() => parseStringParameter([], 'steamId'), RequestValidationError);
   assert.throws(() => parseStringParameter('  ', 'gamertag', true), RequestValidationError);
+});
+
+test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {
+  assert.equal(parseRequiredPositiveIntegerParameter('42', 'id'), 42);
+  assert.throws(() => parseRequiredPositiveIntegerParameter('0', 'id'), RequestValidationError);
+  assert.throws(() => parseRequiredPositiveIntegerParameter('1.5', 'id'), RequestValidationError);
+  assert.throws(() => parseRequiredPositiveIntegerParameter('9007199254740992', 'id'), RequestValidationError);
+  assert.deepEqual(parseLibraryRecordUpdateBody({
+    status: 'done',
+    rating: 5,
+    shortReview: '不错',
+  }), {
+    status: RecordStatus.DONE,
+    rating: 5,
+    shortReview: '不错',
+  });
+  assert.throws(() => parseLibraryRecordUpdateBody({ status: 'INVALID' }), RequestValidationError);
+  assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', rating: 6 }), RequestValidationError);
+  assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', shortReview: 'a'.repeat(1001) }), RequestValidationError);
+  assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', doubanId: null }), RequestValidationError);
 });
 
 test('启用认证时拒绝示例凭证和弱密码', () => {
