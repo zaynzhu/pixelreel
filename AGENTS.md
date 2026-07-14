@@ -144,6 +144,7 @@ frontend/src/
 - **取消任务：** `DELETE /api/import/tasks/:taskId`
 - **清空豆瓣数据：** `POST /api/import/douban/clear-data`
 - 任务管理统一使用 `services/task-manager.ts`（不再有专用 task-manager），状态持久化到 `express-backend/data/tasks.json`。服务启动时将遗留 `running` 任务标记为因重启中断，终态保留 30 分钟。
+- 同一任务类型最多允许一个 `running` 实例，重复启动由后端统一返回 409，不能只依赖前端按钮禁用。
 - 前端 `AppShell` 生命周期内持续轮询任务列表，顶部 TASKS 数量不依赖任务面板是否打开。
 - 爬虫返回具体错误信息（超时/风控/用户取消），不再统一报"爬取被风控中止"
 - 导入时自动查 TMDB 分类（movie/tv）并拉取海报，受全局 2 秒外部 API 限流

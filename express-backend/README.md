@@ -149,4 +149,5 @@ express-backend/
 8. **TMDB Bearer Token**：`TMDB_API_KEY` 存的是 JWT（eyJ 开头），必须通过 `Authorization: Bearer` 传递。
 9. **外部 API 限流**：全局 Axios `RateLimiter` 按服务主域名保证请求起始时间至少间隔 2 秒；图片代理二进制下载除外。
 10. **任务恢复**：任务状态持久化到 `data/tasks.json`；重启前仍在运行的任务会恢复为失败并标记“因服务重启中断”，终态保留 30 分钟。
-11. **tsx watch 陷阱**：git commit 会触发重启；任务执行不会自动续跑。长时间回填仍使用 `npx tsx src/server.ts`。
+11. **任务并发**：同一任务类型最多允许一个运行实例，重复启动返回 409。
+12. **tsx watch 陷阱**：git commit 会触发重启；任务执行不会自动续跑。长时间回填仍使用 `npx tsx src/server.ts`。

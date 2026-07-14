@@ -15,7 +15,7 @@ import {
   RateLimiter,
   shouldRateLimitRequest,
 } from '../services/external-api-rate-limiter';
-import { INTERRUPTED_TASK_ERROR, TaskManager } from '../services/task-manager';
+import { INTERRUPTED_TASK_ERROR, TaskConflictError, TaskManager } from '../services/task-manager';
 
 test('敏感配置只返回已配置标记', () => {
   assert.deepEqual(serializeSettingValue(true, 'secret-value'), {
@@ -81,6 +81,10 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
     const firstManager = new TaskManager({ storagePath, now: () => now, activityLogger });
     assert.equal(firstManager.initialize(), 0);
     const runningTask = firstManager.createTask('test-import', '测试导入');
+    assert.throws(
+      () => firstManager.createTask('test-import', '重复导入'),
+      (error: unknown) => error instanceof TaskConflictError && error.status === 409,
+    );
     firstManager.updateProgress(runningTask.taskId, { processed: 3, total: 10, currentTitle: '第三条' });
     firstManager.flush();
 

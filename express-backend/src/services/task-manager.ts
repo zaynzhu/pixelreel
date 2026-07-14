@@ -40,6 +40,15 @@ const PROGRESS_PERSIST_DELAY_MS = 250;
 const TASK_STORAGE_PATH = path.resolve(__dirname, '../../data/tasks.json');
 export const INTERRUPTED_TASK_ERROR = '服务重启，运行中的任务已中断';
 
+export class TaskConflictError extends Error {
+  readonly status = 409;
+
+  constructor(task: Task) {
+    super(`同类型任务正在运行: ${task.label}`);
+    this.name = 'TaskConflictError';
+  }
+}
+
 const TASK_STATUSES = new Set<TaskStatus>(['running', 'completed', 'failed', 'cancelled']);
 
 function isTaskSnapshot(value: unknown): value is TaskSnapshot {
@@ -137,6 +146,10 @@ export class TaskManager {
   createTask(type: string, label: string): Task {
     this.ensureInitialized();
     this.cleanup();
+    const runningTask = Array.from(this.tasks.values())
+      .find(task => task.type === type && task.status === 'running');
+    if (runningTask) throw new TaskConflictError(runningTask);
+
     const now = this.now();
     this.taskCounter++;
     const task: Task = {
