@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { validateAuthConfiguration } from '../config';
 
 const router = Router();
 
@@ -215,6 +216,19 @@ function parseEnvFile(content: string): Record<string, string> {
   return result;
 }
 
+export function validateAuthSettingValues(
+  currentValues: Record<string, string>,
+  updates: Record<string, unknown>,
+): string | null {
+  const mergedValues = { ...currentValues, ...updates } as Record<string, string>;
+  return validateAuthConfiguration({
+    enabled: mergedValues.AUTH_ENABLED === 'true',
+    secret: mergedValues.JWT_SECRET ?? '',
+    username: mergedValues.JWT_USERNAME ?? '',
+    password: mergedValues.JWT_PASSWORD ?? '',
+  });
+}
+
 // ── GET /api/settings ──
 router.get('/', (_req: Request, res: Response) => {
   try {
@@ -265,10 +279,16 @@ router.put('/', (req: Request, res: Response) => {
       return;
     }
 
+    const content = fs.readFileSync(ENV_PATH, 'utf-8');
+    const authValidationError = validateAuthSettingValues(parseEnvFile(content), values);
+    if (authValidationError) {
+      res.status(400).json({ error: authValidationError });
+      return;
+    }
+
     // 备份
     fs.copyFileSync(ENV_PATH, ENV_BACKUP_PATH);
 
-    const content = fs.readFileSync(ENV_PATH, 'utf-8');
     let updated = content;
 
     for (const [key, rawValue] of Object.entries(values)) {

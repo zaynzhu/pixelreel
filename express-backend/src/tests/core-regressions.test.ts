@@ -4,11 +4,16 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import type { Request, Response } from 'express';
-import { config } from '../config';
+import { config, validateAuthConfiguration } from '../config';
 import { authMiddleware } from '../middlewares/auth';
 import { getAuthStatus } from '../routes/auth';
 import { getHealthStatus } from '../routes/health';
-import { formatEnvLine, serializeSettingValue, validateSettingValues } from '../routes/settings';
+import {
+  formatEnvLine,
+  serializeSettingValue,
+  validateAuthSettingValues,
+  validateSettingValues,
+} from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { resolveSteamImportStatus } from '../services/import/SteamOwnedGamesImportService';
 import {
@@ -43,6 +48,33 @@ test('配置值仅在需要时添加引号', () => {
   assert.equal(formatEnvLine('HOST', '127.0.0.1'), 'HOST=127.0.0.1');
   assert.equal(formatEnvLine('DOUBAN_DATA_DIR', '/path/with space'), 'DOUBAN_DATA_DIR="/path/with space"');
   assert.equal(formatEnvLine('CORS_ALLOWED_ORIGINS', 'http://localhost:18888#local'), 'CORS_ALLOWED_ORIGINS="http://localhost:18888#local"');
+});
+
+test('启用认证时拒绝示例凭证和弱密码', () => {
+  const insecureValues = {
+    AUTH_ENABLED: 'false',
+    JWT_SECRET: 'your-jwt-secret-here',
+    JWT_USERNAME: 'zaynzhu',
+    JWT_PASSWORD: '123456',
+  };
+
+  assert.equal(validateAuthSettingValues(insecureValues, { AUTH_ENABLED: 'true' }),
+    '启用认证前必须设置至少 32 个字符的 JWT_SECRET，且不能使用示例值');
+  assert.equal(validateAuthSettingValues(insecureValues, {
+    AUTH_ENABLED: 'true',
+    JWT_SECRET: 'a'.repeat(32),
+  }), '启用认证前必须设置至少 8 个字符的 JWT_PASSWORD，且不能使用默认密码');
+  assert.equal(validateAuthSettingValues(insecureValues, {
+    AUTH_ENABLED: 'true',
+    JWT_SECRET: 'a'.repeat(32),
+    JWT_PASSWORD: 'secure-password',
+  }), null);
+  assert.equal(validateAuthConfiguration({
+    enabled: false,
+    secret: '',
+    username: '',
+    password: '',
+  }), null);
 });
 
 test('同一外部服务的并发请求按两秒间隔排队', async () => {

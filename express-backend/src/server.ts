@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { config } from './config';
+import { config, validateAuthConfiguration } from './config';
 import { registerExtensions } from './config/db';
 import { createActivityLogExtension } from './middlewares/activity-log';
 import apiRoutes from './routes';
@@ -14,6 +14,14 @@ import { initializeTaskManager } from './services/task-manager';
 (BigInt.prototype as any).toJSON = function () {
   return Number(this);
 };
+
+const authConfigurationError = validateAuthConfiguration({
+  enabled: config.authEnabled,
+  secret: config.jwt.secret,
+  username: config.jwt.username,
+  password: config.jwt.password,
+});
+if (authConfigurationError) throw new Error(`[Auth] ${authConfigurationError}`);
 
 // 注册活动日志 Prisma 扩展（必须在路由挂载前）
 registerExtensions(createActivityLogExtension());

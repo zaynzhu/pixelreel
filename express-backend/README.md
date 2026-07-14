@@ -27,7 +27,8 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | `PORT` | 服务端口（默认 18889） | 否 |
 | `HOST` | 监听地址（默认 127.0.0.1） | 否 |
 | `CORS_ALLOWED_ORIGINS` | 允许的前端 Origin，逗号分隔 | 否 |
-| `JWT_SECRET` | JWT 密钥 | 是 |
+| `JWT_SECRET` | JWT 密钥（启用认证时至少 32 个字符） | 启用认证时 |
+| `JWT_PASSWORD` | 登录密码（启用认证时至少 8 个字符） | 启用认证时 |
 | `AUTH_ENABLED` | 启用 JWT 鉴权（默认 false） | 否 |
 | `TMDB_API_KEY` | TMDB API v4 Bearer Token | 按需 |
 | `OMDB_API_KEY` | OMDb API Key | 按需 |
@@ -142,7 +143,7 @@ express-backend/
 
 1. **Express 5 依赖**：依赖 Express 5 原生 async 错误转发。降级到 Express 4.x 需手动包裹 try-catch。
 2. **服务边界**：默认监听 `127.0.0.1`，CORS 仅允许本机前端；局域网部署需显式配置 `HOST` 与 `CORS_ALLOWED_ORIGINS`。
-3. **JWT 鉴权可选**：默认关闭（`AUTH_ENABLED=false`）；启用后除 `/api/auth/login` 外的 API 都要求有效 Bearer Token。
+3. **JWT 鉴权可选**：默认关闭（`AUTH_ENABLED=false`）；启用前必须设置至少 32 个字符的非示例 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`，否则配置接口拒绝保存且服务拒绝启动。启用后除认证状态、登录和健康检查外的 API 都要求有效 Bearer Token。
 4. **配置安全**：敏感配置只返回 `configured` 状态，不回传现有明文；空密码值表示保留原配置。更新接口校验字段类型和危险字符，并以临时文件原子替换 `.env`。
 5. **BigInt 序列化**：`server.ts` 中有 `BigInt.prototype.toJSON` 补丁，切勿移除。
 6. **`getDb()`**：所有路由和服务必须用 `getDb()` 获取 Prisma 扩展客户端，不能直接 import 原始 prisma。

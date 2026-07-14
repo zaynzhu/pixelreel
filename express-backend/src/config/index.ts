@@ -13,6 +13,28 @@ const parseNumber = (value: string | undefined, defaultValue: number): number =>
   return Number.isFinite(parsed) ? parsed : defaultValue;
 };
 
+interface AuthConfiguration {
+  enabled: boolean;
+  secret: string;
+  username: string;
+  password: string;
+}
+
+const INSECURE_JWT_SECRETS = new Set(['dev-secret', 'your-jwt-secret-here']);
+const INSECURE_JWT_PASSWORDS = new Set(['123456']);
+
+export function validateAuthConfiguration(auth: AuthConfiguration): string | null {
+  if (!auth.enabled) return null;
+  if (auth.secret.trim().length < 32 || INSECURE_JWT_SECRETS.has(auth.secret)) {
+    return '启用认证前必须设置至少 32 个字符的 JWT_SECRET，且不能使用示例值';
+  }
+  if (!auth.username.trim()) return '启用认证前必须设置 JWT_USERNAME';
+  if (auth.password.trim().length < 8 || INSECURE_JWT_PASSWORDS.has(auth.password)) {
+    return '启用认证前必须设置至少 8 个字符的 JWT_PASSWORD，且不能使用默认密码';
+  }
+  return null;
+}
+
 // 环境变量配置
 export const config = {
   port: parseInt(process.env.PORT || '18889', 10),
@@ -30,9 +52,9 @@ export const config = {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-secret',
+    secret: process.env.JWT_SECRET || '',
     username: process.env.JWT_USERNAME || 'zaynzhu',
-    password: process.env.JWT_PASSWORD || '123456',
+    password: process.env.JWT_PASSWORD || '',
   },
 
   // 是否启用 JWT 鉴权（默认关闭）

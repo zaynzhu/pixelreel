@@ -246,7 +246,8 @@ PUT    /api/settings
 | `PORT` | 后端端口 | `18889` |
 | `HOST` | 后端监听地址 | `127.0.0.1` |
 | `CORS_ALLOWED_ORIGINS` | 允许的前端 Origin，逗号分隔 | 本机前端地址 |
-| `JWT_SECRET` | JWT 签名密钥 | -- |
+| `JWT_SECRET` | JWT 签名密钥（启用认证时至少 32 个字符） | -- |
+| `JWT_PASSWORD` | 登录密码（启用认证时至少 8 个字符） | -- |
 | `AUTH_ENABLED` | 启用登录鉴权 | `false` |
 | `TMDB_API_KEY` | TMDB API v4 Bearer Token | -- |
 | `OMDB_API_KEY` | OMDb API Key | -- |
@@ -304,7 +305,7 @@ TMDB API 在国内需要代理访问。在 `.env` 中配置 `HTTPS_PROXY=http://
 <details>
 <summary>如何关闭登录鉴权？</summary>
 
-默认 `AUTH_ENABLED=false`，无需登录即可使用。设置为 `true` 后，除 `POST /api/auth/login` 外的 API 都需要有效 JWT Token。服务默认只监听 `127.0.0.1`；局域网部署时请同时配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
+默认 `AUTH_ENABLED=false`，无需登录即可使用。启用前须配置至少 32 个字符的 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`；启用后除认证状态、登录和健康检查外的 API 都需要有效 JWT Token。服务默认只监听 `127.0.0.1`；局域网部署时请同时配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
 
 </details>
 
