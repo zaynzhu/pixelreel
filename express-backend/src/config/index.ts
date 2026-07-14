@@ -16,6 +16,14 @@ const parseNumber = (value: string | undefined, defaultValue: number): number =>
 // 环境变量配置
 export const config = {
   port: parseInt(process.env.PORT || '18889', 10),
+  host: process.env.HOST || '127.0.0.1',
+
+  cors: {
+    allowedOrigins: (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:18888,http://127.0.0.1:18888')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  },
 
   database: {
     url: process.env.DATABASE_URL || 'mysql://root:password@localhost:3306/pixelreel',

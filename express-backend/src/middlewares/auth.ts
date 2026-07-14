@@ -4,6 +4,11 @@ import { config } from '../config';
 
 // JWT 鉴权中间件
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  if (!config.authEnabled) {
+    next();
+    return;
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: '未提供认证令牌' });

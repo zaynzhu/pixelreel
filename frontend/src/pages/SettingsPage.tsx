@@ -198,6 +198,7 @@ export default function SettingsPage() {
                         <input
                           type={field.sensitive && !revealedKeys.has(field.key) ? 'password' : 'text'}
                           value={editValues[field.key] ?? ''}
+                          placeholder={field.configured ? t('settings.secret_configured') : undefined}
                           onChange={(e) => handleChange(field.key, e.target.value)}
                           className="tech-input w-full pr-16"
                         />

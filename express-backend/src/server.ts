@@ -19,7 +19,12 @@ registerExtensions(createActivityLogExtension());
 const app = express();
 
 // 中间件
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = !origin || config.cors.allowedOrigins.includes(origin);
+    callback(null, allowed);
+  },
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -37,8 +42,8 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // 启动服务
-app.listen(config.port, () => {
-  console.log(`[PixelReel Express] 服务已启动，监听端口 ${config.port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`[PixelReel Express] 服务已启动，监听 ${config.host}:${config.port}`);
   console.log(`[PixelReel Express] 数据库: ${config.database.url.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
 
   // Radar cron + startup sync

@@ -6,6 +6,7 @@ export interface SettingsField {
   labelEn: string;
   value: string;
   sensitive: boolean;
+  configured: boolean;
   type: SettingsFieldType;
 }
 
