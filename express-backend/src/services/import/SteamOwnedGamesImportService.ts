@@ -42,8 +42,6 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
     ? new Map((await getDb().game.findMany({ where: { steamAppId: { in: steamAppIds } } })).map((g) => [Number(g.steamAppId!), g]))
     : new Map<any, any>();
 
-  const effectiveStatus = status || RecordStatus.WANT;
-
   const toSave: any[] = [];
   for (const owned of games) {
     if (!owned.appid || existingMap.has(owned.appid)) {
@@ -56,9 +54,10 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
       title: owned.name || '',
       posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appid}/header.jpg`,
       playtimeMinutes: owned.playtime_forever ?? null,
-      status: effectiveStatus,
+      importedAt: new Date(),
+      status: status || ((owned.playtime_forever ?? 0) > 0 ? RecordStatus.IN_PROGRESS : RecordStatus.WANT),
       rating: null,
-      shortReview: '',
+      shortReview: null,
     });
   }
 

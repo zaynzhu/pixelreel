@@ -40,7 +40,7 @@ function buildOverview(movies: any[], games: any[], tvShows: any[]): ProfileSumm
     movies.filter((m) => m.shortReview?.trim()).length +
     games.filter((g) => g.shortReview?.trim()).length +
     tvShows.filter((s) => s.shortReview?.trim()).length;
-  const importedGames = games.filter((g) => g.importedAt != null).length;
+  const importedGames = games.filter(isImportedGame).length;
 
   return {
     totalRecords: totalMovies + totalGames + totalTvShows,
@@ -87,7 +87,7 @@ function buildGameStatusCounts(games: any[]): CountItem[] {
   return Object.values(RecordStatus).map((status) => ({
     key: status,
     label: statusLabel(status),
-    count: games.filter((g) => safeStatus(g.status) === status).length,
+    count: games.filter((g) => effectiveGameStatus(g) === status).length,
   }));
 }
 
@@ -146,7 +146,7 @@ function buildRecentItems(movies: any[], games: any[], tvShows: any[]): RecentRe
       title: g.title,
       subtitle: platformLabel(inferGamePlatform(g)),
       posterUrl: g.posterUrl,
-      status: safeStatus(g.status),
+      status: effectiveGameStatus(g),
       rating: g.rating,
       createdAt: g.createdAt,
     })),
@@ -234,6 +234,23 @@ function platformLabel(platform: string): string {
 
 function safeStatus(status: string | null): string {
   return status || RecordStatus.UNSET;
+}
+
+export function effectiveGameStatus(game: { status: string | null; playtimeMinutes?: number | null }): string {
+  const status = safeStatus(game.status);
+  if (status === RecordStatus.WANT && (game.playtimeMinutes ?? 0) > 0) {
+    return RecordStatus.IN_PROGRESS;
+  }
+  return status;
+}
+
+export function isImportedGame(game: {
+  importedAt?: Date | null;
+  steamAppId?: bigint | null;
+  xboxId?: string | null;
+  psnId?: string | null;
+}): boolean {
+  return game.importedAt != null || game.steamAppId != null || game.xboxId != null || game.psnId != null;
 }
 
 function roundOneDecimal(value: number): number | null {
