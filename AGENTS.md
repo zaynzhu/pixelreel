@@ -143,7 +143,8 @@ frontend/src/
 - **查询进度：** `GET /api/import/douban-harvest/status?taskId=xxx`
 - **取消任务：** `DELETE /api/import/tasks/:taskId`
 - **清空豆瓣数据：** `POST /api/import/douban/clear-data`
-- 任务管理统一使用 `services/task-manager.ts`（不再有专用 task-manager）
+- 任务管理统一使用 `services/task-manager.ts`（不再有专用 task-manager），状态持久化到 `express-backend/data/tasks.json`。服务启动时将遗留 `running` 任务标记为因重启中断，终态保留 30 分钟。
+- 前端 `AppShell` 生命周期内持续轮询任务列表，顶部 TASKS 数量不依赖任务面板是否打开。
 - 爬虫返回具体错误信息（超时/风控/用户取消），不再统一报"爬取被风控中止"
 - 导入时自动查 TMDB 分类（movie/tv）并拉取海报，受全局 2 秒外部 API 限流
 - 已有记录的 TMDB 数据回填：`POST /api/import/tmdb-enrich/backfill?limit=50`（异步任务，按标题搜 TMDB 补充 tmdbId 和 posterUrl）
@@ -177,4 +178,4 @@ frontend/src/
 - 新组件必须做 i18n — 在 `i18nStore.ts` 的 `dictionaries.en` 和 `dictionaries.zh` 中添加 key，组件中用 `t('key')` 渲染。
 - Prisma `BigInt` 字段（如 `steamAppId`）与 JavaScript `number` 不兼容 — Map 查找和比较时必须用 `Number()` 转换，否则 `20n !== 20`。
 - 不要用 Playwright 截图让模型分析页面效果 — 模型不支持图片输入，截图白费。需要理解页面时读代码或用 `browser_snapshot` 获取 DOM。
-- `tsx watch` 会在 git commit 时重启后端，丢失内存中的任务状态 — 跑回填任务时用 `npx tsx src/server.ts`（无 watch）启动。
+- `tsx watch` 会在 git commit 时重启后端；任务状态会恢复为“因重启中断”，但执行本身不会续跑。长时间回填仍使用 `npx tsx src/server.ts`（无 watch）启动。

@@ -35,6 +35,7 @@
 - **Analytics** -- Annual reports, monthly trends, rating distribution, source breakdown, cross-platform comparison
 - **Showcase Display** -- Grid and fullscreen carousel modes, perfect for casting your collection on a big screen
 - **Activity Log** -- Automatic CRUD tracking with undo support and advanced filtering
+- **Background Task Recovery** -- Persist import and sync progress, and explicitly mark interrupted tasks after a service restart
 
 ## 🚀 Quick Start
 

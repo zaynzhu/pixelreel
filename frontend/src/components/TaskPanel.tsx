@@ -1,16 +1,9 @@
-import { useEffect } from 'react';
-import { useTaskStore, startPolling, stopPolling } from '../stores/taskStore';
+import { useTaskStore } from '../stores/taskStore';
 import { confirmDialog } from './Toast';
 import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
-
-  useEffect(() => {
-    if (open) startPolling();
-    else stopPolling();
-    return () => { if (!open) stopPolling(); };
-  }, [open]);
 
   const running = tasks.filter((t) => t.status === 'running').length;
 

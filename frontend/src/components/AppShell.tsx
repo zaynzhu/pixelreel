@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useI18nStore } from "../stores/i18nStore";
@@ -6,6 +6,7 @@ import { useTaskStore } from "../stores/taskStore";
 import RightActionDrawer from "./RightActionDrawer";
 import TaskPanel from "./TaskPanel";
 import { ToastContainer, ConfirmDialog } from "./Toast";
+import { startPolling, stopPolling } from "../stores/taskStore";
 
 export default function AppShell() {
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
@@ -13,6 +14,11 @@ export default function AppShell() {
   const authRequired = useAuthStore((s) => s.authRequired)
   const { lang, toggleLang, t } = useI18nStore();
   const runningTasks = useTaskStore((s) => s.tasks.filter((t) => t.status === 'running').length);
+
+  useEffect(() => {
+    startPolling()
+    return stopPolling
+  }, [])
 
   const NAV_ITEMS = [
     { to: "/", label: t("nav.overview") },

@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import cron from 'node-cron';
 import { runRadarSync, runNewReleaseRadarSync } from './services/radar/radarSyncService';
 import { registerExternalApiRateLimiter } from './services/external-api-rate-limiter';
+import { initializeTaskManager } from './services/task-manager';
 
 // JSON 序列化 BigInt 支持（Prisma 使用 BigInt 作为主键类型）
 (BigInt.prototype as any).toJSON = function () {
@@ -16,6 +17,12 @@ import { registerExternalApiRateLimiter } from './services/external-api-rate-lim
 
 // 注册活动日志 Prisma 扩展（必须在路由挂载前）
 registerExtensions(createActivityLogExtension());
+
+// 加载持久化任务，并把重启前遗留的运行中任务标记为中断
+const recoveredTaskCount = initializeTaskManager();
+if (recoveredTaskCount > 0) {
+  console.warn(`[TaskManager] 已恢复 ${recoveredTaskCount} 个因服务重启中断的任务`);
+}
 
 // 所有 Axios 外部 API 请求按服务统一限流
 registerExternalApiRateLimiter();

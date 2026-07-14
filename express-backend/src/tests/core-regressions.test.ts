@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import type { Request, Response } from 'express';
 import { config } from '../config';
@@ -12,6 +15,7 @@ import {
   RateLimiter,
   shouldRateLimitRequest,
 } from '../services/external-api-rate-limiter';
+import { INTERRUPTED_TASK_ERROR, TaskManager } from '../services/task-manager';
 
 test('敏感配置只返回已配置标记', () => {
   assert.deepEqual(serializeSettingValue(true, 'secret-value'), {
@@ -65,6 +69,51 @@ test('外部 API 按服务主域名限流并排除图片代理下载', () => {
   assert.equal(shouldRateLimitRequest({ url: 'https://api.rawg.io/api/games' }), true);
   assert.equal(shouldRateLimitRequest({ url: 'https://image.tmdb.org/poster.jpg', method: 'HEAD' }), false);
   assert.equal(shouldRateLimitRequest({ url: 'https://image.tmdb.org/poster.jpg', responseType: 'arraybuffer' }), false);
+});
+
+test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-task-manager-'));
+  const storagePath = path.join(tempDir, 'tasks.json');
+  let now = new Date('2026-07-14T12:00:00.000Z');
+  const activityLogger = async () => {};
+
+  try {
+    const firstManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    assert.equal(firstManager.initialize(), 0);
+    const runningTask = firstManager.createTask('test-import', '测试导入');
+    firstManager.updateProgress(runningTask.taskId, { processed: 3, total: 10, currentTitle: '第三条' });
+    firstManager.flush();
+
+    now = new Date('2026-07-14T12:01:00.000Z');
+    const recoveredManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    assert.equal(recoveredManager.initialize(), 1);
+    const recoveredTask = recoveredManager.getTask(runningTask.taskId);
+    assert.equal(recoveredTask?.status, 'failed');
+    assert.equal(recoveredTask?.error, INTERRUPTED_TASK_ERROR);
+    assert.equal(recoveredTask?.progress.processed, 3);
+    assert.equal(recoveredTask?.progress.currentTitle, '');
+    assert.equal(recoveredTask?.completedAt, now.toISOString());
+
+    recoveredManager.completeTask(runningTask.taskId, { total: 10, imported: 10, skipped: 0, errors: [] });
+    assert.equal(recoveredManager.getTask(runningTask.taskId)?.status, 'failed');
+
+    const cancelledTask = recoveredManager.createTask('test-import', '取消测试');
+    assert.deepEqual(recoveredManager.cancelTask(cancelledTask.taskId), { ok: true });
+    recoveredManager.failTask(cancelledTask.taskId, '取消后的异步异常');
+    assert.equal(recoveredManager.getTask(cancelledTask.taskId)?.status, 'cancelled');
+
+    const reloadedManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    assert.equal(reloadedManager.initialize(), 0);
+    assert.equal(reloadedManager.getTask(runningTask.taskId)?.status, 'failed');
+    assert.equal(reloadedManager.getTask(cancelledTask.taskId)?.status, 'cancelled');
+
+    now = new Date('2026-07-14T12:32:00.001Z');
+    const expiredManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    assert.equal(expiredManager.initialize(), 0);
+    assert.deepEqual(expiredManager.listTasks(), []);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test('关闭认证时放行请求，开启认证时拒绝无令牌请求', () => {

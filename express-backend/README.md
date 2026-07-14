@@ -148,4 +148,5 @@ express-backend/
 7. **TMDB API 代理**：国内必须设置 `HTTPS_PROXY`，否则 TMDB 请求超时。
 8. **TMDB Bearer Token**：`TMDB_API_KEY` 存的是 JWT（eyJ 开头），必须通过 `Authorization: Bearer` 传递。
 9. **外部 API 限流**：全局 Axios `RateLimiter` 按服务主域名保证请求起始时间至少间隔 2 秒；图片代理二进制下载除外。
-10. **tsx watch 陷阱**：git commit 会触发重启，丢失内存中的任务状态。跑回填任务时用 `npx tsx src/server.ts`。
+10. **任务恢复**：任务状态持久化到 `data/tasks.json`；重启前仍在运行的任务会恢复为失败并标记“因服务重启中断”，终态保留 30 分钟。
+11. **tsx watch 陷阱**：git commit 会触发重启；任务执行不会自动续跑。长时间回填仍使用 `npx tsx src/server.ts`。
