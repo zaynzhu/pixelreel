@@ -40,6 +40,29 @@ export function parseRequiredPositiveIntegerParameter(value: unknown, name: stri
   return parsed;
 }
 
+export function parsePositiveBigIntParameter(
+  value: unknown,
+  name: string,
+  required = false,
+): bigint | null {
+  const parsed = parseStringParameter(value, name, required);
+  if (!parsed) return null;
+  if (!/^[1-9]\d*$/.test(parsed)) {
+    throw new RequestValidationError(`${name} 必须是正整数`);
+  }
+  return BigInt(parsed);
+}
+
+export function parseDateParameter(value: unknown, name: string): Date | null {
+  const parsed = parseStringParameter(value, name);
+  if (!parsed) return null;
+  const date = new Date(parsed);
+  if (Number.isNaN(date.getTime())) {
+    throw new RequestValidationError(`${name} 必须是有效日期`);
+  }
+  return date;
+}
+
 export function parseStringParameter(value: unknown, name: string, required = false): string | null {
   if (value == null) {
     if (required) throw new RequestValidationError(`缺少 ${name} 参数`);

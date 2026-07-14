@@ -13,9 +13,12 @@ import {
   ProtectedDoubanDataError,
 } from '../middlewares/activity-log';
 import { getAuthStatus } from '../routes/auth';
+import { parseActivityCursor } from '../routes/activity';
 import { getHealthStatus } from '../routes/health';
 import {
   parsePositiveIntegerParameter,
+  parsePositiveBigIntParameter,
+  parseDateParameter,
   parseLibraryRecordUpdateBody,
   parseRecordStatusParameter,
   parseRequiredPositiveIntegerParameter,
@@ -96,6 +99,20 @@ test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', rating: 6 }), RequestValidationError);
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', shortReview: 'a'.repeat(1001) }), RequestValidationError);
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', doubanId: null }), RequestValidationError);
+});
+
+test('活动日志参数拒绝非法游标、ID 和日期', () => {
+  assert.equal(parsePositiveBigIntParameter('9007199254740993', 'entityId'), 9007199254740993n);
+  assert.throws(() => parsePositiveBigIntParameter('not-a-number', 'entityId'), RequestValidationError);
+  assert.equal(parseDateParameter('2026-07-15T00:00:00.000Z', 'from')?.toISOString(), '2026-07-15T00:00:00.000Z');
+  assert.throws(() => parseDateParameter('not-a-date', 'from'), RequestValidationError);
+  assert.deepEqual(parseActivityCursor('2026-07-15T00:00:00.000Z__42'), {
+    createdAt: new Date('2026-07-15T00:00:00.000Z'),
+    id: 42n,
+  });
+  assert.throws(() => parseActivityCursor('2026-07-15T00:00:00.000Z__bad'), RequestValidationError);
+  assert.throws(() => parseActivityCursor('invalid-cursor'), RequestValidationError);
+  assert.equal(parseActivityCursor(undefined), null);
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {

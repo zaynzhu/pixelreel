@@ -119,6 +119,7 @@ frontend/src/
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
 - **记录编辑：** 路径 `id` 必须是 JavaScript 安全范围内的正整数；Library PATCH 只接受 `status`、`rating`、`shortReview`，评分限定 1-5，短评最长 1000 字符，非法请求在写库前返回 400。
 - **HTTP 错误边界：** 路由内部异常统一交给 `errorHandler`；4xx 保留可操作提示且只记录单行警告，5xx 客户端固定返回“内部服务器错误”，详细堆栈只写服务端日志。Express 框架指纹响应头已关闭。
+- **活动日志参数：** `/api/activity` 的 `limit`、游标、实体 ID 和日期必须通过格式校验；非法值及反向日期范围返回 400，不能进入 Prisma 或被记录成 500。
 - **海报填充：** 电影/剧集用 TMDB，游戏用 RAWG。受全局 2 秒外部 API 限流并支持 429 重试。
 - **搜索 Provider：** 电影搜索支持 OMDb/TMDB/豆瓣/IMDb/Trakt；剧集支持 TMDB/豆瓣；游戏支持 RAWG/Steam。IMDb Provider 复用 OMDb API。OMDb/IMDb 搜索中文关键词时自动通过 TMDB 获取英文原名回退（按 vote_count 排序）。RAWG 和 Steam 搜索中文关键词时通过 MyMemory API 翻译为英文再搜索。Steam 海报使用 CDN 地址 `cdn.akamai.steamstatic.com`。豆瓣搜索使用公开接口 `/j/subject_suggest`，不需要 Cookie。
 - **搜索详情：** 前端搜索结果点击可展开详情。影视详情：评分、类型、导演、演员、片长、剧情。游戏详情：RAWG/Steam 评分、Metacritic、开发商、发行商、平台、游玩时长、ESRB、截图（`screenshots` 数组）。后端提供 `/api/search/imdb/:imdbId`、`/api/search/tmdb/:tmdbId`、`/api/search/douban/:doubanId`、`/api/search/rawg/:rawgId`、`/api/search/steam/:steamAppId` 五个详情接口。

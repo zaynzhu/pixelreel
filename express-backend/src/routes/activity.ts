@@ -1,17 +1,26 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import { logActivity, EntityType } from '../services/activity-log'
+import {
+  parseDateParameter,
+  parsePositiveBigIntParameter,
+  parsePositiveIntegerParameter,
+  parseStringParameter,
+  RequestValidationError,
+} from './request-validation'
 
 const router = Router()
 
 const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE'])
 
-function parseCursor(cursor: string): { createdAt: Date; id: bigint } | null {
+export function parseActivityCursor(value: unknown): { createdAt: Date; id: bigint } | null {
+  const cursor = parseStringParameter(value, 'cursor')
+  if (!cursor) return null
   const parts = cursor.split('__')
-  if (parts.length !== 2) return null
+  if (parts.length !== 2) throw new RequestValidationError('cursor 格式无效')
   const createdAt = new Date(parts[0])
-  const id = BigInt(parts[1])
-  if (isNaN(createdAt.getTime())) return null
+  const id = parsePositiveBigIntParameter(parts[1], 'cursor id', true)!
+  if (isNaN(createdAt.getTime())) throw new RequestValidationError('cursor 时间无效')
   return { createdAt, id }
 }
 
@@ -43,25 +52,25 @@ function entityDelegate(entityType: string) {
 // GET /api/activity — 活动日志列表（游标分页）
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100)
-    const cursorStr = req.query.cursor as string | undefined
-    const action = req.query.action as string | undefined
-    const entityType = req.query.entityType as string | undefined
-    const entityId = req.query.entityId as string | undefined
-    const from = req.query.from as string | undefined
-    const to = req.query.to as string | undefined
+    const limit = parsePositiveIntegerParameter(req.query.limit, 'limit', 50, 100)
+    const cursorObj = parseActivityCursor(req.query.cursor)
+    const action = parseStringParameter(req.query.action, 'action')
+    const entityType = parseStringParameter(req.query.entityType, 'entityType')
+    const entityId = parsePositiveBigIntParameter(req.query.entityId, 'entityId')
+    const from = parseDateParameter(req.query.from, 'from')
+    const to = parseDateParameter(req.query.to, 'to')
+    if (from && to && from > to) throw new RequestValidationError('from 不能晚于 to')
 
     const where: any = {}
     if (action) where.action = action
     if (entityType) where.entityType = entityType
-    if (entityId && typeof entityId === 'string') where.entityId = BigInt(entityId)
+    if (entityId) where.entityId = entityId
     if (from || to) {
       where.createdAt = {}
-      if (from) where.createdAt.gte = new Date(from)
-      if (to) where.createdAt.lte = new Date(to)
+      if (from) where.createdAt.gte = from
+      if (to) where.createdAt.lte = to
     }
 
-    const cursorObj = cursorStr ? parseCursor(cursorStr) : undefined
     if (cursorObj) {
       where.OR = [
         { createdAt: { lt: cursorObj.createdAt } },
@@ -94,7 +103,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 // POST /api/activity/:id/undo — 撤销操作
 router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = BigInt(req.params.id as string)
+    const id = parsePositiveBigIntParameter(req.params.id, 'id', true)!
 
     const entry = await getDb().activityLog.findUnique({ where: { id } })
     if (!entry) {
