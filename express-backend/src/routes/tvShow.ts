@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { getDb } from '../config/db';
-import { parseRequiredPositiveIntegerParameter } from './request-validation';
+import {
+  parseRequiredPositiveIntegerParameter,
+  parseTvShowRecordWriteBody,
+} from './request-validation';
 
 const router = Router();
 
@@ -23,7 +27,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // POST /api/tv-shows
 router.post('/', async (req: Request, res: Response) => {
-  const { id, createdAt, updatedAt, ...data } = req.body;
+  const data = parseTvShowRecordWriteBody(req.body, 'create') as Prisma.TvShowUncheckedCreateInput;
   const show = await getDb().tvShow.create({ data });
   res.json(show);
 });
@@ -31,7 +35,7 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT /api/tv-shows/:id
 router.put('/:id', async (req: Request, res: Response) => {
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
-  const { id: _id, createdAt, updatedAt, ...data } = req.body;
+  const data = parseTvShowRecordWriteBody(req.body, 'update') as Prisma.TvShowUncheckedUpdateInput;
   await getDb().tvShow.update({ where: { id }, data });
   const show = await getDb().tvShow.findUnique({ where: { id } });
   res.json(show);

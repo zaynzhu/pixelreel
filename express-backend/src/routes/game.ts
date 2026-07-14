@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { getDb } from '../config/db';
-import { parseRequiredPositiveIntegerParameter } from './request-validation';
+import {
+  parseGameRecordWriteBody,
+  parseRequiredPositiveIntegerParameter,
+} from './request-validation';
 
 const router = Router();
 
@@ -23,7 +27,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // POST /api/games - 创建游戏
 router.post('/', async (req: Request, res: Response) => {
-  const { id, createdAt, updatedAt, ...data } = req.body;
+  const data = parseGameRecordWriteBody(req.body, 'create') as Prisma.GameUncheckedCreateInput;
   const game = await getDb().game.create({ data });
   res.json(game);
 });
@@ -31,7 +35,7 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT /api/games/:id - 更新游戏
 router.put('/:id', async (req: Request, res: Response) => {
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
-  const { id: _id, createdAt, updatedAt, ...data } = req.body;
+  const data = parseGameRecordWriteBody(req.body, 'update') as Prisma.GameUncheckedUpdateInput;
   await getDb().game.update({ where: { id }, data });
   const game = await getDb().game.findUnique({ where: { id } });
   res.json(game);

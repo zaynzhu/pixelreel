@@ -20,10 +20,13 @@ import {
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
   parseDateParameter,
+  parseGameRecordWriteBody,
   parseLibraryRecordUpdateBody,
+  parseMovieRecordWriteBody,
   parseRecordStatusParameter,
   parseRequiredPositiveIntegerParameter,
   parseStringParameter,
+  parseTvShowRecordWriteBody,
   RequestValidationError,
 } from '../routes/request-validation';
 import {
@@ -104,6 +107,56 @@ test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', rating: 6 }), RequestValidationError);
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', shortReview: 'a'.repeat(1001) }), RequestValidationError);
   assert.throws(() => parseLibraryRecordUpdateBody({ status: 'DONE', doubanId: null }), RequestValidationError);
+});
+
+test('直接 CRUD 写入仅接受已知字段和有效类型', () => {
+  assert.deepEqual(parseMovieRecordWriteBody({
+    title: '  测试电影  ',
+    status: 'want',
+    tmdbId: 123,
+    rating: null,
+    posterUrl: null,
+  }, 'create'), {
+    title: '测试电影',
+    status: RecordStatus.WANT,
+    tmdbId: 123n,
+    rating: null,
+    posterUrl: null,
+  });
+  assert.deepEqual(parseTvShowRecordWriteBody({
+    title: '测试剧集',
+    status: 'DONE',
+    firstAirDate: '2026-07-15',
+  }, 'create'), {
+    title: '测试剧集',
+    status: RecordStatus.DONE,
+    firstAirDate: '2026-07-15',
+  });
+  assert.deepEqual(parseGameRecordWriteBody({
+    title: '测试游戏',
+    status: 'IN_PROGRESS',
+    steamAppId: '730',
+    playtimeMinutes: 0,
+    importedAt: '2026-07-15T00:00:00.000Z',
+  }, 'create'), {
+    title: '测试游戏',
+    status: RecordStatus.IN_PROGRESS,
+    steamAppId: 730n,
+    playtimeMinutes: 0,
+    importedAt: new Date('2026-07-15T00:00:00.000Z'),
+  });
+
+  assert.throws(() => parseMovieRecordWriteBody({}, 'update'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ title: '测试电影' }, 'create'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ title: '  ', status: 'WANT' }, 'create'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ doubanTitle: '不允许直接写入' }, 'update'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ createdAt: '2026-07-15' }, 'update'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ constructor: 'invalid' }, 'update'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ rating: 0 }, 'update'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ tmdbId: 1.5 }, 'update'), RequestValidationError);
+  assert.throws(() => parseMovieRecordWriteBody({ tmdbVoteAverage: 11 }, 'update'), RequestValidationError);
+  assert.throws(() => parseGameRecordWriteBody({ playtimeMinutes: -1 }, 'update'), RequestValidationError);
+  assert.throws(() => parseTvShowRecordWriteBody({ releaseDate: '2026-07-15' }, 'update'), RequestValidationError);
 });
 
 test('活动日志参数拒绝非法游标、ID 和日期', () => {

@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { getDb } from '../config/db';
-import { parseRequiredPositiveIntegerParameter } from './request-validation';
+import {
+  parseMovieRecordWriteBody,
+  parseRequiredPositiveIntegerParameter,
+} from './request-validation';
 
 const router = Router();
 
@@ -23,7 +27,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // POST /api/movies - 创建电影
 router.post('/', async (req: Request, res: Response) => {
-  const { id, createdAt, updatedAt, ...data } = req.body;
+  const data = parseMovieRecordWriteBody(req.body, 'create') as Prisma.MovieUncheckedCreateInput;
   const movie = await getDb().movie.create({ data });
   res.json(movie);
 });
@@ -31,7 +35,7 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT /api/movies/:id - 更新电影
 router.put('/:id', async (req: Request, res: Response) => {
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
-  const { id: _id, createdAt, updatedAt, ...data } = req.body;
+  const data = parseMovieRecordWriteBody(req.body, 'update') as Prisma.MovieUncheckedUpdateInput;
   await getDb().movie.update({ where: { id }, data });
   const movie = await getDb().movie.findUnique({ where: { id } });
   res.json(movie);
