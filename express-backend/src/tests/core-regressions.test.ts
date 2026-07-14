@@ -24,10 +24,13 @@ import {
 import {
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
+  parseBoundedStringParameter,
   parseDateParameter,
+  parseExternalSearchParameters,
   parseGameRecordWriteBody,
   parseLibraryRecordUpdateBody,
   parseMovieRecordWriteBody,
+  parsePatternParameter,
   parseRecordStatusParameter,
   parseRequiredPositiveIntegerParameter,
   parseStringParameter,
@@ -217,6 +220,35 @@ test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {
   assert.throws(() => parseRadarSyncSource('douban'), RequestValidationError);
   assert.throws(() => parseRadarItemIdBody({ radarItemId: 0 }), RequestValidationError);
   assert.throws(() => parseRadarItemIdBody({ radarItemId: 1, extra: true }), RequestValidationError);
+});
+
+test('外部搜索在发起请求前校验关键词、页码、Provider 和详情 ID', () => {
+  const providers = ['tmdb', 'omdb', 'trakt'] as const;
+  assert.deepEqual(parseExternalSearchParameters({
+    query: '  测试电影  ',
+    page: '2',
+    providers: ['TMDB', 'omdb,trakt', 'tmdb'],
+  }, providers), {
+    query: '测试电影',
+    page: 2,
+    providers: ['tmdb', 'omdb', 'trakt'],
+  });
+  assert.deepEqual(parseExternalSearchParameters({ query: '测试电影' }, providers), {
+    query: '测试电影',
+    page: 1,
+    providers: undefined,
+  });
+  assert.equal(parsePatternParameter('tt1234567', 'imdbId', /^tt\d{7,10}$/, 12), 'tt1234567');
+  assert.equal(parseBoundedStringParameter(' https://example.com/image.jpg ', 'url', 2000, true), 'https://example.com/image.jpg');
+
+  assert.throws(() => parseExternalSearchParameters({}, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: ['测试'] }, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: 'x'.repeat(201) }, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: '测试', page: '1x' }, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: '测试', page: '1001' }, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'unknown' }, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'tmdb,' }, providers), RequestValidationError);
+  assert.throws(() => parsePatternParameter('1234567', 'imdbId', /^tt\d{7,10}$/, 12), RequestValidationError);
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {

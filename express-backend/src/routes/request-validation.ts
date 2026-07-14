@@ -86,6 +86,69 @@ export function parseStringParameter(value: unknown, name: string, required = fa
   return parsed;
 }
 
+export function parseBoundedStringParameter(
+  value: unknown,
+  name: string,
+  maxLength: number,
+  required = false,
+): string | null {
+  const parsed = parseStringParameter(value, name, required);
+  if (parsed && parsed.length > maxLength) {
+    throw new RequestValidationError(`${name} 不能超过 ${maxLength} 个字符`);
+  }
+  return parsed;
+}
+
+export function parsePatternParameter(
+  value: unknown,
+  name: string,
+  pattern: RegExp,
+  maxLength: number,
+): string {
+  const parsed = parseBoundedStringParameter(value, name, maxLength, true)!;
+  if (!pattern.test(parsed)) throw new RequestValidationError(`${name} 格式无效`);
+  return parsed;
+}
+
+export function parseStringListParameter(
+  value: unknown,
+  name: string,
+  allowedValues: readonly string[],
+): string[] | undefined {
+  if (value == null) return undefined;
+  const values = Array.isArray(value) ? value : [value];
+  if (values.length === 0 || values.some(item => typeof item !== 'string')) {
+    throw new RequestValidationError(`${name} 必须是字符串列表`);
+  }
+
+  const result = new Set<string>();
+  for (const valueItem of values as string[]) {
+    const parts = valueItem.split(',');
+    if (parts.length === 0 || parts.some(part => !part.trim())) {
+      throw new RequestValidationError(`${name} 不能包含空值`);
+    }
+    for (const part of parts) {
+      const normalized = part.trim().toLowerCase();
+      if (!allowedValues.includes(normalized)) {
+        throw new RequestValidationError(`${name} 只支持 ${allowedValues.join('、')}`);
+      }
+      result.add(normalized);
+    }
+  }
+  return [...result];
+}
+
+export function parseExternalSearchParameters(
+  value: Record<string, unknown>,
+  allowedProviders: readonly string[],
+) {
+  return {
+    query: parseBoundedStringParameter(value.query, 'query', 200, true)!,
+    page: parsePositiveIntegerParameter(value.page, 'page', 1, 1000),
+    providers: parseStringListParameter(value.providers, 'providers', allowedProviders),
+  };
+}
+
 export function parseEnumParameter<T extends string>(
   value: unknown,
   name: string,

@@ -2,6 +2,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { config } from '../config';
 import { searchMovies, searchGames } from '../services/ExternalSearchService';
+import {
+  parseBoundedStringParameter,
+  parseExternalSearchParameters,
+  parsePatternParameter,
+  parsePositiveBigIntParameter,
+} from './request-validation';
 
 // 代理配置
 const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || '';
@@ -11,44 +17,32 @@ const axiosProxyOpts: any = proxyUrl
   : {};
 
 const router = Router();
+const MOVIE_SEARCH_PROVIDERS = ['tmdb', 'omdb', 'trakt', 'douban', 'imdb'] as const;
+const GAME_SEARCH_PROVIDERS = ['rawg', 'steam', 'psn', 'xbox', 'switch'] as const;
 
 // GET /api/search/movies?query=xxx&page=1&providers=tmdb,omdb
 router.get('/movies', async (req: Request, res: Response) => {
-  const query = req.query.query as string;
-  const page = parseInt(req.query.page as string) || 1;
-  const providers = req.query.providers as string | string[] | undefined;
-
-  let providerList: string[] | undefined;
-  if (providers) {
-    providerList = Array.isArray(providers) ? providers : [providers];
-  }
-
-  const result = await searchMovies(query ?? '', page, providerList);
+  const { query, page, providers } = parseExternalSearchParameters(
+    req.query as Record<string, unknown>,
+    MOVIE_SEARCH_PROVIDERS,
+  );
+  const result = await searchMovies(query, page, providers);
   res.json(result);
 });
 
 // GET /api/search/games?query=xxx&page=1&providers=rawg,steam
 router.get('/games', async (req: Request, res: Response) => {
-  const query = req.query.query as string;
-  const page = parseInt(req.query.page as string) || 1;
-  const providers = req.query.providers as string | string[] | undefined;
-
-  let providerList: string[] | undefined;
-  if (providers) {
-    providerList = Array.isArray(providers) ? providers : [providers];
-  }
-
-  const result = await searchGames(query ?? '', page, providerList);
+  const { query, page, providers } = parseExternalSearchParameters(
+    req.query as Record<string, unknown>,
+    GAME_SEARCH_PROVIDERS,
+  );
+  const result = await searchGames(query, page, providers);
   res.json(result);
 });
 
 // GET /api/search/douban/:doubanId — 通过豆瓣 ID 获取详情
 router.get('/douban/:doubanId', async (req: Request, res: Response, next: NextFunction) => {
-  const doubanId = req.params.doubanId;
-  if (!doubanId) {
-    res.status(400).json({ error: 'doubanId required' });
-    return;
-  }
+  const doubanId = parsePatternParameter(req.params.doubanId, 'doubanId', /^\d{1,20}$/, 20);
 
   try {
     const response = await axios.get(`${config.douban.baseUrl}/j/subject_abstract`, {
@@ -85,9 +79,9 @@ router.get('/douban/:doubanId', async (req: Request, res: Response, next: NextFu
 
 // GET /api/search/imdb/:imdbId — 通过 IMDb ID 获取详情（OMDb）
 router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFunction) => {
-  const imdbId = req.params.imdbId;
-  if (!imdbId || !config.omdb.apiKey) {
-    res.status(400).json({ error: 'imdbId required or OMDb not configured' });
+  const imdbId = parsePatternParameter(req.params.imdbId, 'imdbId', /^tt\d{7,10}$/, 12);
+  if (!config.omdb.apiKey) {
+    res.status(400).json({ error: 'OMDb not configured' });
     return;
   }
 
@@ -125,9 +119,9 @@ router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/tmdb/:tmdbId — 通过 TMDB ID 获取详情
 router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFunction) => {
-  const tmdbId = req.params.tmdbId;
-  if (!tmdbId || !config.tmdb.apiKey) {
-    res.status(400).json({ error: 'tmdbId required or TMDB not configured' });
+  const tmdbId = parsePositiveBigIntParameter(req.params.tmdbId, 'tmdbId', true)!.toString();
+  if (!config.tmdb.apiKey) {
+    res.status(400).json({ error: 'TMDB not configured' });
     return;
   }
 
@@ -209,9 +203,9 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/rawg/:rawgId — 通过 RAWG ID 获取游戏详情
 router.get('/rawg/:rawgId', async (req: Request, res: Response, next: NextFunction) => {
-  const rawgId = req.params.rawgId;
-  if (!rawgId || !config.rawg.apiKey) {
-    res.status(400).json({ error: 'rawgId required or RAWG not configured' });
+  const rawgId = parsePositiveBigIntParameter(req.params.rawgId, 'rawgId', true)!.toString();
+  if (!config.rawg.apiKey) {
+    res.status(400).json({ error: 'RAWG not configured' });
     return;
   }
 
@@ -250,11 +244,7 @@ router.get('/rawg/:rawgId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/steam/:steamAppId — 通过 Steam App ID 获取游戏详情
 router.get('/steam/:steamAppId', async (req: Request, res: Response, next: NextFunction) => {
-  const steamAppId = req.params.steamAppId as string;
-  if (!steamAppId) {
-    res.status(400).json({ error: 'steamAppId required' });
-    return;
-  }
+  const steamAppId = parsePositiveBigIntParameter(req.params.steamAppId, 'steamAppId', true)!.toString();
 
   try {
     const response = await axios.get('https://store.steampowered.com/api/appdetails', {
@@ -317,11 +307,7 @@ const ALLOWED_HOSTS = new Set([
 
 // GET /api/proxy/image?url=xxx — 图片代理（解决豆瓣防盗链 + 缓存控制）
 router.get('/proxy/image', async (req: Request, res: Response) => {
-  let url = req.query.url as string;
-  if (!url) {
-    res.status(400).json({ error: 'url required' });
-    return;
-  }
+  let url = parseBoundedStringParameter(req.query.url, 'url', 2000, true)!;
 
   // Validate URL
   let parsed: URL;
