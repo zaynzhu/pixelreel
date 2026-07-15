@@ -99,9 +99,17 @@ export default function LibraryDetailPage() {
   }
 
   if (!record || error) {
+    const retryable = Boolean(error && validCategory && validId)
     return (
       <DetailState label={error || t("detail.error")}>
-        <Link to="/library" className="brutal-btn">{t("detail.back")}</Link>
+        <div className="flex flex-wrap justify-center gap-2">
+          {retryable && (
+            <button type="button" className="brutal-btn" onClick={() => void loadRecord()}>
+              {t("detail.retry")}
+            </button>
+          )}
+          <Link to="/library" className="brutal-btn">{t("detail.back")}</Link>
+        </div>
       </DetailState>
     )
   }
