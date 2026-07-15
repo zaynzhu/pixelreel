@@ -15,6 +15,7 @@ export interface Task {
 
 interface TaskState {
   tasks: Task[];
+  pollError: string | null;
   pollTasks: () => Promise<void>;
   cancelTask: (taskId: string) => Promise<void>;
 }
@@ -24,14 +25,16 @@ let latestTaskPollRequest = 0;
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  pollError: null,
   pollTasks: async () => {
     const requestId = ++latestTaskPollRequest;
     try {
       const tasks = await apiFetch<Task[]>('/import/tasks');
       if (requestId !== latestTaskPollRequest) return;
-      set({ tasks });
-    } catch {
-      // 静默失败，下次轮询重试
+      set({ tasks, pollError: null });
+    } catch (reason) {
+      if (requestId !== latestTaskPollRequest) return;
+      set({ pollError: reason instanceof Error ? reason.message : '' });
     }
   },
   cancelTask: async (taskId: string) => {

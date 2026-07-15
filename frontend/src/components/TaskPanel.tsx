@@ -5,6 +5,8 @@ import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
+  const pollError = useTaskStore((s) => s.pollError);
+  const pollTasks = useTaskStore((s) => s.pollTasks);
   const { t } = useI18nStore();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -77,6 +79,15 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
 
         {/* 任务列表 */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+          {pollError !== null && (
+            <div role="alert" className="mb-4 border border-red-500/50 bg-red-500/10 p-3 text-[10px] text-red-300">
+              <p>{pollError || t('task.panel.load_error')}</p>
+              <p className="mt-1 text-[var(--muted)]">{t('task.panel.stale_hint')}</p>
+              <button type="button" onClick={() => void pollTasks()} className="brutal-btn mt-3">
+                {t('sync.retry')}
+              </button>
+            </div>
+          )}
           {tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-[var(--muted)]">
               <svg className="w-8 h-8 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">

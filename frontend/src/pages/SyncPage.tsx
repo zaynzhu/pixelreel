@@ -29,6 +29,7 @@ type DirectSource = 'steam' | 'trakt'
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
   const tasks = useTaskStore(state => state.tasks)
+  const taskPollError = useTaskStore(state => state.pollError)
   const cancelTask = useTaskStore(state => state.cancelTask)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const [status, setStatus] = useState<SyncSourceStatus | null>(null)
@@ -156,6 +157,16 @@ export default function SyncPage() {
         <div className="flex items-center justify-between gap-4 border border-yellow-500/40 bg-yellow-500/10 p-4 text-xs text-yellow-300">
           <span>{historyError}</span>
           <button type="button" onClick={() => void loadHistory()} className="brutal-btn">{t('sync.retry')}</button>
+        </div>
+      )}
+
+      {taskPollError !== null && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border border-red-500/50 bg-red-500/10 p-4 text-xs text-red-300">
+          <div>
+            <p>{taskPollError || t('task.panel.load_error')}</p>
+            <p className="mt-1 text-[10px] text-[var(--muted)]">{t('task.panel.stale_hint')}</p>
+          </div>
+          <button type="button" onClick={() => void pollTasks()} className="brutal-btn">{t('sync.retry')}</button>
         </div>
       )}
 

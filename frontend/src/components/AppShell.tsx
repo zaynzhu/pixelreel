@@ -14,6 +14,7 @@ export default function AppShell() {
   const authRequired = useAuthStore((s) => s.authRequired)
   const { lang, toggleLang, t } = useI18nStore();
   const runningTasks = useTaskStore((s) => s.tasks.filter((t) => t.status === 'running').length);
+  const taskPollError = useTaskStore((s) => s.pollError);
   const closeTaskPanel = useCallback(() => setTaskPanelOpen(false), []);
 
   useEffect(() => {
@@ -76,12 +77,18 @@ export default function AppShell() {
                   aria-haspopup="dialog"
                   aria-expanded={taskPanelOpen}
                   aria-controls="task-panel"
+                  title={taskPollError !== null ? t('task.panel.load_error') : undefined}
                   className="brutal-btn relative"
                 >
                   {t('task.panel.title')}
                   {runningTasks > 0 && (
                     <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-deep)] text-[10px] font-bold text-white">
                       {runningTasks}
+                    </span>
+                  )}
+                  {taskPollError !== null && (
+                    <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center border border-red-400 text-[10px] font-bold text-red-300">
+                      !
                     </span>
                   )}
                 </button>
