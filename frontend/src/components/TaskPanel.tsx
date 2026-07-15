@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTaskStore } from '../stores/taskStore';
 import { useI18nStore } from '../stores/i18nStore';
+import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
@@ -130,7 +131,11 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
           {task.status === 'running' && (
             <button
               type="button"
-              onClick={() => useTaskStore.getState().cancelTask(task.taskId)}
+              onClick={() => {
+                void useTaskStore.getState().cancelTask(task.taskId).catch((reason) => {
+                  toast(reason instanceof Error ? reason.message : t('task.panel.cancel_failed'), 'error')
+                })
+              }}
               className="text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 px-2 py-0.5 hover:bg-red-400/10 transition-colors"
             >
               {t('task.panel.cancel')}

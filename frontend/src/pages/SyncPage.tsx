@@ -266,7 +266,11 @@ export default function SyncPage() {
                 key={task.taskId}
                 task={task}
                 lang={lang}
-                onCancel={() => void cancelTask(task.taskId)}
+                onCancel={() => {
+                  void cancelTask(task.taskId).catch(reason => {
+                    toast(reason instanceof Error ? reason.message : t('task.panel.cancel_failed'), 'error')
+                  })
+                }}
               />
             ))}
           </div>
