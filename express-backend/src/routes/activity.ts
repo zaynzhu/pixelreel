@@ -16,6 +16,8 @@ const router = Router()
 
 const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE'])
 const ACTIVITY_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'TASK_START', 'TASK_DONE', 'TASK_FAIL', 'TASK_CANCEL', 'UNDO'] as const
+const ACTIVITY_FILTER_ACTIONS = [...ACTIVITY_ACTIONS, 'DATA_CHANGE'] as const
+const DATA_CHANGE_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'UNDO'] as const
 const ACTIVITY_ENTITY_TYPES = ['MOVIE', 'TV_SHOW', 'GAME', 'TASK'] as const
 const ACTIVITY_LIST_PARAMETER_KEYS = new Set(['limit', 'cursor', 'action', 'entityType', 'entityId', 'from', 'to'])
 const undoInProgress = new Set<string>()
@@ -42,7 +44,7 @@ export function parseActivityListParameters(value: Record<string, unknown>) {
   return {
     limit: parsePositiveIntegerParameter(value.limit, 'limit', 50, 100),
     cursor: parseActivityCursor(value.cursor),
-    action: parseEnumParameter(value.action, 'action', ACTIVITY_ACTIONS),
+    action: parseEnumParameter(value.action, 'action', ACTIVITY_FILTER_ACTIONS),
     entityType: parseEnumParameter(value.entityType, 'entityType', ACTIVITY_ENTITY_TYPES),
     entityId: parsePositiveBigIntParameter(value.entityId, 'entityId'),
     from,
@@ -89,7 +91,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const { limit, cursor: cursorObj, action, entityType, entityId, from, to } = parseActivityListParameters(req.query)
 
     const where: any = {}
-    if (action) where.action = action
+    if (action === 'DATA_CHANGE') where.action = { in: DATA_CHANGE_ACTIONS }
+    else if (action) where.action = action
     if (entityType) where.entityType = entityType
     if (entityId) where.entityId = entityId
     if (from || to) {

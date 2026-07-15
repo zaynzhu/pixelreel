@@ -20,7 +20,7 @@ function useActionTabs(): TabOption[] {
   const { t } = useI18nStore()
   return [
     { label: t('activity.all') },
-    { label: t('activity.data_change'), value: 'UPDATE' },
+    { label: t('activity.data_change'), value: 'DATA_CHANGE' },
     { label: t('activity.task'), value: 'TASK' },
   ]
 }

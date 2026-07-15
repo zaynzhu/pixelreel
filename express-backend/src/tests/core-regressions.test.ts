@@ -980,6 +980,7 @@ test('活动日志参数拒绝非法游标、ID 和日期', () => {
     to: null,
   });
   assert.equal(parseActivityListParameters({ action: 'TASK_CANCEL' }).action, 'TASK_CANCEL');
+  assert.equal(parseActivityListParameters({ action: 'DATA_CHANGE' }).action, 'DATA_CHANGE');
   assert.throws(() => parseActivityListParameters({ action: 'INVALID' }), RequestValidationError);
   assert.throws(() => parseActivityListParameters({ entityType: 'USER' }), RequestValidationError);
   assert.throws(() => parseActivityListParameters({ verbose: 'true' }), RequestValidationError);
