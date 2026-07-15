@@ -92,6 +92,8 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | GET | `/api/data-health/summary` | 按电影、剧集、游戏汇总显示字段缺口 |
 | GET | `/api/data-health/issues?category=&issue=&cursor=&limit=` | 按问题类型游标分页列出记录 |
 | GET | `/api/data-health/duplicates?category=&cursor=&limit=` | 保守规则检测疑似重复记录组 |
+| POST | `/api/data-health/duplicates/review` | 将候选组标记为确认不同 |
+| DELETE | `/api/data-health/duplicates/review/:id` | 恢复候选组到待处理队列 |
 | POST | `/api/data-health/repair` | 启动定向空字段修复任务，每批最多 50 条 |
 
 ### 雷达

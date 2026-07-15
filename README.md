@@ -33,7 +33,7 @@
 - **时间线海报墙** -- 按月份分组的精美海报墙，支持年份切换和详情弹窗
 - **雷达发现** -- 聚合 TMDB 热映/趋势 + 优酷/腾讯片单，一键加入想看列表
 - **数据分析** -- 年度报告、月度趋势、评分分布、来源占比、跨平台评分对比
-- **数据健康审计** -- 检查缺失字段，识别疑似重复记录，并可逐条纠正错误的来源匹配
+- **数据健康审计** -- 检查缺失字段，识别疑似重复记录，可纠正来源匹配或将整组确认为不同记录
 - **大屏展示** -- 网格模式 + 全屏轮播模式，适合投屏展示你的影剧游收藏
 - **操作日志** -- 自动记录每次 CRUD 操作，支持撤销和筛选
 - **后台任务恢复** -- 持久化导入/同步进度，服务重启后明确标记被中断任务，不再直接丢失状态
@@ -222,6 +222,8 @@ GET    /api/profile/summary
 GET    /api/data-health/summary
 GET    /api/data-health/issues?category=&issue=&cursor=&limit=
 GET    /api/data-health/duplicates?category=&cursor=&limit=
+POST   /api/data-health/duplicates/review
+DELETE /api/data-health/duplicates/review/:id
 POST   /api/data-health/repair
 GET    /api/analytics?year=
 GET    /api/activity

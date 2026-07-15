@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { getDb } from '../config/db';
 import { DataHealthCategory } from './DataHealthService';
 
@@ -15,6 +16,7 @@ export const DUPLICATE_REASONS = [
 ] as const;
 
 export type DuplicateReason = typeof DUPLICATE_REASONS[number];
+export type DuplicateReviewFilter = 'unreviewed' | 'reviewed';
 
 export interface DuplicateCandidate {
   id: bigint;
@@ -125,11 +127,11 @@ export function findDuplicateGroups(candidates: DuplicateCandidate[]) {
           keyCounts.set(item.key, { reason: item.reason, count: (current?.count ?? 0) + 1 });
         }
       }
-      const reasons = Array.from(new Set(
-        Array.from(keyCounts.values())
-          .filter(item => item.count > 1)
-          .map(item => item.reason),
-      )).sort((left, right) => DUPLICATE_REASONS.indexOf(left) - DUPLICATE_REASONS.indexOf(right));
+      const sharedKeys = Array.from(keyCounts.entries())
+        .filter(([, item]) => item.count > 1)
+        .sort(([left], [right]) => left.localeCompare(right));
+      const reasons = Array.from(new Set(sharedKeys.map(([, item]) => item.reason)))
+        .sort((left, right) => DUPLICATE_REASONS.indexOf(left) - DUPLICATE_REASONS.indexOf(right));
       const records = indices.map(index => candidates[index])
         .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
         .map(candidate => ({
@@ -144,8 +146,11 @@ export function findDuplicateGroups(candidates: DuplicateCandidate[]) {
             Object.entries(candidate.identityValues).filter(([, value]) => Boolean(value)),
           ),
         }));
+      const fingerprint = createHash('sha256')
+        .update(`${records.map(record => record.id).join(',')}|${sharedKeys.map(([key]) => key).join('|')}`)
+        .digest('hex');
       return {
-        key: `${candidates[indices[0]].category}:${records.map(record => record.id).join('-')}`,
+        key: `${candidates[indices[0]].category}:${fingerprint}`,
         reasons,
         records,
       };
@@ -250,13 +255,55 @@ export async function listDuplicateGroups(
   category: DataHealthCategory,
   limit: number,
   cursor: number,
+  review: DuplicateReviewFilter = 'unreviewed',
 ) {
   const groups = findDuplicateGroups(await loadDuplicateCandidates(category));
-  const page = groups.slice(cursor, cursor + limit);
+  const decisions = await getDb().duplicateReview.findMany({
+    where: { category, decision: 'DISTINCT' },
+    select: { id: true, groupKey: true },
+  });
+  const reviewByKey = new Map(decisions.map(item => [item.groupKey, item.id]));
+  const reviewedGroups = groups.filter(group => reviewByKey.has(group.key));
+  const unreviewedGroups = groups.filter(group => !reviewByKey.has(group.key));
+  const selectedGroups = review === 'reviewed' ? reviewedGroups : unreviewedGroups;
+  const page = selectedGroups.slice(cursor, cursor + limit).map(group => ({
+    ...group,
+    reviewId: reviewByKey.get(group.key) != null ? Number(reviewByKey.get(group.key)) : null,
+  }));
   return {
     groups: page,
-    totalGroups: groups.length,
-    totalRecords: groups.reduce((sum, group) => sum + group.records.length, 0),
-    nextCursor: cursor + limit < groups.length ? String(cursor + limit) : null,
+    totalGroups: selectedGroups.length,
+    totalRecords: selectedGroups.reduce((sum, group) => sum + group.records.length, 0),
+    unreviewedGroups: unreviewedGroups.length,
+    reviewedGroups: reviewedGroups.length,
+    nextCursor: cursor + limit < selectedGroups.length ? String(cursor + limit) : null,
   };
+}
+
+export async function reviewDuplicateGroup(category: DataHealthCategory, groupKey: string) {
+  const groups = findDuplicateGroups(await loadDuplicateCandidates(category));
+  const group = groups.find(item => item.key === groupKey);
+  if (!group) throw Object.assign(new Error('候选组已变化，请刷新后重试'), { status: 409 });
+
+  const review = await getDb().duplicateReview.upsert({
+    where: { groupKey },
+    create: {
+      groupKey,
+      category,
+      decision: 'DISTINCT',
+      recordIds: group.records.map(record => record.id),
+    },
+    update: {
+      category,
+      decision: 'DISTINCT',
+      recordIds: group.records.map(record => record.id),
+    },
+  });
+  return { reviewId: Number(review.id), groupKey: review.groupKey, decision: review.decision };
+}
+
+export async function restoreDuplicateGroupReview(reviewId: bigint) {
+  const review = await getDb().duplicateReview.findUnique({ where: { id: reviewId } });
+  if (!review) throw Object.assign(new Error('裁决记录不存在'), { status: 404 });
+  await getDb().duplicateReview.delete({ where: { id: reviewId } });
 }

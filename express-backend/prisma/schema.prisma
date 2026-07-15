@@ -159,6 +159,18 @@ model ActivityLog {
   @@map("activity_log")
 }
 
+model DuplicateReview {
+  id        BigInt   @id @default(autoincrement())
+  groupKey  String   @unique @db.VarChar(80) @map("group_key")
+  category  String   @db.VarChar(20)
+  decision  String   @db.VarChar(20)
+  recordIds Json     @map("record_ids")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@index([category, decision], map: "idx_duplicate_review_category_decision")
+  @@map("duplicate_review")
+}
+
 model RadarItem {
   id           BigInt   @id @default(autoincrement())
   sourceKey    String   @unique @db.VarChar(255) @map("source_key")

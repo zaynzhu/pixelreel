@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { apiFetch } from "../../api"
+import { confirmDialog } from "../Toast"
 import { proxiedImageUrl } from "../../imageProxy"
 import { useI18nStore } from "../../stores/i18nStore"
 import { toast } from "../../stores/toastStore"
@@ -13,23 +14,38 @@ import type { LibraryRecord } from "../../types/library"
 import { ImgWithFallback } from "../ImgWithFallback"
 import RescrapeModal from "../RescrapeModal"
 
+type DuplicateReviewFilter = "unreviewed" | "reviewed"
+
 export function DuplicateCandidatePanel({ category }: { category: DataHealthCategory }) {
   const { t } = useI18nStore()
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   const [totalGroups, setTotalGroups] = useState(0)
   const [totalRecords, setTotalRecords] = useState(0)
+  const [unreviewedGroups, setUnreviewedGroups] = useState(0)
+  const [reviewedGroups, setReviewedGroups] = useState(0)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null)
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
+  const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
+  const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
 
   const fetchGroups = useCallback(async (cursor?: string) => {
-    const params = new URLSearchParams({ category, limit: "20" })
+    const params = new URLSearchParams({ category, limit: "20", review })
     if (cursor) params.set("cursor", cursor)
     return apiFetch<DuplicateGroupResponse>(`/data-health/duplicates?${params}`)
-  }, [category])
+  }, [category, review])
+
+  const applyResponse = (data: DuplicateGroupResponse) => {
+    setGroups(data.groups)
+    setTotalGroups(data.totalGroups)
+    setTotalRecords(data.totalRecords)
+    setUnreviewedGroups(data.unreviewedGroups)
+    setReviewedGroups(data.reviewedGroups)
+    setNextCursor(data.nextCursor)
+  }
 
   useEffect(() => {
     let active = true
@@ -38,10 +54,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     fetchGroups()
       .then(data => {
         if (!active) return
-        setGroups(data.groups)
-        setTotalGroups(data.totalGroups)
-        setTotalRecords(data.totalRecords)
-        setNextCursor(data.nextCursor)
+        applyResponse(data)
       })
       .catch(reason => {
         if (active) setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
@@ -73,10 +86,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     setError(null)
     try {
       const data = await fetchGroups()
-      setGroups(data.groups)
-      setTotalGroups(data.totalGroups)
-      setTotalRecords(data.totalRecords)
-      setNextCursor(data.nextCursor)
+      applyResponse(data)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
     } finally {
@@ -94,6 +104,37 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       setError(reason instanceof Error ? reason.message : t("health.duplicates.open_error"))
     } finally {
       setOpeningRecordId(null)
+    }
+  }
+
+  const markAsDistinct = async (group: DuplicateGroup) => {
+    if (!(await confirmDialog(t("health.duplicates.distinct_confirm")))) return
+    setReviewingGroupKey(group.key)
+    try {
+      await apiFetch("/data-health/duplicates/review", {
+        method: "POST",
+        body: JSON.stringify({ category, groupKey: group.key }),
+      })
+      toast(t("health.duplicates.distinct_success"))
+      await refreshGroups()
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : t("health.duplicates.review_error"), "error")
+    } finally {
+      setReviewingGroupKey(null)
+    }
+  }
+
+  const restoreReview = async (group: DuplicateGroup) => {
+    if (group.reviewId == null) return
+    setReviewingGroupKey(group.key)
+    try {
+      await apiFetch(`/data-health/duplicates/review/${group.reviewId}`, { method: "DELETE" })
+      toast(t("health.duplicates.restore_success"))
+      await refreshGroups()
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : t("health.duplicates.review_error"), "error")
+    } finally {
+      setReviewingGroupKey(null)
     }
   }
 
@@ -119,6 +160,26 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
         </div>
       </header>
 
+      <div className="grid grid-cols-2 gap-px border-b border-[var(--line)] bg-[var(--line)]">
+        {(["unreviewed", "reviewed"] as const).map(item => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setReview(item)}
+            className={`flex items-center justify-between bg-[var(--surface)] px-5 py-3 text-left transition-colors hover:bg-[var(--surface-hover)] ${
+              review === item ? "shadow-[inset_0_-2px_0_var(--accent)]" : ""
+            }`}
+          >
+            <span className={`text-[10px] uppercase tracking-widest ${review === item ? "text-[var(--accent)]" : "text-[var(--muted)]"}`}>
+              {t(`health.duplicates.review.${item}`)}
+            </span>
+            <span className="font-mono text-sm text-white">
+              {item === "unreviewed" ? unreviewedGroups : reviewedGroups}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {error && (
         <div className="border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4 text-xs text-[var(--accent-deep)]">
           {error}
@@ -132,8 +193,12 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       ) : groups.length === 0 ? (
         <div className="px-5 py-16 text-center">
           <div className="text-2xl text-[var(--accent)]">✓</div>
-          <p className="mt-3 text-sm text-white">{t("health.duplicates.clean")}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">{t("health.duplicates.clean_desc")}</p>
+          <p className="mt-3 text-sm text-white">
+            {t(review === "reviewed" ? "health.duplicates.reviewed_empty" : "health.duplicates.clean")}
+          </p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {t(review === "reviewed" ? "health.duplicates.reviewed_empty_desc" : "health.duplicates.clean_desc")}
+          </p>
         </div>
       ) : (
         <div className="space-y-4 p-4 sm:p-5">
@@ -148,9 +213,21 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                     <ReasonTag key={reason} reason={reason} />
                   ))}
                 </div>
-                <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">
-                  {t("health.duplicates.group_size", String(group.records.length))}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">
+                    {t("health.duplicates.group_size", String(group.records.length))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => review === "reviewed" ? void restoreReview(group) : void markAsDistinct(group)}
+                    disabled={reviewingGroupKey != null}
+                    className={review === "reviewed" ? "brutal-btn" : "brutal-btn-accent"}
+                  >
+                    {reviewingGroupKey === group.key
+                      ? t("health.duplicates.reviewing")
+                      : t(review === "reviewed" ? "health.duplicates.restore" : "health.duplicates.distinct")}
+                  </button>
+                </div>
               </div>
               <div className="divide-y divide-[var(--line)]">
                 {group.records.map(record => {

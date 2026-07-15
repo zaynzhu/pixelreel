@@ -52,11 +52,14 @@ export interface DuplicateGroup {
   key: string
   reasons: DuplicateReason[]
   records: DuplicateRecord[]
+  reviewId: number | null
 }
 
 export interface DuplicateGroupResponse {
   groups: DuplicateGroup[]
   totalGroups: number
   totalRecords: number
+  unreviewedGroups: number
+  reviewedGroups: number
   nextCursor: string | null
 }

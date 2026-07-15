@@ -11,9 +11,15 @@ import {
   isDataHealthRepairSupported,
   startDataHealthRepairTask,
 } from '../services/DataHealthRepairService';
-import { listDuplicateGroups } from '../services/DuplicateDetectionService';
 import {
+  listDuplicateGroups,
+  restoreDuplicateGroupReview,
+  reviewDuplicateGroup,
+} from '../services/DuplicateDetectionService';
+import {
+  assertEmptyRequestBody,
   assertNoQueryParameters,
+  parseBoundedStringParameter,
   parseEnumParameter,
   parsePositiveBigIntParameter,
   parsePositiveIntegerParameter,
@@ -23,7 +29,8 @@ import {
 const router = Router();
 const ISSUE_PARAMETER_KEYS = new Set(['category', 'issue', 'cursor', 'limit']);
 const REPAIR_BODY_KEYS = new Set(['category', 'issue', 'limit']);
-const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit']);
+const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit', 'review']);
+const DUPLICATE_REVIEW_BODY_KEYS = new Set(['category', 'groupKey']);
 
 export function parseDataHealthIssueParameters(query: Record<string, unknown>) {
   const unknownKey = Object.keys(query).find(key => !ISSUE_PARAMETER_KEYS.has(key));
@@ -68,6 +75,20 @@ export function parseDuplicateListParameters(query: Record<string, unknown>) {
     category: parseEnumParameter(query.category, 'category', DATA_HEALTH_CATEGORIES, true)!,
     cursor: parsePositiveIntegerParameter(query.cursor, 'cursor', 0, 1_000_000),
     limit: parsePositiveIntegerParameter(query.limit, 'limit', 20, 50),
+    review: parseEnumParameter(query.review, 'review', ['unreviewed', 'reviewed'] as const) ?? 'unreviewed',
+  };
+}
+
+export function parseDuplicateReviewBody(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RequestValidationError('请求体必须是对象');
+  }
+  const body = value as Record<string, unknown>;
+  const unknownKey = Object.keys(body).find(key => !DUPLICATE_REVIEW_BODY_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知字段: ${unknownKey}`);
+  return {
+    category: parseEnumParameter(body.category, 'category', DATA_HEALTH_CATEGORIES, true)!,
+    groupKey: parseBoundedStringParameter(body.groupKey, 'groupKey', 80, true)!,
   };
 }
 
@@ -88,7 +109,26 @@ router.get('/issues', async (req: Request, res: Response) => {
 
 router.get('/duplicates', async (req: Request, res: Response) => {
   const parameters = parseDuplicateListParameters(req.query);
-  res.json(await listDuplicateGroups(parameters.category, parameters.limit, parameters.cursor));
+  res.json(await listDuplicateGroups(
+    parameters.category,
+    parameters.limit,
+    parameters.cursor,
+    parameters.review,
+  ));
+});
+
+router.post('/duplicates/review', async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
+  const parameters = parseDuplicateReviewBody(req.body);
+  res.json(await reviewDuplicateGroup(parameters.category, parameters.groupKey));
+});
+
+router.delete('/duplicates/review/:id', async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
+  assertEmptyRequestBody(req.body);
+  const id = parsePositiveBigIntParameter(req.params.id, 'id', true)!;
+  await restoreDuplicateGroupReview(id);
+  res.status(204).end();
 });
 
 router.post('/repair', (req: Request, res: Response) => {

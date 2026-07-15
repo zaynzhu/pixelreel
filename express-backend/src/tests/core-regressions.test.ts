@@ -33,6 +33,7 @@ import {
   parseDataHealthIssueParameters,
   parseDataHealthRepairBody,
   parseDuplicateListParameters,
+  parseDuplicateReviewBody,
 } from '../routes/dataHealth';
 import { getHealthStatus } from '../routes/health';
 import {
@@ -487,8 +488,28 @@ test('疑似重复检测只合并强标识或带年份和平台的同名候选',
   assert.equal(gameGroups.length, 1);
   assert.deepEqual(gameGroups[0].records.map(record => record.id), [5, 8]);
   assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
-    category: 'game', cursor: 0, limit: 10,
+    category: 'game', cursor: 0, limit: 10, review: 'unreviewed',
   });
+  assert.equal(movieGroups[0].key.startsWith('movie:'), true);
+  assert.equal(movieGroups[0].key.length, 70);
+  assert.deepEqual(parseDuplicateListParameters({ category: 'movie', review: 'reviewed' }), {
+    category: 'movie', cursor: 0, limit: 20, review: 'reviewed',
+  });
+  assert.deepEqual(parseDuplicateReviewBody({
+    category: 'movie',
+    groupKey: movieGroups[0].key,
+  }), {
+    category: 'movie',
+    groupKey: movieGroups[0].key,
+  });
+  assert.throws(
+    () => parseDuplicateReviewBody({ category: 'movie', groupKey: 'x'.repeat(81) }),
+    /80/,
+  );
+  assert.throws(
+    () => parseDuplicateListParameters({ category: 'movie', review: 'all' }),
+    /review/,
+  );
   assert.throws(
     () => parseDuplicateListParameters({ category: 'movie', cursor: '0' }),
     /正整数/,
