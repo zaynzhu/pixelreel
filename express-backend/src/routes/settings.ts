@@ -272,8 +272,9 @@ export function validateAuthSettingValues(
 }
 
 // ── GET /api/settings ──
-router.get('/', (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', (req: Request, res: Response, next: NextFunction) => {
   try {
+    assertNoQueryParameters(req.query);
     if (!fs.existsSync(ENV_PATH)) {
       next(new Error('.env 文件不存在'));
       return;

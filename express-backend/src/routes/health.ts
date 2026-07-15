@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../config/db';
+import { assertNoQueryParameters } from './request-validation';
 
 const router = Router();
 
@@ -26,7 +27,8 @@ export async function getHealthStatus(databaseCheck: DatabaseCheck = checkDataba
   }
 }
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
+  assertNoQueryParameters(req.query);
   const health = await getHealthStatus();
   res.status(health.database === 'ok' ? 200 : 503).json(health);
 });

@@ -128,7 +128,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // GET /api/radar/status
-router.get('/status', (_req: Request, res: Response) => {
+router.get('/status', (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
   const status = getRadarSyncStatus();
   res.json({ running: isSyncRunning(), lastTask: status });
 });
@@ -173,7 +174,8 @@ router.post('/sync/:source', async (req: Request, res: Response, next: NextFunct
 });
 
 // GET /api/radar/new-releases/status
-router.get('/new-releases/status', (_req: Request, res: Response) => {
+router.get('/new-releases/status', (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
   const status = getNewReleaseRadarSyncStatus();
   res.json({ running: isNewReleaseSyncRunning(), lastTask: status });
 });
