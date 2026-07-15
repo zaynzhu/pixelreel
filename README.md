@@ -22,13 +22,14 @@
 
 > [!TIP]
 > PixelReel 是一个自托管的个人影剧游记录平台，将电影、电视剧和游戏统一管理。
-> 支持从豆瓣、Trakt、Steam、Xbox、PSN 等多平台导入数据，聚合 TMDB、OMDb、RAWG 等数据源，
+> 支持从豆瓣、Trakt、Steam 导入数据，聚合 TMDB、OMDb、RAWG 等数据源，
 > 提供时间线、数据分析、大屏展示等丰富的可视化功能。
 
 ## ✨ Features
 
 - **多平台搜索聚合** -- 同时搜索 TMDB、OMDb、豆瓣、IMDb、Trakt、RAWG、Steam，一个入口搜遍全网
-- **一键数据导入** -- 从豆瓣、Trakt、Steam、Xbox、PSN 批量导入，自动填充海报和详情
+- **一键数据导入** -- 从豆瓣、Trakt、Steam 批量导入，自动填充海报和详情；Xbox、PSN 仍处于实验性阶段
+- **导入审核队列** -- 新同步记录先进入待审核区，可批量接受、忽略或打开详情修正，忽略不会删除数据
 - **统一记录库** -- 电影、电视剧、游戏混排展示，支持分类/年份/状态多维筛选和评分短评
 - **时间线海报墙** -- 按月份分组的精美海报墙，支持年份切换和详情弹窗
 - **雷达发现** -- 聚合 TMDB 热映/趋势 + 优酷/腾讯片单，一键加入想看列表
@@ -124,7 +125,8 @@ curl -X POST http://localhost:18889/api/import/steam/owned
 | 自托管 | ✅ | ❌ | ❌ | ❌ |
 | 多平台数据聚合 | ✅ | ❌ | ⚠️ | ❌ |
 | 豆瓣数据导入 | ✅ | ❌ | ❌ | -- |
-| Steam/Xbox/PSN 导入 | ✅ | ❌ | ❌ | ❌ |
+| Steam 导入 | ✅ | ❌ | ❌ | ❌ |
+| Xbox/PSN 导入 | 🧪 | ❌ | ❌ | ❌ |
 | 数据分析报告 | ✅ | ⚠️ | ✅ | ❌ |
 | 雷达发现 | ✅ | ❌ | ✅ | ✅ |
 | 操作撤销 | ✅ | ❌ | ❌ | ❌ |
@@ -154,6 +156,7 @@ curl -X POST http://localhost:18889/api/import/steam/owned
 | `/showcase` | 大屏展示（网格 + 全屏轮播） |
 | `/analytics` | 数据分析（年度报告 + 习惯洞察） |
 | `/sync` | 多来源同步中心（配置状态、同步操作、任务进度与结果） |
+| `/sync/review` | 新导入审核队列（接受、忽略、修正） |
 | `/settings` | 系统设置（环境变量配置） |
 | `/radar` | 雷达发现（TMDB + 优酷 + 腾讯聚合） |
 | `/login` | 登录页 |
@@ -182,9 +185,10 @@ GET /api/search/proxy/image?url=    图片代理（防盗链）
 #### 记录库与时间线
 
 ```text
-GET   /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&sort=
+GET   /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&importReview=&sort=
 GET   /api/library/:category/:id
 PATCH /api/library/:category/:id
+POST  /api/library/import-review
 GET   /api/library/random?limit=N
 
 GET   /api/timeline?cursor=&limit=96&category=&year=
@@ -200,8 +204,8 @@ GET    /api/import/platforms/status
 POST   /api/trakt/import/movies
 POST   /api/trakt/import/shows
 POST   /api/import/steam/owned
-POST   /api/import/xbox/owned
-POST   /api/import/psn/owned
+POST   /api/import/xbox/owned        # 实验性，未通过真实账号链路验证
+POST   /api/import/psn/owned         # 实验性，未通过真实账号链路验证
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
 POST   /api/import/steam/backfill

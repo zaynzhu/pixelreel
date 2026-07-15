@@ -306,6 +306,7 @@ export async function importTraktMovies(
             imdbId: ids.imdb || null,
             posterUrl,
             status: movieStatus,
+            importReviewState: 'PENDING',
             // history/watchlist 不包含用户的个人评分，不将平台分写入个人评分
             rating: null,
             shortReview: '',
@@ -410,6 +411,7 @@ export async function importTraktShows(
             firstAirDate: item.show.year ? String(item.show.year) : null,
             overview: null,
             status: showStatus,
+            importReviewState: 'PENDING',
             // history/watchlist 不包含用户的个人评分，不将平台分写入个人评分
             rating: null,
             shortReview: '',

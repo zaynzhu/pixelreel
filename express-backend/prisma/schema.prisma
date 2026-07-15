@@ -25,6 +25,7 @@ model Movie {
   shortReview String?  @db.VarChar(1000) @map("short_review") /// 显示短评（默认取 douban_comment）
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
   updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(0)
+  importReviewState String @default("ACCEPTED") @db.VarChar(20) @map("import_review_state") /// 导入审核: PENDING|ACCEPTED|IGNORED
 
   // ── 豆瓣原始字段 ──
   doubanId        String?  @db.VarChar(20) @map("douban_id")         /// 豆瓣条目 ID（从 link 提取）
@@ -75,6 +76,7 @@ model TvShow {
   shortReview String?  @db.VarChar(1000) @map("short_review") /// 显示短评（默认取 douban_comment）
   createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
   updatedAt   DateTime @default(now()) @map("updated_at") @db.DateTime(0)
+  importReviewState String @default("ACCEPTED") @db.VarChar(20) @map("import_review_state") /// 导入审核: PENDING|ACCEPTED|IGNORED
 
   // ── 豆瓣原始字段 ──
   doubanId        String?  @db.VarChar(20) @map("douban_id")         /// 豆瓣条目 ID（从 link 提取）
@@ -123,6 +125,7 @@ model Game {
   achievementTotal    Int?     @map("achievement_total")            /// 成就总数
   achievementUnlocked Int?     @map("achievement_unlocked")         /// 已解锁成就数
   importedAt          DateTime? @map("imported_at") @db.DateTime(0)    /// 导入时间
+  importReviewState   String   @default("ACCEPTED") @db.VarChar(20) @map("import_review_state") /// 导入审核: PENDING|ACCEPTED|IGNORED
   status              String   @db.VarChar(20)                     /// 记录状态: UNSET|WANT|IN_PROGRESS|DONE|DROPPED
   rating              Int?                                          /// PixelReel 个人评分（1-5 星）
   shortReview         String?  @db.VarChar(1000) @map("short_review") /// 短评

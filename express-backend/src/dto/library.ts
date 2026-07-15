@@ -16,6 +16,7 @@ export interface LibraryRecordResponse {
   createdAt: string;
   updatedAt: string;
   importedAt: string | null;
+  importReviewState: 'PENDING' | 'ACCEPTED' | 'IGNORED';
   overview: string | null;
   releaseDate: string | null;
   firstAirDate: string | null;

@@ -138,7 +138,7 @@ router.post('/convert-category', async (req: Request, res: Response, next: NextF
     releaseDate,
     firstAirDate,
     // 通用字段（movie 和 tv_show 都有）
-    title, posterUrl, overview, status, rating, shortReview,
+    title, posterUrl, overview, status, rating, shortReview, importReviewState,
     doubanId, doubanTitle, doubanAltTitle, doubanIntro, doubanRating,
     doubanDate, doubanComment, doubanLink, doubanAvgRating,
     tmdbId, tmdbTitle, tmdbPosterUrl, tmdbReleaseDate, tmdbOverview,
@@ -148,7 +148,7 @@ router.post('/convert-category', async (req: Request, res: Response, next: NextF
 
   // 构造目标记录（只包含目标表兼容的字段）
   const targetData: any = {
-    title, posterUrl, overview, status, rating, shortReview,
+    title, posterUrl, overview, status, rating, shortReview, importReviewState,
     createdAt: _ca, updatedAt: _ua,
     doubanId, doubanTitle, doubanAltTitle, doubanIntro, doubanRating,
     doubanDate, doubanComment, doubanLink, doubanAvgRating,

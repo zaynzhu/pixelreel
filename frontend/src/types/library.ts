@@ -5,6 +5,7 @@ export type LibrarySourceFilter =
   | "all" | "douban" | "tmdb" | "imdb" | "trakt"
   | "steam" | "rawg" | "xbox" | "psn" | "manual";
 export type LibraryReviewFilter = "all" | "reviewed" | "unreviewed";
+export type ImportReviewState = "PENDING" | "ACCEPTED" | "IGNORED";
 export type LibrarySort = "recent" | "rating";
 
 export type LibraryRecord = {
@@ -24,6 +25,7 @@ export type LibraryRecord = {
   createdAt: string;
   updatedAt?: string | null;
   importedAt?: string | null;
+  importReviewState: ImportReviewState;
   overview?: string | null;
   releaseDate?: string | null;
   firstAirDate?: string | null;

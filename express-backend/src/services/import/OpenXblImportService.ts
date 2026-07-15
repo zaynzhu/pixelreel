@@ -116,6 +116,7 @@ export async function importXboxOwnedGames(
       achievementTotal: title.achievementTotal,
       achievementUnlocked: title.achievementUnlocked,
       importedAt: now,
+      importReviewState: 'PENDING',
       status: effectiveStatus,
       rating: null,
       shortReview: '',

@@ -9,20 +9,17 @@ import type { RecordStatus } from '../types/library'
 import type {
   SyncAvailability,
   SyncResult,
-  SyncSourceForm,
   SyncSourceKey,
   SyncSourceStatus,
   SyncTaskResponse,
   SyncUnavailableReason,
 } from '../types/sync'
 
-const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam', 'xbox', 'psn']
+const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam']
 const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
   douban: 'douban-harvest',
   trakt: 'trakt-import',
   steam: 'steam-owned',
-  xbox: 'xbox-owned',
-  psn: 'psn-owned',
 }
 
 type DirectSource = 'steam' | 'trakt'
@@ -36,10 +33,6 @@ export default function SyncPage() {
   const [loading, setLoading] = useState(true)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<string | null>(null)
-  const [forms, setForms] = useState<Record<'xbox' | 'psn', SyncSourceForm>>({
-    xbox: { accountId: '', status: 'UNSET' },
-    psn: { accountId: '', status: 'UNSET' },
-  })
   const [directStatuses, setDirectStatuses] = useState<Record<DirectSource, RecordStatus>>({
     steam: 'WANT',
     trakt: 'WANT',
@@ -72,25 +65,6 @@ export default function SyncPage() {
   const latestTask = (source: SyncSourceKey) => {
     const type = TASK_TYPES[source]
     return type ? tasks.find(task => task.type === type) ?? null : null
-  }
-
-  const startTask = async (source: 'xbox' | 'psn', path: string) => {
-    const form = forms[source]
-    if (!form.accountId.trim()) {
-      toast(t('sync.account_required'), 'error')
-      return
-    }
-    const actionKey = `${source}-owned`
-    setActiveAction(actionKey)
-    try {
-      await apiFetch<SyncTaskResponse>(path, { method: 'POST' })
-      await pollTasks()
-      toast(t('sync.task_started'))
-    } catch (reason) {
-      toast(reason instanceof Error ? reason.message : t('sync.start_error'), 'error')
-    } finally {
-      setActiveAction(null)
-    }
   }
 
   const startDouban = async (mode: 'json' | 'incremental' | 'full') => {
@@ -137,7 +111,7 @@ export default function SyncPage() {
               <Link to="/settings" className="brutal-btn">
                 <Settings2 className="h-3.5 w-3.5" /> {t('sync.configure')}
               </Link>
-              <Link to="/library?review=unreviewed&sort=recent" className="brutal-btn-accent">
+              <Link to="/sync/review" className="brutal-btn-accent">
                 {t('sync.review_queue')} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -224,53 +198,25 @@ export default function SyncPage() {
             />
           </SourceCard>
 
-          {(['xbox', 'psn'] as const).map(source => {
-            const task = latestTask(source)
-            const accountParameter = source === 'xbox' ? 'gamertag' : 'psnId'
-            const form = forms[source]
-            const path = `/import/${source}/owned?${accountParameter}=${encodeURIComponent(form.accountId.trim())}&status=${form.status}`
-            return (
-              <SourceCard
-                key={source}
-                source={source}
-                availability={status[source]}
-                task={task}
-                settingsCategory={source === 'xbox' ? 'openxbl' : 'psn'}
-              >
-                <label className="block text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
-                  {t(`sync.${source}.account`)}
-                  <input
-                    value={form.accountId}
-                    onChange={event => setForms(current => ({
-                      ...current,
-                      [source]: { ...current[source], accountId: event.target.value },
-                    }))}
-                    className="tech-input mt-2 w-full"
-                    maxLength={100}
-                    placeholder={t(`sync.${source}.placeholder`)}
-                  />
-                </label>
-                <div className="mt-3">
-                  <StatusSelect
-                    value={form.status}
-                    onChange={next => setForms(current => ({
-                      ...current,
-                      [source]: { ...current[source], status: next },
-                    }))}
-                  />
-                </div>
-                <SyncButton
-                  label={t(`sync.${source}.owned`)}
-                  onClick={() => void startTask(source, path)}
-                  disabled={!status[source].available || !form.accountId.trim() || activeAction != null || task?.status === 'running'}
-                  active={activeAction === `${source}-owned`}
-                  className="mt-3 w-full"
-                />
-              </SourceCard>
-            )
-          })}
         </div>
       )}
+
+      <section className="border border-dashed border-[var(--line)] bg-black/20 p-5 sm:p-6">
+        <span className="section-kicker">{t('sync.experimental_kicker')}</span>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {(['xbox', 'psn'] as const).map(source => (
+            <div key={source} className="flex items-start justify-between gap-4 border border-[var(--line)] bg-[var(--surface)] p-4 opacity-75">
+              <div>
+                <h2 className="font-display text-xl text-white">{t(`sync.source.${source}`)}</h2>
+                <p className="mt-2 text-[10px] leading-5 text-[var(--muted)]">{t(`sync.source.${source}.desc`)}</p>
+              </div>
+              <span className="shrink-0 font-mono text-[8px] uppercase tracking-widest text-yellow-400">
+                {t('sync.state.experimental')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="border border-[var(--line)] bg-[var(--surface)]">
         <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--line)] p-5 sm:p-6">

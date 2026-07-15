@@ -87,12 +87,13 @@ frontend/src/
 | — | `GET /api/search/rawg/:rawgId` (RAWG 游戏详情：评分、开发商、类型等) |
 | — | `GET /api/search/steam/:steamAppId` (Steam 游戏详情：Metacritic、开发商、类型等) |
 | — | `GET /api/search/proxy/image?url=` (图片代理，解决豆瓣防盗链) |
-| `/library` 记录库；`/library/:category/:id` 统一详情页 | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
+| `/library` 记录库；`/library/:category/:id` 统一详情页 | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&importReview=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | `GET /api/timeline?cursor=&limit=96&category=&year=`, `GET /api/timeline/years?category=`（轻量 API，前端 `timelineStore` + `timelineDetailStore`） |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
 | `/sync` | `GET /api/import/sources/status`，并复用各来源导入接口与任务接口 |
+| `/sync/review` | `GET /api/library?importReview=pending|ignored`, `POST /api/library/import-review` |
 | `/data-health` | `GET /api/data-health/summary`, `GET /api/data-health/issues`, `GET /api/data-health/duplicates`, `POST/DELETE /api/data-health/duplicates/review`, `POST /api/data-health/repair`（数据完整性审计、重复候选裁决和定向修复） |
 | `/tools` | `GET /api/tools/search?query=`（搜索电影/电视剧记录）, `POST /api/tools/convert-category`（转换记录类型） |
 | `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=&syncType=`（新片雷达列表，含 inLibrary 标记） |
@@ -131,8 +132,9 @@ frontend/src/
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
-- **主机平台导入：** Xbox/PSN 导入先通过 `GET /api/import/platforms/status` 检查配置；可用时 `POST /api/import/xbox/owned`、`POST /api/import/psn/owned` 创建持久化异步任务并返回 `taskId`，进度与取消统一走任务面板。
-- **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam、Xbox、PSN 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。五类来源均通过持久化任务展示进度、结果和取消状态；Steam 使用 `/api/import/steam/owned/task`，Trakt 使用 `/api/trakt/import/{movies|shows}/task`，旧同步接口继续保留；配置缺失时跳转到 Settings 对应分类。
+- **主机平台导入：** Xbox/PSN 当前是未通过真实账号链路验证的实验性代码，搜索 Provider 仍为占位。同步中心只标记“实验性未接入”，不提供启动入口，也不计入正式可用来源。
+- **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。Steam 使用 `/api/import/steam/owned/task`，Trakt 使用 `/api/trakt/import/{movies|shows}/task`，配置缺失时跳转到 Settings 对应分类。
+- **导入审核：** 历史记录和手动新增默认 `ACCEPTED`；豆瓣、Trakt、Steam 等外部导入的新记录显式写入 `PENDING`。`/sync/review` 可批量改为 `ACCEPTED` 或 `IGNORED`，忽略仅修改 `importReviewState`，不能删除记录或改写豆瓣原始字段。
 - **主机游戏完整性：** PSNProfiles 按 `?ajax=1&page=N` 读取全部游戏页，直到页面声明 `nextPage = 0`，最多 100 页；Cloudflare 验证页会提示更新 Cookie。Xbox/PSN 原始记录缺封面时通过 RAWG 按标题回退查询，仍遵守同服务两秒限流。
 - **记录编辑：** 路径 `id` 必须是 JavaScript 安全范围内的正整数；Library PATCH 只接受 `status`、`rating`、`shortReview`，评分限定 1-5，短评最长 1000 字符，非法请求在写库前返回 400。
 - **HTTP 错误边界：** 路由内部异常统一交给 `errorHandler`；4xx 保留可操作提示且只记录单行警告，5xx 客户端固定返回“内部服务器错误”，详细堆栈只写服务端日志。Express 框架指纹响应头已关闭。
@@ -183,13 +185,14 @@ frontend/src/
 
 ## 记录库分页
 
-- `GET /api/library` 支持游标分页：`?cursor=...&limit=50&category=media&year=2026&status=DONE&query=标题&source=douban&review=reviewed&sort=rating`
+- `GET /api/library` 支持游标分页：`?cursor=...&limit=50&category=media&year=2026&status=DONE&query=标题&source=douban&review=reviewed&importReview=pending&sort=rating`
 - cursor 是包含排序方式、时间、类别和 ID 的不透明版本化字符串，必须原样传回；旧版 `{createdAt}__{id}` 仅兼容默认的 `recent` 排序
 - `category` 筛选：`movie|tv_show|game|media|all`，`media` = movie + tv_show（产品约定）
 - `year` 筛选：按 `createdAt` 年份过滤
 - `status` 筛选：`UNSET|WANT|IN_PROGRESS|DONE|DROPPED`
 - `source` 筛选：`douban|tmdb|imdb|trakt|steam|rawg|xbox|psn|manual`
 - `review` 筛选：`reviewed|unreviewed`；`query` 搜索标题及外部标题字段
+- `importReview` 筛选：`pending|accepted|ignored`，用于独立导入审核队列
 - `includeTotals=false` 跳过 totals 计算（加载更多时使用）
 - 返回 `{ records: LibraryRecord[], nextCursor: string | null, totals: { total, rated, reviewed, completed } }`，`nextCursor` 为 null 表示无更多
 - `totals` 受全部筛选条件影响，前端统计卡片直接使用

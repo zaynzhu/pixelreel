@@ -120,6 +120,7 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
       rating: csvParseRating(ratingCol ? record[ratingCol] : undefined),
       shortReview,
       createdAt: parsedDate,
+      importReviewState: 'PENDING',
     });
   }
 

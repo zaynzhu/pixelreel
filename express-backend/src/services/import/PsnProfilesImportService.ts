@@ -83,6 +83,7 @@ export async function importPsnOwnedGames(
       achievementTotal: game.achievementTotal,
       achievementUnlocked: game.achievementUnlocked,
       importedAt: now,
+      importReviewState: 'PENDING',
       status: effectiveStatus,
       rating: null,
       shortReview: '',

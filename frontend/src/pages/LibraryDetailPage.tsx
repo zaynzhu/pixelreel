@@ -134,6 +134,9 @@ export default function LibraryDetailPage() {
               <Badge muted>{record.sourceLabel}</Badge>
               {record.platformLabel && <Badge muted>{record.platformLabel}</Badge>}
               <Badge muted>{statusLabel(record.status, t)}</Badge>
+              {record.importReviewState !== "ACCEPTED" && (
+                <Badge>{t(record.importReviewState === "PENDING" ? "review.state.pending" : "review.state.ignored")}</Badge>
+              )}
             </div>
             <h1 className="mt-5 max-w-4xl font-display text-3xl leading-tight text-white sm:text-5xl">
               {record.title}
@@ -156,6 +159,9 @@ export default function LibraryDetailPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
+                {record.importReviewState !== "ACCEPTED" && (
+                  <Link to="/sync/review" className="brutal-btn">{t("review.back_to_queue")}</Link>
+                )}
                 <Link to="/data-health" className="brutal-btn">{t("detail.check_health")}</Link>
                 <button type="button" onClick={() => setRescraping(true)} className="brutal-btn-accent">
                   ↻ {t("lib.rescrape.btn")}

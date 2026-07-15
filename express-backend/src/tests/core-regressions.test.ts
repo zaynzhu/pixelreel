@@ -60,6 +60,7 @@ import {
 } from '../services/import/PsnProfilesImportService';
 import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
 import {
+  parseImportReviewDecisionBody,
   parseLibraryListParameters,
   parseLibraryRandomParameters,
   parseLibraryRecordCategory,
@@ -567,6 +568,7 @@ test('统一详情响应保留三类记录的显示字段和来源身份', () =>
     shortReview: '个人短评',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-02T00:00:00Z'),
+    importReviewState: 'PENDING',
   };
   const movie = toMovieRecord({
     ...common,
@@ -584,6 +586,7 @@ test('统一详情响应保留三类记录的显示字段和来源身份', () =>
     tmdbId: movie.tmdbId,
     imdbId: movie.imdbId,
     traktId: movie.traktId,
+    importReviewState: movie.importReviewState,
   }, {
     overview: '电影简介',
     releaseDate: '2025-12-31',
@@ -591,6 +594,7 @@ test('统一详情响应保留三类记录的显示字段和来源身份', () =>
     tmdbId: '987654321',
     imdbId: 'tt1234567',
     traktId: '765',
+    importReviewState: 'PENDING',
   });
 
   const show = toTvShowRecord({ ...common, firstAirDate: '2024-01-01', tmdbId: 44n });
@@ -1080,6 +1084,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     query: undefined,
     source: 'all',
     review: 'all',
+    importReview: 'all',
     sort: 'recent',
   });
   assert.deepEqual(parseLibraryListParameters({
@@ -1092,6 +1097,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     query: ' 后室 ',
     source: 'douban',
     review: 'reviewed',
+    importReview: 'pending',
     sort: 'recent',
   }), {
     cursor,
@@ -1103,6 +1109,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     query: '后室',
     source: 'douban',
     review: 'reviewed',
+    importReview: 'pending',
     sort: 'recent',
   });
   assert.deepEqual(parseTimelineListParameters({
@@ -1154,6 +1161,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseLibraryListParameters({ query: 'x'.repeat(201) }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ source: 'unknown' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ review: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ importReview: 'unknown' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ sort: 'title' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ cursor, sort: 'rating' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ verbose: 'true' }), RequestValidationError);
@@ -1164,6 +1172,29 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseTimelineYearsParameters({ year: '2026' }), RequestValidationError);
   assert.throws(() => parseAnalyticsYear('1899', 2026), RequestValidationError);
   assert.throws(() => parseAnalyticsParameters({ verbose: 'true' }, 2026), RequestValidationError);
+});
+
+test('导入审核请求只接受唯一且有界的记录引用', () => {
+  assert.deepEqual(parseImportReviewDecisionBody({
+    decision: 'ACCEPTED',
+    records: [
+      { category: 'movie', id: 1 },
+      { category: 'tv_show', id: '2' },
+      { category: 'game', id: 3 },
+    ],
+  }), {
+    decision: 'ACCEPTED',
+    records: [
+      { category: 'movie', id: 1 },
+      { category: 'tv_show', id: 2 },
+      { category: 'game', id: 3 },
+    ],
+  });
+  assert.throws(() => parseImportReviewDecisionBody({ decision: 'PENDING', records: [{ category: 'movie', id: 1 }] }), RequestValidationError);
+  assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [] }), RequestValidationError);
+  assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [{ category: 'xbox', id: 1 }] }), RequestValidationError);
+  assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [{ category: 'game', id: 1 }, { category: 'game', id: 1 }] }), RequestValidationError);
+  assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [{ category: 'game', id: 1, title: 'x' }] }), RequestValidationError);
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {

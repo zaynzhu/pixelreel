@@ -10,6 +10,7 @@ export type LibrarySourceFilter =
   | 'all' | 'douban' | 'tmdb' | 'imdb' | 'trakt'
   | 'steam' | 'rawg' | 'xbox' | 'psn' | 'manual';
 export type LibraryReviewFilter = 'all' | 'reviewed' | 'unreviewed';
+export type LibraryImportReviewFilter = 'all' | 'pending' | 'accepted' | 'ignored';
 export type LibrarySort = 'recent' | 'rating';
 
 type LibraryRecordCategory = LibraryRecordResponse['category'];
@@ -39,6 +40,7 @@ export interface ListRecordsOptions {
   query?: string;
   source?: LibrarySourceFilter;
   review?: LibraryReviewFilter;
+  importReview?: LibraryImportReviewFilter;
   sort?: LibrarySort;
 }
 
@@ -140,6 +142,9 @@ function buildBaseWhere(options: ListRecordsOptions) {
   return {
     ...(createdAtRange ? { createdAt: createdAtRange } : {}),
     ...(options.status ? { status: options.status } : {}),
+    ...(options.importReview && options.importReview !== 'all'
+      ? { importReviewState: options.importReview.toUpperCase() }
+      : {}),
   };
 }
 
@@ -583,6 +588,7 @@ export function toMovieRecord(movie: any): LibraryRecordResponse {
     createdAt: movie.createdAt,
     updatedAt: movie.updatedAt,
     importedAt: null,
+    importReviewState: movie.importReviewState ?? 'ACCEPTED',
     overview: movie.overview ?? null,
     releaseDate: movie.releaseDate ?? null,
     firstAirDate: null,
@@ -638,6 +644,7 @@ export function toGameRecord(game: any): LibraryRecordResponse {
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
     importedAt: game.importedAt,
+    importReviewState: game.importReviewState ?? 'ACCEPTED',
     overview: null,
     releaseDate: null,
     firstAirDate: null,
@@ -679,6 +686,7 @@ export function toTvShowRecord(show: any): LibraryRecordResponse {
     createdAt: show.createdAt,
     updatedAt: show.updatedAt,
     importedAt: null,
+    importReviewState: show.importReviewState ?? 'ACCEPTED',
     overview: show.overview ?? null,
     releaseDate: null,
     firstAirDate: show.firstAirDate ?? null,

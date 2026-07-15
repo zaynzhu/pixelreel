@@ -201,6 +201,7 @@ export async function importFromJson(
             rating,
             shortReview: item.comment || null,
             createdAt: watchedDate,
+            importReviewState: 'PENDING',
           },
         });
       } else {
@@ -227,6 +228,7 @@ export async function importFromJson(
             rating,
             shortReview: item.comment || null,
             createdAt: watchedDate,
+            importReviewState: 'PENDING',
           },
         });
       }

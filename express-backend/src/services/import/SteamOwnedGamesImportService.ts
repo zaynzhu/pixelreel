@@ -166,6 +166,7 @@ export async function importSteamOwnedGames(
       posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appId}/header.jpg`,
       playtimeMinutes: owned.playtimeMinutes,
       importedAt: new Date(),
+      importReviewState: 'PENDING',
       status: resolveSteamImportStatus(status, owned.playtimeMinutes ?? 0),
       rating: null,
       shortReview: null,
