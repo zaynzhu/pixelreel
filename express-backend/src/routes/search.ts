@@ -7,6 +7,7 @@ import {
   parseExternalSearchParameters,
   parsePatternParameter,
   parsePositiveBigIntParameter,
+  RequestValidationError,
 } from './request-validation';
 
 // 代理配置
@@ -19,6 +20,21 @@ const axiosProxyOpts: any = proxyUrl
 const router = Router();
 const MOVIE_SEARCH_PROVIDERS = ['tmdb', 'omdb', 'trakt', 'douban', 'imdb'] as const;
 const GAME_SEARCH_PROVIDERS = ['rawg', 'steam', 'psn', 'xbox', 'switch'] as const;
+const EMPTY_SEARCH_QUERY_PARAMETER_KEYS = new Set<string>();
+const IMAGE_PROXY_PARAMETER_KEYS = new Set(['url']);
+
+export function assertKnownSearchQueryParameters(
+  value: Record<string, unknown>,
+  allowedKeys: ReadonlySet<string> = EMPTY_SEARCH_QUERY_PARAMETER_KEYS,
+) {
+  const unknownKey = Object.keys(value).find(key => !allowedKeys.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+}
+
+export function parseImageProxyParameters(value: Record<string, unknown>) {
+  assertKnownSearchQueryParameters(value, IMAGE_PROXY_PARAMETER_KEYS);
+  return parseBoundedStringParameter(value.url, 'url', 2000, true)!;
+}
 
 // GET /api/search/movies?query=xxx&page=1&providers=tmdb,omdb
 router.get('/movies', async (req: Request, res: Response) => {
@@ -42,6 +58,7 @@ router.get('/games', async (req: Request, res: Response) => {
 
 // GET /api/search/douban/:doubanId — 通过豆瓣 ID 获取详情
 router.get('/douban/:doubanId', async (req: Request, res: Response, next: NextFunction) => {
+  assertKnownSearchQueryParameters(req.query);
   const doubanId = parsePatternParameter(req.params.doubanId, 'doubanId', /^\d{1,20}$/, 20);
 
   try {
@@ -79,6 +96,7 @@ router.get('/douban/:doubanId', async (req: Request, res: Response, next: NextFu
 
 // GET /api/search/imdb/:imdbId — 通过 IMDb ID 获取详情（OMDb）
 router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFunction) => {
+  assertKnownSearchQueryParameters(req.query);
   const imdbId = parsePatternParameter(req.params.imdbId, 'imdbId', /^tt\d{7,10}$/, 12);
   if (!config.omdb.apiKey) {
     res.status(400).json({ error: 'OMDb not configured' });
@@ -119,6 +137,7 @@ router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/tmdb/:tmdbId — 通过 TMDB ID 获取详情
 router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFunction) => {
+  assertKnownSearchQueryParameters(req.query);
   const tmdbId = parsePositiveBigIntParameter(req.params.tmdbId, 'tmdbId', true)!.toString();
   if (!config.tmdb.apiKey) {
     res.status(400).json({ error: 'TMDB not configured' });
@@ -203,6 +222,7 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/rawg/:rawgId — 通过 RAWG ID 获取游戏详情
 router.get('/rawg/:rawgId', async (req: Request, res: Response, next: NextFunction) => {
+  assertKnownSearchQueryParameters(req.query);
   const rawgId = parsePositiveBigIntParameter(req.params.rawgId, 'rawgId', true)!.toString();
   if (!config.rawg.apiKey) {
     res.status(400).json({ error: 'RAWG not configured' });
@@ -244,6 +264,7 @@ router.get('/rawg/:rawgId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/steam/:steamAppId — 通过 Steam App ID 获取游戏详情
 router.get('/steam/:steamAppId', async (req: Request, res: Response, next: NextFunction) => {
+  assertKnownSearchQueryParameters(req.query);
   const steamAppId = parsePositiveBigIntParameter(req.params.steamAppId, 'steamAppId', true)!.toString();
 
   try {
@@ -334,7 +355,7 @@ export function validateImageProxyRedirect(
 
 // GET /api/proxy/image?url=xxx — 图片代理（解决豆瓣防盗链 + 缓存控制）
 router.get('/proxy/image', async (req: Request, res: Response) => {
-  let url = parseBoundedStringParameter(req.query.url, 'url', 2000, true)!;
+  let url = parseImageProxyParameters(req.query);
 
   try {
     assertAllowedImageProxyUrl(url);

@@ -50,7 +50,12 @@ import {
   parseRadarListParameters,
   parseRadarSyncSource,
 } from '../routes/radar';
-import { assertAllowedImageProxyUrl, validateImageProxyRedirect } from '../routes/search';
+import {
+  assertAllowedImageProxyUrl,
+  assertKnownSearchQueryParameters,
+  parseImageProxyParameters,
+  validateImageProxyRedirect,
+} from '../routes/search';
 import {
   parseTimelineCategory,
   parseTimelineListParameters,
@@ -511,6 +516,11 @@ test('外部搜索在发起请求前校验关键词、页码、Provider 和详�
   });
   assert.equal(parsePatternParameter('tt1234567', 'imdbId', /^tt\d{7,10}$/, 12), 'tt1234567');
   assert.equal(parseBoundedStringParameter(' https://example.com/image.jpg ', 'url', 2000, true), 'https://example.com/image.jpg');
+  assert.doesNotThrow(() => assertKnownSearchQueryParameters({}));
+  assert.equal(
+    parseImageProxyParameters({ url: ' https://img1.doubanio.com/view/photo.jpg ' }),
+    'https://img1.doubanio.com/view/photo.jpg',
+  );
 
   assert.throws(() => parseExternalSearchParameters({}, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: ['测试'] }, providers), RequestValidationError);
@@ -520,6 +530,8 @@ test('外部搜索在发起请求前校验关键词、页码、Provider 和详�
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'unknown' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'tmdb,' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', limit: '10' }, providers), RequestValidationError);
+  assert.throws(() => assertKnownSearchQueryParameters({ language: 'zh-CN' }), RequestValidationError);
+  assert.throws(() => parseImageProxyParameters({ url: 'https://img1.doubanio.com/a.jpg', cache: '1' }), RequestValidationError);
   assert.throws(() => parsePatternParameter('1234567', 'imdbId', /^tt\d{7,10}$/, 12), RequestValidationError);
 });
 
