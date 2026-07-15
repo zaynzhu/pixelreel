@@ -44,7 +44,8 @@ export default function DataHealthPage() {
   const [loadingSummary, setLoadingSummary] = useState(true)
   const [loadingIssues, setLoadingIssues] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [issueError, setIssueError] = useState<string | null>(null)
   const [startingRepair, setStartingRepair] = useState(false)
   const [repairTaskId, setRepairTaskId] = useState<string | null>(null)
   const [refreshVersion, setRefreshVersion] = useState(0)
@@ -57,12 +58,13 @@ export default function DataHealthPage() {
   useEffect(() => {
     let active = true
     setLoadingSummary(true)
+    setSummaryError(null)
     apiFetch<DataHealthSummary>("/data-health/summary")
       .then(data => {
         if (active) setSummary(data)
       })
       .catch(reason => {
-        if (active) setError(reason instanceof Error ? reason.message : t("health.error"))
+        if (active) setSummaryError(reason instanceof Error ? reason.message : t("health.error"))
       })
       .finally(() => {
         if (active) setLoadingSummary(false)
@@ -84,7 +86,10 @@ export default function DataHealthPage() {
     const requestViewKey = issueViewKey
     setLoadingIssues(true)
     setLoadingMore(false)
-    setError(null)
+    setIssueError(null)
+    setItems([])
+    setTotal(0)
+    setNextCursor(null)
     loadIssues()
       .then(data => {
         if (!active || requestId !== latestIssueRequest.current || requestViewKey !== issueViewRef.current) return
@@ -94,7 +99,7 @@ export default function DataHealthPage() {
       })
       .catch(reason => {
         if (active && requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
-          setError(reason instanceof Error ? reason.message : t("health.error"))
+          setIssueError(reason instanceof Error ? reason.message : t("health.error"))
         }
       })
       .finally(() => {
@@ -151,6 +156,7 @@ export default function DataHealthPage() {
     const requestId = latestIssueRequest.current
     const requestViewKey = issueViewKey
     setLoadingMore(true)
+    setIssueError(null)
     try {
       const data = await loadIssues(nextCursor)
       if (requestId !== latestIssueRequest.current || requestViewKey !== issueViewRef.current) return
@@ -158,7 +164,7 @@ export default function DataHealthPage() {
       setNextCursor(data.nextCursor)
     } catch (reason) {
       if (requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
-        setError(reason instanceof Error ? reason.message : t("health.error"))
+        setIssueError(reason instanceof Error ? reason.message : t("health.error"))
       }
     } finally {
       if (requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
@@ -212,6 +218,20 @@ export default function DataHealthPage() {
           </div>
         </div>
       </section>
+
+      {summaryError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent-deep)]">
+              {t("health.summary_error")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">{summaryError}</p>
+          </div>
+          <button type="button" onClick={() => setRefreshVersion(version => version + 1)} className="brutal-btn">
+            {t("health.retry")}
+          </button>
+        </div>
+      )}
 
       <section className="border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-6">
         <div className="mb-4 grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
@@ -317,9 +337,17 @@ export default function DataHealthPage() {
           </div>
         </div>
 
-        {error && (
-          <div className="border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4 text-xs text-[var(--accent-deep)]">
-            {error}
+        {issueError && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent-deep)]">
+                {t("health.issues_error")}
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">{issueError}</p>
+            </div>
+            <button type="button" onClick={() => setRefreshVersion(version => version + 1)} className="brutal-btn">
+              {t("health.retry")}
+            </button>
           </div>
         )}
 
@@ -327,7 +355,7 @@ export default function DataHealthPage() {
           <div className="px-5 py-16 text-center text-xs uppercase tracking-widest text-[var(--muted)]">
             {t("health.loading")}
           </div>
-        ) : items.length === 0 ? (
+        ) : issueError && items.length === 0 ? null : items.length === 0 ? (
           <div className="px-5 py-16 text-center">
             <div className="text-2xl text-[var(--accent)]">✓</div>
             <p className="mt-3 text-sm text-white">{t("health.clean")}</p>
