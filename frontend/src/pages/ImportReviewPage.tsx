@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, ChevronRight, EyeOff, Inbox, RefreshCw } from "lucide-react"
 import { Link } from "react-router-dom"
 import { apiFetch } from "../api"
@@ -32,10 +32,21 @@ export default function ImportReviewPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const tabRef = useRef(tab)
+  const latestLoadRequest = useRef(0)
+  tabRef.current = tab
 
   const loadRecords = useCallback(async (cursor?: string) => {
+    const requestTab = tab
+    if (requestTab !== tabRef.current) return
     const append = Boolean(cursor)
-    append ? setLoadingMore(true) : setLoading(true)
+    const requestId = append ? latestLoadRequest.current : ++latestLoadRequest.current
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+      setLoadingMore(false)
+    }
     setError(null)
     try {
       const params = new URLSearchParams({
@@ -47,14 +58,19 @@ export default function ImportReviewPage() {
       })
       if (cursor) params.set("cursor", cursor)
       const response = await apiFetch<ReviewResponse>(`/library?${params}`)
+      if (requestId !== latestLoadRequest.current || requestTab !== tabRef.current) return
       setRecords(current => append ? [...current, ...response.records] : response.records)
       setNextCursor(response.nextCursor)
       if (response.totals) setTotal(response.totals.total)
       if (!append) setSelected(new Set())
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t("review.load_error"))
+      if (requestId === latestLoadRequest.current && requestTab === tabRef.current) {
+        setError(reason instanceof Error ? reason.message : t("review.load_error"))
+      }
     } finally {
-      append ? setLoadingMore(false) : setLoading(false)
+      if (requestId === latestLoadRequest.current && requestTab === tabRef.current) {
+        append ? setLoadingMore(false) : setLoading(false)
+      }
     }
   }, [t, tab])
 
