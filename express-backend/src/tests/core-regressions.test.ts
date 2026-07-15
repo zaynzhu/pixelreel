@@ -118,6 +118,11 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ DOUBAN_HARVEST_LONG_BREAK_EVERY: '0' }), 'DOUBAN_HARVEST_LONG_BREAK_EVERY 必须大于等于 1');
   assert.equal(validateSettingValues({ DOUBAN_HARVEST_SLEEP_MIN: '1.5' }), 'DOUBAN_HARVEST_SLEEP_MIN 必须在 2 到 2147483 之间');
   assert.equal(validateSettingValues({ RADAR_REQUEST_TIMEOUT_MS: '2147483648' }), 'RADAR_REQUEST_TIMEOUT_MS 必须在 1 到 2147483647 之间');
+  assert.equal(validateSettingValues({ RADAR_SYNC_CORE_CRON: 'not a cron' }), 'RADAR_SYNC_CORE_CRON 不是有效的 Cron 表达式');
+  assert.equal(validateSettingValues({ RADAR_SYNC_CORE_CRON: '   ' }), 'RADAR_SYNC_CORE_CRON 不是有效的 Cron 表达式');
+  assert.equal(validateSettingValues({ RADAR_SYNC_CORE_CRON: '' }), null);
+  assert.equal(validateSettingValues({ RADAR_SYNC_CORE_CRON: '0 * * * *' }), null);
+  assert.equal(validateSettingValues({ RADAR_SYNC_SCRAPER_CRON: '0 0 */6 * * *' }), null);
   assert.equal(validateSettingValues({ HOST: '127.0.0.1\nINJECTED=true' }), 'HOST 不能包含换行');
   assert.equal(validateSettingValues({ HOST: '"127.0.0.1"' }), 'HOST 不能包含引号');
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');

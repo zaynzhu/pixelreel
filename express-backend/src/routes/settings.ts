@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
+import cron from 'node-cron';
 import { validateAuthConfiguration } from '../config';
 
 const router = Router();
@@ -10,6 +11,7 @@ const ENV_BACKUP_PATH = path.resolve(__dirname, '../../.env.backup.local');
 const ENV_TEMP_PATH = path.resolve(__dirname, '../../.env.tmp.local');
 const MAX_TIMER_MILLISECONDS = 2_147_483_647;
 const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MILLISECONDS / 1000);
+const CRON_SETTING_KEYS = new Set(['RADAR_SYNC_CORE_CRON', 'RADAR_SYNC_SCRAPER_CRON']);
 
 // ── 分类定义 ──
 interface FieldDef {
@@ -178,6 +180,9 @@ export function validateSettingValues(values: Record<string, unknown>): string |
     if (typeof value !== 'string') return `${key} 必须是字符串`;
     if (/\r|\n/.test(value)) return `${key} 不能包含换行`;
     if (/['"]/.test(value)) return `${key} 不能包含引号`;
+    if (CRON_SETTING_KEYS.has(key) && value !== '' && !cron.validate(value)) {
+      return `${key} 不是有效的 Cron 表达式`;
+    }
 
     if (field.type === 'boolean' && value !== 'true' && value !== 'false') {
       return `${key} 必须是 true 或 false`;
