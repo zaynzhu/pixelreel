@@ -24,8 +24,13 @@ import { getUndoneLogId, parseActivityCursor, serializeLog } from '../routes/act
 import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
 import {
+  assertKnownImportParameters,
   DOUBAN_CSV_MAX_BYTES,
   getDoubanCsvUploadError,
+  parseDoubanCsvImportParameters,
+  parseDoubanHarvestParameters,
+  parseImportLimitParameters,
+  parseImportTaskStatusParameters,
   parsePsnOwnedImportParameters,
   parseSteamOwnedImportParameters,
   parseXboxOwnedImportParameters,
@@ -174,6 +179,25 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   });
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: 'player?name' }), RequestValidationError);
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: [] }), RequestValidationError);
+});
+
+test('同步导入和任务查询拒绝未知或超长参数', () => {
+  assert.equal(parseImportLimitParameters({ limit: '100' }), 100);
+  assert.throws(() => parseImportLimitParameters({ limit: '10', force: 'true' }), RequestValidationError);
+
+  assert.equal(parseDoubanCsvImportParameters({ status: 'WANT' }), RecordStatus.WANT);
+  assert.throws(() => parseDoubanCsvImportParameters({ status: 'WANT', accessToken: 'secret' }), RequestValidationError);
+
+  assert.equal(parseDoubanHarvestParameters({ mode: 'incremental' }), 'incremental');
+  assert.throws(() => parseDoubanHarvestParameters({ mode: 'a'.repeat(21) }), RequestValidationError);
+  assert.throws(() => parseDoubanHarvestParameters({ mode: 'json', resume: 'true' }), RequestValidationError);
+
+  assert.equal(parseImportTaskStatusParameters({ taskId: ' task-123 ' }), 'task-123');
+  assert.throws(() => parseImportTaskStatusParameters({ taskId: 'a'.repeat(101) }), RequestValidationError);
+  assert.throws(() => parseImportTaskStatusParameters({ taskId: 'task-123', verbose: 'true' }), RequestValidationError);
+
+  assert.doesNotThrow(() => assertKnownImportParameters({}, []));
+  assert.throws(() => assertKnownImportParameters({ unexpected: 'value' }, []), RequestValidationError);
 });
 
 test('豆瓣 CSV 上传在解析和写库前限制资源占用', async () => {

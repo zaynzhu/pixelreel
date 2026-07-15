@@ -17,7 +17,6 @@ import {
   parseBoundedStringParameter,
   parsePositiveIntegerParameter,
   parseRecordStatusParameter,
-  parseStringParameter,
   RequestValidationError,
 } from './request-validation';
 
@@ -28,7 +27,7 @@ export const DOUBAN_CSV_MAX_BYTES = 5 * 1024 * 1024;
 const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
 const EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
 
-function assertKnownImportParameters(value: Record<string, unknown>, allowedKeys: string[]) {
+export function assertKnownImportParameters(value: Record<string, unknown>, allowedKeys: string[]) {
   const unknownKey = Object.keys(value).find(key => !allowedKeys.includes(key));
   if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
 }
@@ -67,6 +66,32 @@ export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
     psnId: parseExternalAccountIdentifier(value.psnId, 'psnId'),
     status: parseRecordStatusParameter(value.status, null),
   };
+}
+
+export function parseImportLimitParameters(value: Record<string, unknown>): number {
+  assertKnownImportParameters(value, ['limit']);
+  return parsePositiveIntegerParameter(
+    value.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
+  );
+}
+
+export function parseDoubanCsvImportParameters(value: Record<string, unknown>): RecordStatus {
+  assertKnownImportParameters(value, ['status']);
+  return parseRecordStatusParameter(value.status, RecordStatus.WANT);
+}
+
+export function parseDoubanHarvestParameters(value: Record<string, unknown>): string {
+  assertKnownImportParameters(value, ['mode']);
+  const mode = parseBoundedStringParameter(value.mode, 'mode', 20) ?? 'json';
+  if (!DOUBAN_HARVEST_MODES.has(mode)) {
+    throw new RequestValidationError('mode 必须是 json、full、incremental 之一');
+  }
+  return mode;
+}
+
+export function parseImportTaskStatusParameters(value: Record<string, unknown>): string {
+  assertKnownImportParameters(value, ['taskId']);
+  return parseBoundedStringParameter(value.taskId, 'taskId', 100, true)!;
 }
 
 // multer 内存存储，用于豆瓣 CSV 上传
@@ -114,7 +139,8 @@ router.post('/steam/owned', async (req: Request, res: Response) => {
 });
 
 // POST /api/import/steam/backfill — 回填已有 Steam 游戏的海报和游玩时间
-router.post('/steam/backfill', async (_req: Request, res: Response) => {
+router.post('/steam/backfill', async (req: Request, res: Response) => {
+  assertKnownImportParameters(req.query, []);
   const result = await runExclusiveImport('steam', 'Steam 导入或回填', backfillSteamData);
   res.json(result);
 });
@@ -143,7 +169,7 @@ router.post('/psn/owned', async (req: Request, res: Response) => {
 
 // POST /api/import/douban — multipart 文件上传
 router.post('/douban', uploadDoubanCsv, async (req: Request, res: Response) => {
-  const defaultStatus = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
+  const defaultStatus = parseDoubanCsvImportParameters(req.query);
   const file = req.file;
   if (!file || file.size === 0) {
     res.status(400).json({ error: 'CSV 文件为空' });
@@ -159,9 +185,7 @@ router.post('/douban', uploadDoubanCsv, async (req: Request, res: Response) => {
 
 // POST /api/import/covers/fill?limit=50
 router.post('/covers/fill', async (req: Request, res: Response) => {
-  const limit = parsePositiveIntegerParameter(
-    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
-  );
+  const limit = parseImportLimitParameters(req.query);
   const result = await runExclusiveImport(
     'rawg-covers',
     'RAWG 封面回填',
@@ -172,9 +196,7 @@ router.post('/covers/fill', async (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-covers/fill?limit=50
 router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
-  const limit = parsePositiveIntegerParameter(
-    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
-  );
+  const limit = parseImportLimitParameters(req.query);
   const result = await runExclusiveImport(
     'tmdb-covers',
     'TMDB 封面回填',
@@ -185,9 +207,7 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-enrich/backfill?limit=50 — 为已有记录补充 TMDB 数据
 router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
-  const limit = parsePositiveIntegerParameter(
-    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
-  );
+  const limit = parseImportLimitParameters(req.query);
   const task = startEnrichBackfillTask(limit);
   res.json({
     taskId: task.taskId,
@@ -199,9 +219,7 @@ router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-detail/backfill?limit=50
 router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
-  const limit = parsePositiveIntegerParameter(
-    req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
-  );
+  const limit = parseImportLimitParameters(req.query);
   const task = startTmdbDetailBackfillTask(limit);
   res.json({
     taskId: task.taskId,
@@ -213,10 +231,7 @@ router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
 
 // POST /api/import/douban-harvest?mode=json|full|incremental
 router.post('/douban-harvest', async (req: Request, res: Response) => {
-  const mode = parseStringParameter(req.query.mode, 'mode') ?? 'json';
-  if (!DOUBAN_HARVEST_MODES.has(mode)) {
-    throw new RequestValidationError('mode 必须是 json、full、incremental 之一');
-  }
+  const mode = parseDoubanHarvestParameters(req.query);
 
   let task;
   switch (mode) {
@@ -257,13 +272,16 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
 });
 
 // GET /api/import/tasks — 所有任务列表
-router.get('/tasks', (_req: Request, res: Response) => {
+router.get('/tasks', (req: Request, res: Response) => {
+  assertKnownImportParameters(req.query, []);
   res.json(listTasks());
 });
 
 // DELETE /api/import/tasks/:taskId — 取消任务
 router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response) => {
-  const result = cancelTask(req.params.taskId);
+  assertKnownImportParameters(req.query, []);
+  const taskId = parseBoundedStringParameter(req.params.taskId, 'taskId', 100, true)!;
+  const result = cancelTask(taskId);
   if (!result.ok) {
     res.status(result.error === '任务不存在' ? 404 : 400).json({ error: result.error });
     return;
@@ -273,7 +291,7 @@ router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response
 
 // GET /api/import/douban-harvest/status?taskId=xxx
 router.get('/douban-harvest/status', (req: Request, res: Response) => {
-  const taskId = parseStringParameter(req.query.taskId, 'taskId', true)!;
+  const taskId = parseImportTaskStatusParameters(req.query);
   const task = getTask(taskId);
   if (!task) {
     res.status(404).json({ error: '任务不存在' });
