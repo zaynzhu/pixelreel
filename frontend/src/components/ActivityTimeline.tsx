@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useI18nStore } from '../stores/i18nStore'
+import { toast } from '../stores/toastStore'
 import type { ActivityAction, ActivityRecord } from '../types/activity'
 
 interface ActivityTimelineProps {
@@ -113,20 +114,30 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
   // entity-specific 模式用本地状态，不污染全局 store
   const [entityRecords, setEntityRecords] = useState<ActivityRecord[]>([])
   const [entityLoading, setEntityLoading] = useState(false)
+  const [entityError, setEntityError] = useState<string | null>(null)
 
   const isEntityMode = !!entityId
   const records = isEntityMode ? entityRecords : store.records
   const loading = isEntityMode ? entityLoading : store.loading
+  const error = isEntityMode ? entityError : store.error
+
+  const loadEntityHistory = useCallback(async () => {
+    if (!entityId) return
+    setEntityLoading(true)
+    setEntityError(null)
+    try {
+      setEntityRecords(await store.fetchEntityHistory(entityType || '', entityId))
+    } catch (reason) {
+      setEntityError(reason instanceof Error ? reason.message : t('activity.load_error'))
+    } finally {
+      setEntityLoading(false)
+    }
+  }, [entityId, entityType, store.fetchEntityHistory, t])
 
   // entity 模式：加载特定条目历史
   useEffect(() => {
-    if (!entityId) return
-    setEntityLoading(true)
-    store
-      .fetchEntityHistory(entityType || '', entityId)
-      .then((r) => setEntityRecords(r))
-      .finally(() => setEntityLoading(false))
-  }, [entityId])
+    void loadEntityHistory()
+  }, [loadEntityHistory])
 
   // 全局模式：初始加载
   useEffect(() => {
@@ -164,8 +175,8 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
       } else {
         await store.undo(id)
       }
-    } catch {
-      // undo 失败静默处理
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : t('activity.undo_failed'), 'error')
     }
   }
 
@@ -181,8 +192,21 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
         </div>
       )}
 
+      {error && (
+        <div className="flex items-center justify-between gap-4 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-4 py-3 text-[10px] text-[var(--accent-deep)]">
+          <span>{error || t('activity.load_error')}</span>
+          <button
+            type="button"
+            onClick={() => isEntityMode ? void loadEntityHistory() : void store.fetchRecords()}
+            className="brutal-btn shrink-0 px-3 text-[9px]"
+          >
+            {t('activity.retry')}
+          </button>
+        </div>
+      )}
+
       {/* 空状态 */}
-      {!loading && records.length === 0 && (
+      {!loading && !error && records.length === 0 && (
         <div className="text-[10px] text-[var(--muted)] uppercase tracking-widest p-6 text-center">
           {t('activity.empty')}
         </div>
