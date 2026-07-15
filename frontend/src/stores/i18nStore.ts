@@ -419,6 +419,7 @@ const dictionaries = {
     "activity.task_start": "TASK_START",
     "activity.task_done": "TASK_DONE",
     "activity.task_fail": "TASK_FAIL",
+    "activity.task_cancel": "TASK_CANCEL",
     "activity.undone": "UNDONE",
 
     // Radar
@@ -1059,6 +1060,7 @@ const dictionaries = {
     "activity.task_start": "任务开始",
     "activity.task_done": "任务完成",
     "activity.task_fail": "任务失败",
+    "activity.task_cancel": "任务取消",
     "activity.undone": "已撤销",
 
     // Radar

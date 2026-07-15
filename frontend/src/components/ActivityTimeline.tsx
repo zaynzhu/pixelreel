@@ -20,6 +20,7 @@ const ACTION_COLORS: Record<ActivityAction, string> = {
   TASK_START: '#888888',
   TASK_DONE: '#44aaff',
   TASK_FAIL: '#ff4444',
+  TASK_CANCEL: '#ff8800',
   UNDO: '#ff8800',
 }
 
@@ -88,12 +89,13 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
     return <span className="text-[10px] text-[var(--muted)]">TASK_START</span>
   }
 
-  if (action === 'TASK_DONE' || action === 'TASK_FAIL') {
+  if (action === 'TASK_DONE' || action === 'TASK_FAIL' || action === 'TASK_CANCEL') {
     if (!metadata) return null
     const parts: string[] = []
     if (metadata.total != null) parts.push(`total: ${metadata.total}`)
     if (metadata.imported != null) parts.push(`imported: ${metadata.imported}`)
     if (metadata.skipped != null) parts.push(`skipped: ${metadata.skipped}`)
+    if (metadata.processed != null) parts.push(`processed: ${metadata.processed}`)
     if (metadata.error) parts.push(`error: ${truncate(metadata.error, 40)}`)
     return (
       <span className="text-[10px] text-[var(--muted)]">
@@ -220,6 +222,7 @@ const ACTION_I18N_MAP = {
   TASK_START: 'activity.task_start',
   TASK_DONE: 'activity.task_done',
   TASK_FAIL: 'activity.task_fail',
+  TASK_CANCEL: 'activity.task_cancel',
   UNDO: 'activity.undone',
 } as const;
 

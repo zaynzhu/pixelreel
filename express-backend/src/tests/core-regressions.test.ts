@@ -979,6 +979,7 @@ test('活动日志参数拒绝非法游标、ID 和日期', () => {
     from: null,
     to: null,
   });
+  assert.equal(parseActivityListParameters({ action: 'TASK_CANCEL' }).action, 'TASK_CANCEL');
   assert.throws(() => parseActivityListParameters({ action: 'INVALID' }), RequestValidationError);
   assert.throws(() => parseActivityListParameters({ entityType: 'USER' }), RequestValidationError);
   assert.throws(() => parseActivityListParameters({ verbose: 'true' }), RequestValidationError);
@@ -1395,7 +1396,10 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-task-manager-'));
   const storagePath = path.join(tempDir, 'tasks.json');
   let now = new Date('2026-07-14T12:00:00.000Z');
-  const activityLogger = async () => {};
+  const taskActivities: string[] = [];
+  const activityLogger = async (entry: { action: string }) => {
+    taskActivities.push(entry.action);
+  };
   const terminalTasks: Array<{ status: string }> = [];
   const terminalTaskObserver = (task: { status: string }) => terminalTasks.push(task);
 
@@ -1403,6 +1407,7 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
     const firstManager = new TaskManager({ storagePath, now: () => now, activityLogger, terminalTaskObserver });
     assert.equal(firstManager.initialize(), 0);
     const runningTask = firstManager.createTask('test-import', '测试导入');
+    assert.deepEqual(taskActivities, ['TASK_START']);
     assert.throws(
       () => firstManager.createTask('test-import', '重复导入'),
       (error: unknown) => error instanceof TaskConflictError && error.status === 409,
@@ -1420,6 +1425,7 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
     assert.equal(recoveredTask?.progress.currentTitle, '');
     assert.equal(recoveredTask?.completedAt, now.toISOString());
     assert.deepEqual(terminalTasks.map(task => task.status), ['failed']);
+    assert.deepEqual(taskActivities, ['TASK_START', 'TASK_FAIL']);
 
     recoveredManager.completeTask(runningTask.taskId, { total: 10, imported: 10, skipped: 0, errors: [] });
     assert.equal(recoveredManager.getTask(runningTask.taskId)?.status, 'failed');
@@ -1427,6 +1433,7 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
     const cancelledTask = recoveredManager.createTask('test-import', '取消测试');
     assert.deepEqual(recoveredManager.cancelTask(cancelledTask.taskId), { ok: true });
     assert.deepEqual(terminalTasks.map(task => task.status), ['failed', 'cancelled']);
+    assert.deepEqual(taskActivities, ['TASK_START', 'TASK_FAIL', 'TASK_START', 'TASK_CANCEL']);
     recoveredManager.failTask(cancelledTask.taskId, '取消后的异步异常');
     assert.equal(recoveredManager.getTask(cancelledTask.taskId)?.status, 'cancelled');
 

@@ -21,7 +21,7 @@ function useActionTabs(): TabOption[] {
   return [
     { label: t('activity.all') },
     { label: t('activity.data_change'), value: 'UPDATE' },
-    { label: t('activity.task'), value: 'TASK_DONE' },
+    { label: t('activity.task'), value: 'TASK' },
   ]
 }
 
@@ -88,6 +88,7 @@ export default function ActivityFilters() {
   const entityTabs = useEntityTabs()
   const actionTabs = useActionTabs()
   const timeTabs = useTimeTabs()
+  const currentActionValue = filters.entityType === 'TASK' ? 'TASK' : filters.action
 
   // 从 filters.from 反推出 time tab 值
   const currentTimeValue = (() => {
@@ -112,8 +113,14 @@ export default function ActivityFilters() {
       <div className="h-4 w-px bg-[var(--line)]" />
       <TabGroup
         options={actionTabs}
-        activeValue={filters.action}
-        onChange={(value) => setFilters({ ...filters, action: value })}
+        activeValue={currentActionValue}
+        onChange={(value) => setFilters(value === 'TASK'
+          ? { ...filters, action: undefined, entityType: 'TASK' }
+          : {
+            ...filters,
+            action: value,
+            entityType: filters.entityType === 'TASK' ? undefined : filters.entityType,
+          })}
       />
       <div className="h-4 w-px bg-[var(--line)]" />
       <TabGroup

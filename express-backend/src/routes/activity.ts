@@ -15,7 +15,7 @@ import {
 const router = Router()
 
 const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE'])
-const ACTIVITY_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'TASK_START', 'TASK_DONE', 'TASK_FAIL', 'UNDO'] as const
+const ACTIVITY_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'TASK_START', 'TASK_DONE', 'TASK_FAIL', 'TASK_CANCEL', 'UNDO'] as const
 const ACTIVITY_ENTITY_TYPES = ['MOVIE', 'TV_SHOW', 'GAME', 'TASK'] as const
 const ACTIVITY_LIST_PARAMETER_KEYS = new Set(['limit', 'cursor', 'action', 'entityType', 'entityId', 'from', 'to'])
 const undoInProgress = new Set<string>()

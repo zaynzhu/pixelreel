@@ -239,6 +239,10 @@ export class TaskManager {
     task.completedAt = this.now().toISOString();
     this.persistNow();
     this.notifyTerminalTask(task);
+    this.logTaskActivity('TASK_CANCEL', task, {
+      processed: task.progress.processed,
+      total: task.progress.total,
+    });
     return { ok: true };
   }
 
@@ -299,7 +303,7 @@ export class TaskManager {
   }
 
   private logTaskActivity(
-    action: 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL',
+    action: 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL' | 'TASK_CANCEL',
     task: Task,
     metadata: Record<string, unknown> = {},
   ): void {
