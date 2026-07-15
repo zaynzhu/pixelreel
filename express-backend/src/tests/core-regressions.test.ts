@@ -75,8 +75,13 @@ import {
 } from '../services/douban-harvester/import-service';
 import {
   assertDoubanCsvRowLimit,
+  claimCsvIdentifiers,
+  csvParseRating,
   DOUBAN_CSV_MAX_ROWS,
   DoubanCsvLimitError,
+  extractDoubanId,
+  normalizeImdbId,
+  parseDate as parseDoubanCsvDate,
   parseCsvBuffer,
 } from '../services/import/DoubanCsvImportService';
 import { INTERRUPTED_TASK_ERROR, TaskConflictError, TaskManager } from '../services/task-manager';
@@ -147,6 +152,32 @@ test('豆瓣 CSV 上传在解析和写库前限制资源占用', async () => {
     parseCsvBuffer(Buffer.from(`unknown\n${'x\n'.repeat(DOUBAN_CSV_MAX_ROWS + 1)}`), csvParser),
     (error: unknown) => error instanceof DoubanCsvLimitError && error.status === 413,
   );
+});
+
+test('豆瓣 CSV 导入在写库前规范字段并拒绝重复标识', () => {
+  assert.equal(extractDoubanId(' 1292052 ', null), '1292052');
+  assert.equal(
+    extractDoubanId('invalid', 'https://movie.douban.com/subject/1292052/?from=collect'),
+    '1292052',
+  );
+  assert.equal(extractDoubanId('invalid', 'https://example.com/subject/not-a-number'), null);
+  assert.equal(normalizeImdbId(' TT0111161 '), 'tt0111161');
+  assert.equal(normalizeImdbId('0111161'), null);
+
+  assert.equal(csvParseRating('abc'), null);
+  assert.equal(csvParseRating('0'), null);
+  assert.equal(csvParseRating('3.6'), 4);
+  assert.equal(csvParseRating('9'), 5);
+  assert.equal(parseDoubanCsvDate('2024-02-29'), '2024-02-29T00:00:00.000Z');
+  assert.equal(parseDoubanCsvDate('2023-02-29'), undefined);
+  assert.equal(parseDoubanCsvDate('2026-02-31'), undefined);
+
+  const seenDoubanIds = new Set(['100']);
+  const seenImdbIds = new Set(['tt0000001']);
+  assert.equal(claimCsvIdentifiers('200', 'tt0000002', seenDoubanIds, seenImdbIds), true);
+  assert.equal(claimCsvIdentifiers('200', null, seenDoubanIds, seenImdbIds), false);
+  assert.equal(claimCsvIdentifiers('300', 'tt0000001', seenDoubanIds, seenImdbIds), false);
+  assert.equal(claimCsvIdentifiers('300', null, seenDoubanIds, seenImdbIds), false);
 });
 
 test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {

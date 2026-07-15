@@ -11,6 +11,8 @@ interface CsvRow {
 }
 
 export const DOUBAN_CSV_MAX_ROWS = 20_000;
+const MOVIE_TITLE_MAX_LENGTH = 255;
+const SHORT_REVIEW_MAX_LENGTH = 1000;
 
 export class DoubanCsvLimitError extends Error {
   readonly status = 413;
@@ -61,7 +63,7 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
     .map((r) => extractDoubanId(r[doubanIdCol || ''] || null, r[linkCol || ''] || null))
     .filter(Boolean) as string[];
   const imdbIds = rows
-    .map((r) => r[imdbIdCol || ''] || null)
+    .map((r) => normalizeImdbId(r[imdbIdCol || ''] || null))
     .filter((v): v is string => !!v);
 
   const existingByDouban = doubanIds.length > 0
@@ -70,15 +72,22 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
   const existingByImdb = imdbIds.length > 0
     ? new Map((await getDb().movie.findMany({ where: { imdbId: { in: imdbIds } } })).map((m) => [m.imdbId!, m]))
     : new Map<string, any>();
+  const seenDoubanIds = new Set(existingByDouban.keys());
+  const seenImdbIds = new Set(existingByImdb.keys());
 
   const toSave: any[] = [];
 
   for (const record of rows) {
     summary.total++;
 
-    const title = (titleCol ? record[titleCol] : null) || null;
-    if (!title || !title.trim()) {
+    const title = ((titleCol ? record[titleCol] : null) || '').trim();
+    if (!title) {
       summary.errors.push(`第 ${summary.total} 行缺少标题`);
+      summary.skipped++;
+      continue;
+    }
+    if (title.length > MOVIE_TITLE_MAX_LENGTH) {
+      summary.errors.push(`第 ${summary.total} 行标题超过 ${MOVIE_TITLE_MAX_LENGTH} 个字符`);
       summary.skipped++;
       continue;
     }
@@ -87,13 +96,15 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
       doubanIdCol ? record[doubanIdCol] || null : null,
       linkCol ? record[linkCol] || null : null,
     );
-    const imdbIdVal = imdbIdCol ? record[imdbIdCol] || null : null;
-
-    if (doubanId && existingByDouban.has(doubanId)) {
+    const imdbIdVal = normalizeImdbId(imdbIdCol ? record[imdbIdCol] || null : null);
+    const shortReview = (commentCol ? record[commentCol] : null)?.trim() || null;
+    if (shortReview && shortReview.length > SHORT_REVIEW_MAX_LENGTH) {
+      summary.errors.push(`第 ${summary.total} 行短评超过 ${SHORT_REVIEW_MAX_LENGTH} 个字符`);
       summary.skipped++;
       continue;
     }
-    if (imdbIdVal && existingByImdb.has(imdbIdVal)) {
+
+    if (!claimCsvIdentifiers(doubanId, imdbIdVal, seenDoubanIds, seenImdbIds)) {
       summary.skipped++;
       continue;
     }
@@ -102,12 +113,12 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
     const parsedDate = parseDate(dateVal);
 
     toSave.push({
-      title: title.trim(),
+      title,
       doubanId: doubanId || null,
       imdbId: imdbIdVal || null,
       status: csvParseStatus(statusCol ? record[statusCol] : undefined, defaultStatus),
       rating: csvParseRating(ratingCol ? record[ratingCol] : undefined),
-      shortReview: (commentCol ? record[commentCol] : null)?.trim() || null,
+      shortReview,
       createdAt: parsedDate,
     });
   }
@@ -164,17 +175,38 @@ function normalize(value: string): string {
   return value ? value.trim().toLowerCase() : '';
 }
 
-function extractDoubanId(doubanIdValue: string | null, linkValue: string | null): string | null {
-  if (doubanIdValue && doubanIdValue.trim()) return doubanIdValue.trim();
-  if (!linkValue || !linkValue.trim()) return null;
-  const normalized = linkValue.trim();
-  const idx = normalized.indexOf('/subject/');
-  if (idx >= 0) {
-    let tail = normalized.substring(idx + 9);
-    const slash = tail.indexOf('/');
-    return slash > 0 ? tail.substring(0, slash) : tail;
+export function extractDoubanId(
+  doubanIdValue: string | null,
+  linkValue: string | null,
+): string | null {
+  for (const candidate of [doubanIdValue, linkValue]) {
+    if (!candidate?.trim()) continue;
+    const normalized = candidate.trim();
+    if (/^\d{1,20}$/.test(normalized)) return normalized;
+    const subjectMatch = normalized.match(/\/subject\/(\d{1,20})(?:[/?#]|$)/);
+    if (subjectMatch) return subjectMatch[1];
   }
   return null;
+}
+
+export function normalizeImdbId(value: string | null): string | null {
+  const normalized = value?.trim().toLowerCase() ?? '';
+  return /^tt\d{7,10}$/.test(normalized) ? normalized : null;
+}
+
+export function claimCsvIdentifiers(
+  doubanId: string | null,
+  imdbId: string | null,
+  seenDoubanIds: Set<string>,
+  seenImdbIds: Set<string>,
+): boolean {
+  const duplicate = Boolean(
+    (doubanId && seenDoubanIds.has(doubanId))
+    || (imdbId && seenImdbIds.has(imdbId)),
+  );
+  if (doubanId) seenDoubanIds.add(doubanId);
+  if (imdbId) seenImdbIds.add(imdbId);
+  return !duplicate;
 }
 
 function csvParseStatus(value: string | undefined, defaultStatus: string | null | undefined): string {
@@ -186,25 +218,30 @@ function csvParseStatus(value: string | undefined, defaultStatus: string | null 
   return defaultStatus || RecordStatus.WANT;
 }
 
-function csvParseRating(value: string | undefined): number | null {
+export function csvParseRating(value: string | undefined): number | null {
   if (!value || !value.trim()) return null;
-  try {
-    let parsed = parseFloat(value.trim());
-    if (parsed <= 0) return null;
-    return Math.min(Math.round(parsed), 5);
-  } catch {
-    return null;
-  }
+  const parsed = Number.parseFloat(value.trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.min(Math.round(parsed), 5);
 }
 
-function parseDate(value: string | null | undefined): string | undefined {
+export function parseDate(value: string | null | undefined): string | undefined {
   if (!value || !value.trim()) return undefined;
   const trimmed = value.trim();
   // 匹配 YYYY-MM-DD 或 YYYY/MM/DD
   const match = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
   if (match) {
     const [, year, month, day] = match;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00.000Z`;
+    const yearNumber = Number(year);
+    const monthNumber = Number(month);
+    const dayNumber = Number(day);
+    const date = new Date(Date.UTC(yearNumber, monthNumber - 1, dayNumber));
+    if (date.getUTCFullYear() !== yearNumber
+      || date.getUTCMonth() !== monthNumber - 1
+      || date.getUTCDate() !== dayNumber) {
+      return undefined;
+    }
+    return date.toISOString();
   }
   // 兜底：尝试原生解析
   const d = new Date(trimmed);
