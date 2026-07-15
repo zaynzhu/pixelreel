@@ -446,7 +446,6 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
   const [imgError, setImgError] = useState(false);
   const resolvedPosterUrl = proxiedImageUrl(record.posterUrl);
   const showPlaceholder = !resolvedPosterUrl || imgError;
-  const hideStatus = record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0;
 
   return (
     <button
@@ -503,12 +502,10 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] opacity-20 mix-blend-overlay transition-opacity duration-300 group-hover:opacity-10 z-10" />
 
       {/* Status Tech-Dot */}
-      {!hideStatus && (
-        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded border border-white/10">
-           <div className={`w-1.5 h-1.5 rounded-full ${record.status === 'DONE' ? 'bg-[var(--accent)] shadow-[0_0_5px_var(--accent)] animate-pulse' : 'bg-[var(--muted)]'}`} />
-           <span className="text-[8px] font-bold text-white uppercase tracking-widest leading-none">{status}</span>
-        </div>
-      )}
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded border border-white/10">
+         <div className={`w-1.5 h-1.5 rounded-full ${record.status === 'DONE' ? 'bg-[var(--accent)] shadow-[0_0_5px_var(--accent)] animate-pulse' : 'bg-[var(--muted)]'}`} />
+         <span className="text-[8px] font-bold text-white uppercase tracking-widest leading-none">{status}</span>
+      </div>
 
       {/* Category Tech Badge (Top Left) */}
       <div 

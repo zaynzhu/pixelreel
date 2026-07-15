@@ -2,6 +2,7 @@ import { getDb } from '../config/db';
 import type { Prisma } from '@prisma/client';
 import { LibraryRecordResponse, LibraryRecordUpdateRequest } from '../dto/library';
 import { RecordStatus, parseRecordStatus } from '../enums/RecordStatus';
+import { buildGameStatusWhere, effectiveGameStatus } from './GameStatusService';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
@@ -233,9 +234,13 @@ function buildEntityWhere(
   const queryWhere = kind === 'game'
     ? buildGameQueryWhere(options.query)
     : buildMediaQueryWhere(options.query);
+  const baseWhere = kind === 'game'
+    ? buildBaseWhere({ ...options, status: undefined })
+    : buildBaseWhere(options);
   return {
     AND: [
-      buildBaseWhere(options),
+      baseWhere,
+      kind === 'game' ? buildGameStatusWhere(options.status) : {},
       buildReviewWhere(options.review),
       sourceWhere,
       queryWhere,
@@ -449,13 +454,14 @@ export async function getRandomRecords(
   const db = getDb();
   const category = options.category ?? 'all';
   const where = options.status ? { status: options.status } : {};
+  const gameWhere = buildGameStatusWhere(options.status);
   const includeMovies = category === 'all' || category === 'movie';
   const includeGames = category === 'all' || category === 'game';
   const includeTvShows = category === 'all' || category === 'tv_show';
 
   const [movieCount, gameCount, tvCount] = await Promise.all([
     includeMovies ? db.movie.count({ where }) : Promise.resolve(0),
-    includeGames ? db.game.count({ where }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: gameWhere }) : Promise.resolve(0),
     includeTvShows ? db.tvShow.count({ where }) : Promise.resolve(0),
   ]);
 
@@ -476,7 +482,7 @@ export async function getRandomRecords(
       const movie = (await db.movie.findMany({ where, skip: offset, take: 1 }))[0];
       record = movie ? toMovieRecord(movie) : null;
     } else if (offset < movieCount + gameCount) {
-      const game = (await db.game.findMany({ where, skip: offset - movieCount, take: 1 }))[0];
+      const game = (await db.game.findMany({ where: gameWhere, skip: offset - movieCount, take: 1 }))[0];
       record = game ? toGameRecord(game) : null;
     } else {
       const show = (await db.tvShow.findMany({
@@ -654,7 +660,7 @@ export function toGameRecord(game: any): LibraryRecordResponse {
         : game.platform.trim().toUpperCase() === 'STEAM' ? 'Steam'
         : game.platform)
       : gameSourceLabel(sourceKey),
-    status: game.status || RecordStatus.UNSET,
+    status: effectiveGameStatus(game),
     rating: game.rating,
     shortReview: game.shortReview,
     playtimeMinutes: game.playtimeMinutes,

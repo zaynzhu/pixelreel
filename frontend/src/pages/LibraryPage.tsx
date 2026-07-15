@@ -318,9 +318,7 @@ export default function LibraryPage() {
                         {record.platformLabel && record.category === "game" ? (
                           <Badge tone="muted">{record.platformLabel}</Badge>
                         ) : null}
-                        {!(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0) && (
-                          <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
-                        )}
+                        <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
                       </div>
                       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
@@ -673,8 +671,7 @@ function buildRecordKey(record: LibraryRecord | null): SelectedRecordKey {
 }
 
 function buildRecordMeta(record: LibraryRecord, t: any) {
-  const showStatus = !(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0);
-  const parts = [record.sourceLabel, showStatus ? formatStatus(record.status, t) : null, formatDate(record.updatedAt ?? record.createdAt)].filter(Boolean);
+  const parts = [record.sourceLabel, formatStatus(record.status, t), formatDate(record.updatedAt ?? record.createdAt)].filter(Boolean);
 
   if (record.category === "game" && record.platformLabel) {
     parts.unshift(record.platformLabel);

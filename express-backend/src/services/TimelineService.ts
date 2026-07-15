@@ -6,6 +6,7 @@ import {
 } from './LibraryService';
 import { normalizeStatus } from './LibraryService';
 import { TimelineRecordResponse, TimelinePageResponse } from '../dto/timeline';
+import { buildGameStatusWhere, effectiveGameStatus } from './GameStatusService';
 
 export interface ListTimelineOptions {
   cursor?: string;
@@ -24,6 +25,19 @@ function buildBaseWhere(options: ListTimelineOptions) {
   return {
     ...(createdAtRange ? { createdAt: createdAtRange } : {}),
     ...(normalizedStatus ? { status: normalizedStatus } : {}),
+  };
+}
+
+function buildGameBaseWhere(options: ListTimelineOptions) {
+  const createdAtRange = yearRange(options.year);
+  const normalizedStatus = options.status
+    ? normalizeStatus(options.status)
+    : undefined;
+  return {
+    AND: [
+      createdAtRange ? { createdAt: createdAtRange } : {},
+      buildGameStatusWhere(normalizedStatus),
+    ].filter(part => Object.keys(part).length > 0),
   };
 }
 
@@ -70,7 +84,7 @@ function toTimelineGame(g: any): TimelineRecordResponse {
     category: 'game',
     title: g.title,
     posterUrl: g.posterUrl,
-    status: g.status || 'UNSET',
+    status: effectiveGameStatus(g),
     rating: g.rating,
     playtimeMinutes: g.playtimeMinutes,
     sourceLabel: gameSourceLabel(sourceKey),
@@ -120,8 +134,12 @@ export async function listTimelineRecords(
       }
     : {};
 
-  const where = {
+  const mediaWhere = {
     AND: [baseWhere, cursorWhere].filter((part) => Object.keys(part).length > 0),
+  };
+  const gameWhere = {
+    AND: [buildGameBaseWhere(options ?? {}), cursorWhere]
+      .filter(part => Object.keys(part).length > 0),
   };
 
   const includeMovies = category === 'all' || category === 'media' || category === 'movie';
@@ -130,13 +148,13 @@ export async function listTimelineRecords(
 
   const [movies, games, tvShows, totalResult] = await Promise.all([
     includeMovies
-      ? getDb().movie.findMany({ where, select: MOVIE_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().movie.findMany({ where: mediaWhere, select: MOVIE_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
       : Promise.resolve([]),
     includeGames
-      ? getDb().game.findMany({ where, select: GAME_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().game.findMany({ where: gameWhere, select: GAME_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
       : Promise.resolve([]),
     includeTvShows
-      ? getDb().tvShow.findMany({ where, select: TV_SHOW_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().tvShow.findMany({ where: mediaWhere, select: TV_SHOW_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
       : Promise.resolve([]),
     options?.includeTotals === false
       ? Promise.resolve(undefined)
@@ -195,6 +213,7 @@ export async function listTimelineYears(category: ListTimelineOptions['category'
 async function fetchTotal(options?: ListTimelineOptions) {
   const db = getDb();
   const baseWhere = buildBaseWhere(options ?? {});
+  const gameBaseWhere = buildGameBaseWhere(options ?? {});
   const category = options?.category ?? 'all';
   const includeMovies = category === 'all' || category === 'media' || category === 'movie';
   const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
@@ -203,7 +222,7 @@ async function fetchTotal(options?: ListTimelineOptions) {
   const [movieCount, tvCount, gameCount] = await Promise.all([
     includeMovies ? db.movie.count({ where: baseWhere }) : Promise.resolve(0),
     includeTvShows ? db.tvShow.count({ where: baseWhere }) : Promise.resolve(0),
-    includeGames ? db.game.count({ where: baseWhere }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: gameBaseWhere }) : Promise.resolve(0),
   ]);
 
   return { total: movieCount + tvCount + gameCount };

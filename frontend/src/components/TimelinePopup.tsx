@@ -95,7 +95,6 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
   const tmdbOverview = fullRecord?.tmdbOverview ?? null;
   const doubanIntro = fullRecord?.doubanIntro ?? null;
   const doubanDate = fullRecord?.doubanDate ?? null;
-  const hideStatus = category === 'game' && status === 'WANT' && playtimeMinutes && playtimeMinutes > 0;
 
   // TMDB genre ID → 名称映射
   const genreNames = (ids: string | null | undefined): string[] => {
@@ -184,9 +183,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
 
             <div className="flex flex-wrap items-center gap-2">
               {sourceLabel && <span className="neo-badge text-[10px]">{sourceLabel}</span>}
-              {!hideStatus && (
-                <span className="neo-badge text-[10px]">{statusLabel(status)}</span>
-              )}
+              <span className="neo-badge text-[10px]">{statusLabel(status)}</span>
               {tmdbReleaseDate && (
                 <span className="neo-badge text-[10px]">{tmdbReleaseDate}</span>
               )}

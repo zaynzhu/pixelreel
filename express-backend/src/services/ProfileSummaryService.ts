@@ -1,6 +1,7 @@
 import { getDb } from '../config/db';
 import { ProfileSummaryResponse, CountItem, RecentRecordItem, YearlyTimelineItem } from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
+import { effectiveGameStatus } from './GameStatusService';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
 
@@ -285,14 +286,6 @@ function platformLabel(platform: string): string {
 
 function safeStatus(status: string | null): string {
   return status || RecordStatus.UNSET;
-}
-
-export function effectiveGameStatus(game: { status: string | null; playtimeMinutes?: number | null }): string {
-  const status = safeStatus(game.status);
-  if (status === RecordStatus.WANT && (game.playtimeMinutes ?? 0) > 0) {
-    return RecordStatus.IN_PROGRESS;
-  }
-  return status;
 }
 
 export function isImportedGame(game: {

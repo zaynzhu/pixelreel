@@ -130,7 +130,8 @@ import {
   validateAuthSettingValues,
   validateSettingValues,
 } from '../routes/settings';
-import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
+import { isImportedGame } from '../services/ProfileSummaryService';
+import { buildGameStatusWhere, effectiveGameStatus } from '../services/GameStatusService';
 import {
   buildCrossPlatformRatings,
   collectAvailableAnalyticsYears,
@@ -1778,6 +1779,16 @@ test('已游玩的想玩游戏按进行中统计', () => {
   assert.equal(effectiveGameStatus({ status: 'WANT', playtimeMinutes: 30 }), 'IN_PROGRESS');
   assert.equal(effectiveGameStatus({ status: 'WANT', playtimeMinutes: 0 }), 'WANT');
   assert.equal(effectiveGameStatus({ status: 'DONE', playtimeMinutes: 30 }), 'DONE');
+  assert.deepEqual(buildGameStatusWhere(RecordStatus.WANT), {
+    status: RecordStatus.WANT,
+    OR: [{ playtimeMinutes: null }, { playtimeMinutes: { lte: 0 } }],
+  });
+  assert.deepEqual(buildGameStatusWhere(RecordStatus.IN_PROGRESS), {
+    OR: [
+      { status: RecordStatus.IN_PROGRESS },
+      { status: RecordStatus.WANT, playtimeMinutes: { gt: 0 } },
+    ],
+  });
 });
 
 test('跨平台评分只聚合本年入库记录并按相同分数组合', () => {
