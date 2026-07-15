@@ -371,6 +371,7 @@ export default function TimelinePage() {
         error={popupRecord ? detailErrors[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
         onClose={() => setPopupRecord(null)}
         onRescrape={(record) => {
+          setPopupRecord(null);
           setRescrapeRecord(record);
         }}
       />
