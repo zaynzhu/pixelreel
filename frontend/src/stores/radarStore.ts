@@ -25,6 +25,8 @@ interface RadarState {
   addToLibrary: (radarItemId: number) => Promise<{ exists: boolean; recordId: number; category: string } | null>;
 }
 
+let latestRadarRequest = 0;
+
 export const useRadarStore = create<RadarState>((set, get) => ({
   items: [],
   total: 0,
@@ -38,6 +40,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
   lastSyncedAt: null,
 
   fetchItems: async (overrides) => {
+    const requestId = ++latestRadarRequest;
     const { category, type, platform, page } = { ...get(), ...overrides };
     set({ loading: true, error: null });
     try {
@@ -49,6 +52,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
       params.set('limit', '40');
       params.set('syncType', 'popular'); // 热门同步的数据
       const data = await apiFetch<RadarListResponse>(`/radar?${params}`);
+      if (requestId !== latestRadarRequest) return;
       set({
         items: data.items,
         total: data.total,
@@ -57,6 +61,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
         loading: false,
       });
     } catch (err) {
+      if (requestId !== latestRadarRequest) return;
       set({ error: err instanceof Error ? err.message : '获取雷达数据失败', loading: false });
     }
   },

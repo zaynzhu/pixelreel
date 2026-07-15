@@ -24,6 +24,8 @@ interface NewReleaseRadarState {
   addToLibrary: (radarItemId: number) => Promise<{ exists: boolean; recordId: number; category: string } | null>;
 }
 
+let latestNewReleaseRequest = 0;
+
 export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) => ({
   items: [],
   total: 0,
@@ -37,6 +39,7 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
   lastSyncedAt: null,
 
   fetchItems: async (overrides) => {
+    const requestId = ++latestNewReleaseRequest;
     const { category, type, platform, page } = { ...get(), ...overrides };
     set({ loading: true, error: null });
     try {
@@ -48,6 +51,7 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
       params.set('limit', '40');
       params.set('syncType', 'new_release'); // 新片同步的数据
       const data = await apiFetch<RadarListResponse>(`/radar?${params}`);
+      if (requestId !== latestNewReleaseRequest) return;
       set({
         items: data.items,
         total: data.total,
@@ -56,6 +60,7 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
         loading: false,
       });
     } catch (err) {
+      if (requestId !== latestNewReleaseRequest) return;
       set({ error: err instanceof Error ? err.message : '获取新片数据失败', loading: false });
     }
   },

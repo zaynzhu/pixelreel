@@ -19,7 +19,7 @@ function formatSyncTime(iso: string | null) {
 }
 
 export default function PopularPage() {
-  const { items, total, page, category, platform, loading, syncing, lastSyncedAt, fetchItems, setCategory, setPlatform, triggerSync, addToLibrary } = useRadarStore();
+  const { items, total, page, category, platform, loading, syncing, error, lastSyncedAt, fetchItems, setCategory, setPlatform, triggerSync, addToLibrary } = useRadarStore();
   const { t } = useI18nStore();
 
   useEffect(() => { fetchItems(); }, []);
@@ -102,12 +102,24 @@ export default function PopularPage() {
         ))}
       </div>
 
+      {error && (
+        <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-4 border border-red-500/50 bg-red-500/10 p-4 text-xs text-red-300">
+          <div>
+            <p className="font-bold uppercase tracking-widest">{t('radar.loadError')}</p>
+            <p className="mt-1 text-[10px] text-[var(--muted)]">{error}</p>
+          </div>
+          <button type="button" onClick={() => void fetchItems()} className="brutal-btn">
+            {t('radar.retry')}
+          </button>
+        </div>
+      )}
+
       {/* Card grid */}
       {loading ? (
         <p className="mt-8 text-center text-sm text-[var(--muted)]">{t('radar.syncing')}</p>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && !error ? (
         <p className="mt-8 text-center text-sm text-[var(--muted)]">{t('radar.noResults')}</p>
-      ) : (
+      ) : items.length > 0 ? (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {items.map(item => (
             <div key={item.id} className="group border border-[var(--line)] bg-[var(--surface)] overflow-hidden">
@@ -165,7 +177,7 @@ export default function PopularPage() {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Pagination */}
       {total > 40 && (
