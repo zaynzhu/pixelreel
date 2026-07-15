@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api';
 import { toast } from '../stores/toastStore';
 
@@ -8,6 +8,26 @@ export default function RightActionDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [syncing, setSyncing] = useState<SyncTarget>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeDrawer = useCallback(() => setIsOpen(false), [])
+
+  useLayoutEffect(() => {
+    if (panelRef.current) panelRef.current.inert = !isOpen
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      closeDrawer()
+      requestAnimationFrame(() => toggleRef.current?.focus())
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [closeDrawer, isOpen])
 
   return (
     <>
@@ -18,9 +38,13 @@ export default function RightActionDrawer() {
       >
         {/* 把手 (Handle) */}
         <button
+          ref={toggleRef}
+          type="button"
           onClick={() => setIsOpen(!isOpen)}
           className="group relative flex h-24 w-10 flex-col items-center justify-center border-y border-l border-[var(--line)] bg-[var(--surface)] text-white hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus:outline-none"
           aria-label="Toggle Actions"
+          aria-controls="command-drawer"
+          aria-expanded={isOpen}
         >
           <div className="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-b border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -31,7 +55,14 @@ export default function RightActionDrawer() {
         </button>
 
         {/* 面板内容 */}
-        <div className="w-[300px] border-y border-l border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] backdrop-blur-md flex flex-col gap-8 max-h-[80vh] overflow-y-auto custom-scrollbar relative">
+        <div
+          ref={panelRef}
+          id="command-drawer"
+          role="region"
+          aria-labelledby="command-drawer-title"
+          aria-hidden={!isOpen}
+          className="w-[300px] border-y border-l border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] backdrop-blur-md flex flex-col gap-8 max-h-[80vh] overflow-y-auto custom-scrollbar relative"
+        >
           <div className="absolute inset-y-0 right-0 w-1 bg-[radial-gradient(circle_at_center,_rgba(212,255,0,0.3),_transparent_70%)]" />
 
           {/* Header */}
@@ -40,7 +71,7 @@ export default function RightActionDrawer() {
               <div className={`w-2 h-2 ${syncing ? 'bg-[var(--accent-deep)] animate-pulse' : 'bg-[var(--accent)] animate-pulse'}`} />
               <span className="section-kicker !mb-0">SYS.OP</span>
             </div>
-            <h3 className="font-display text-2xl text-white">COMMAND<br/>CENTER</h3>
+            <h3 id="command-drawer-title" className="font-display text-2xl text-white">COMMAND<br/>CENTER</h3>
           </div>
 
           {/* 状态消息 */}
