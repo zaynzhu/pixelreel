@@ -4,6 +4,92 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+interface SteamOwnedGame {
+  appId: number;
+  title: string;
+  playtimeMinutes: number | null;
+}
+
+interface ParsedSteamOwnedGames {
+  total: number;
+  games: SteamOwnedGame[];
+  skipped: number;
+  errors: string[];
+}
+
+function parsePositiveSafeInteger(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function parsePlaytimeMinutes(value: unknown): number | null | undefined {
+  if (value == null) return null;
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 2_147_483_647) return undefined;
+  return parsed;
+}
+
+export function parseSteamOwnedGamesResponse(data: unknown): ParsedSteamOwnedGames {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Steam API 返回的 response 不是对象');
+  }
+  const response = (data as { response?: unknown }).response;
+  if (!response || typeof response !== 'object' || Array.isArray(response)) {
+    throw new Error('Steam API 返回的 response 不是对象');
+  }
+  const rawGames = (response as { games?: unknown }).games;
+  if (rawGames == null) return { total: 0, games: [], skipped: 0, errors: [] };
+  if (!Array.isArray(rawGames)) throw new Error('Steam API 返回的 games 不是数组');
+
+  const games: SteamOwnedGame[] = [];
+  const errors: string[] = [];
+  const seenAppIds = new Set<number>();
+  let skipped = 0;
+
+  for (const rawGame of rawGames) {
+    const item = rawGame && typeof rawGame === 'object'
+      ? rawGame as Record<string, unknown>
+      : {};
+    const appId = parsePositiveSafeInteger(item.appid);
+    if (!appId) {
+      skipped++;
+      errors.push('Steam 响应包含无效 appid，已跳过');
+      continue;
+    }
+    if (seenAppIds.has(appId)) {
+      skipped++;
+      errors.push(`Steam 响应包含重复 appid: ${appId}`);
+      continue;
+    }
+
+    const title = typeof item.name === 'string' ? item.name.trim() : '';
+    if (!title || title.length > 255) {
+      skipped++;
+      errors.push(`Steam appid ${appId} 缺少有效标题，已跳过`);
+      continue;
+    }
+
+    seenAppIds.add(appId);
+    const parsedPlaytime = parsePlaytimeMinutes(item.playtime_forever);
+    if (parsedPlaytime === undefined) {
+      errors.push(`Steam appid ${appId} 的游玩时长无效，已忽略`);
+    }
+    games.push({
+      appId,
+      title,
+      playtimeMinutes: parsedPlaytime ?? null,
+    });
+  }
+
+  return { total: rawGames.length, games, skipped, errors };
+}
+
 export function resolveSteamImportStatus(status: string | null | undefined, playtimeMinutes: number): string {
   return status || (playtimeMinutes > 0 ? RecordStatus.IN_PROGRESS : RecordStatus.WANT);
 }
@@ -37,29 +123,38 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
     return summary;
   }
 
-  const games = response?.data?.response?.games ?? [];
-  summary.total = games.length;
+  let parsedResponse: ParsedSteamOwnedGames;
+  try {
+    parsedResponse = parseSteamOwnedGamesResponse(response?.data);
+  } catch (error) {
+    summary.errors.push(error instanceof Error ? error.message : 'Steam API 响应格式无效');
+    return summary;
+  }
+  const games = parsedResponse.games;
+  summary.total = parsedResponse.total;
+  summary.skipped = parsedResponse.skipped;
+  summary.errors.push(...parsedResponse.errors);
 
   // 批量查已有记录
-  const steamAppIds = games.map((g: any) => g.appid).filter(Boolean);
+  const steamAppIds = games.map(game => BigInt(game.appId));
   const existingMap = steamAppIds.length > 0
     ? new Map((await getDb().game.findMany({ where: { steamAppId: { in: steamAppIds } } })).map((g) => [Number(g.steamAppId!), g]))
     : new Map<any, any>();
 
   const toSave: any[] = [];
   for (const owned of games) {
-    if (!owned.appid || existingMap.has(owned.appid)) {
+    if (existingMap.has(owned.appId)) {
       summary.skipped++;
       continue;
     }
 
     toSave.push({
-      steamAppId: owned.appid,
-      title: owned.name || '',
-      posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appid}/header.jpg`,
-      playtimeMinutes: owned.playtime_forever ?? null,
+      steamAppId: BigInt(owned.appId),
+      title: owned.title,
+      posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appId}/header.jpg`,
+      playtimeMinutes: owned.playtimeMinutes,
       importedAt: new Date(),
-      status: resolveSteamImportStatus(status, owned.playtime_forever ?? 0),
+      status: resolveSteamImportStatus(status, owned.playtimeMinutes ?? 0),
       rating: null,
       shortReview: null,
     });
@@ -95,8 +190,14 @@ export async function backfillSteamData(): Promise<{ updated: number; errors: st
     return { updated: 0, errors: [`Steam API 调用失败: ${ex.message}`] };
   }
 
-  const games: any[] = response?.data?.response?.games ?? [];
-  const apiMap = new Map(games.map((g) => [g.appid, g]));
+  let parsedResponse: ParsedSteamOwnedGames;
+  try {
+    parsedResponse = parseSteamOwnedGamesResponse(response?.data);
+  } catch (error) {
+    return { updated: 0, errors: [error instanceof Error ? error.message : 'Steam API 响应格式无效'] };
+  }
+  errors.push(...parsedResponse.errors);
+  const apiMap = new Map(parsedResponse.games.map(game => [game.appId, game]));
 
   const existing = await getDb().game.findMany({ where: { steamAppId: { not: null } } });
   let updated = 0;
@@ -106,7 +207,7 @@ export async function backfillSteamData(): Promise<{ updated: number; errors: st
     if (!apiData) continue;
 
     const posterUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${record.steamAppId}/header.jpg`;
-    const playtime = apiData.playtime_forever ?? null;
+    const playtime = apiData.playtimeMinutes;
 
     await getDb().game.update({
       where: { id: record.id },

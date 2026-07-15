@@ -78,7 +78,10 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
-import { resolveSteamImportStatus } from '../services/import/SteamOwnedGamesImportService';
+import {
+  parseSteamOwnedGamesResponse,
+  resolveSteamImportStatus,
+} from '../services/import/SteamOwnedGamesImportService';
 import {
   getExternalServiceKey,
   RateLimiter,
@@ -963,6 +966,43 @@ test('Steam 导入默认状态尊重显式状态和游玩时长', () => {
   assert.equal(resolveSteamImportStatus(undefined, 30), 'IN_PROGRESS');
   assert.equal(resolveSteamImportStatus(undefined, 0), 'WANT');
   assert.equal(resolveSteamImportStatus('DONE', 0), 'DONE');
+});
+
+test('Steam 导入在写库前规范响应并去重', () => {
+  assert.deepEqual(parseSteamOwnedGamesResponse({ response: { games: [
+    { appid: 730, name: ' Counter-Strike 2 ', playtime_forever: 120 },
+    { appid: '730', name: '重复条目', playtime_forever: 30 },
+    { appid: 0, name: '无效 ID' },
+    { appid: 20, name: '   ' },
+    { appid: 40, name: '有效游戏', playtime_forever: -1 },
+  ] } }), {
+    total: 5,
+    games: [
+      { appId: 730, title: 'Counter-Strike 2', playtimeMinutes: 120 },
+      { appId: 40, title: '有效游戏', playtimeMinutes: null },
+    ],
+    skipped: 3,
+    errors: [
+      'Steam 响应包含重复 appid: 730',
+      'Steam 响应包含无效 appid，已跳过',
+      'Steam appid 20 缺少有效标题，已跳过',
+      'Steam appid 40 的游玩时长无效，已忽略',
+    ],
+  });
+  assert.deepEqual(parseSteamOwnedGamesResponse({ response: {} }), {
+    total: 0,
+    games: [],
+    skipped: 0,
+    errors: [],
+  });
+  assert.throws(
+    () => parseSteamOwnedGamesResponse({ response: { games: {} } }),
+    /Steam API 返回的 games 不是数组/,
+  );
+  assert.throws(
+    () => parseSteamOwnedGamesResponse(null),
+    /Steam API 返回的 response 不是对象/,
+  );
 });
 
 test('外部平台标识可识别历史导入游戏', () => {
