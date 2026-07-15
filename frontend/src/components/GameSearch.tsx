@@ -4,6 +4,7 @@ import type {
   ExternalSearchResponse,
   GameDetail,
   ProviderSearchResult,
+  RecordStatus,
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
 import { useI18nStore } from "../stores/i18nStore";
@@ -45,6 +46,13 @@ const PROVIDERS = [
 
 type ProviderId = (typeof PROVIDERS)[number]["id"];
 
+interface ImportSummary {
+  total: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
 const defaultProvider = PROVIDERS[0].id;
 
 export default function GameSearch() {
@@ -59,6 +67,10 @@ export default function GameSearch() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<GameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [accountId, setAccountId] = useState("");
+  const [importStatus, setImportStatus] = useState<RecordStatus>("UNSET");
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
   const activeProviderConfig =
@@ -142,6 +154,28 @@ export default function GameSearch() {
     }
   };
 
+  const importOwnedGames = async () => {
+    const trimmed = accountId.trim();
+    if (activeProviderConfig.mode !== "import" || !trimmed) return;
+
+    const accountParameter = activeProvider === "xbox" ? "gamertag" : "psnId";
+    setImporting(true);
+    setImportSummary(null);
+    setError(null);
+
+    try {
+      const summary = await apiFetch<ImportSummary>(
+        `/import/${activeProvider}/owned?${accountParameter}=${encodeURIComponent(trimmed)}&status=${importStatus}`,
+        { method: "POST" }
+      );
+      setImportSummary(summary);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("search.game.import.failed"));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <section className="dash-card max-w-5xl mx-auto w-full">
       <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
@@ -150,10 +184,14 @@ export default function GameSearch() {
         {PROVIDERS.map((provider) => (
           <button
             key={provider.id}
+            type="button"
             onClick={() => {
               setActiveProvider(provider.id);
               setData(null);
               setPage(1);
+              setError(null);
+              setImportSummary(null);
+              setAccountId("");
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >
@@ -183,6 +221,83 @@ export default function GameSearch() {
               {loading ? t("search.btn.searching") : t("search.btn.exec")}
             </button>
           </div>
+        </div>
+      ) : activeProviderConfig.mode === "import" ? (
+        <div className="mt-6 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
+          <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
+          <p className="mb-4 text-[10px] uppercase font-bold text-[var(--muted)] tracking-widest">
+            /// {t(
+              activeProvider === "xbox"
+                ? "search.game.import.xbox.description"
+                : "search.game.import.psn.description"
+            )}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+              {t(
+                activeProvider === "xbox"
+                  ? "search.game.import.xbox.account"
+                  : "search.game.import.psn.account"
+              )}
+              <input
+                value={accountId}
+                onChange={(event) => setAccountId(event.target.value)}
+                placeholder={t(
+                  activeProvider === "xbox"
+                    ? "search.game.import.xbox.placeholder"
+                    : "search.game.import.psn.placeholder"
+                )}
+                className="tech-input mt-2 w-full"
+                maxLength={100}
+              />
+            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+              {t("search.game.import.status")}
+              <select
+                value={importStatus}
+                onChange={(event) => setImportStatus(event.target.value as RecordStatus)}
+                className="tech-input mt-2 w-full"
+              >
+                <option value="UNSET">{t("global.status.unset")}</option>
+                <option value="WANT">{t("global.status.want")}</option>
+                <option value="IN_PROGRESS">{t("global.status.active")}</option>
+                <option value="DONE">{t("global.status.done")}</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={importOwnedGames}
+              className="brutal-btn-accent"
+              disabled={importing || !accountId.trim()}
+            >
+              {importing
+                ? t("search.game.import.importing")
+                : t("search.game.import.button")}
+            </button>
+          </div>
+          {importSummary && (
+            <div
+              className={`mt-5 border-l-4 px-4 py-3 text-xs font-bold uppercase tracking-wider ${
+                importSummary.errors.length > 0
+                  ? "border-red-500 bg-red-500/10 text-red-400"
+                  : "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
+              }`}
+            >
+              <p>
+                {t(
+                  "search.game.import.summary",
+                  importSummary.total,
+                  importSummary.imported,
+                  importSummary.skipped
+                )}
+              </p>
+              {importSummary.errors.map((message, index) => (
+                <p key={`${message}-${index}`} className="mt-2 normal-case">
+                  [ERR] {message}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-6 border border-dashed border-[var(--line)] p-8 text-[10px] uppercase tracking-widest text-[var(--muted)] flex items-center justify-center text-center">
