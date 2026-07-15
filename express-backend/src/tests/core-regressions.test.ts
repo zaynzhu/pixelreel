@@ -140,6 +140,9 @@ import {
   buildCompletedWhere,
   encodeLibraryCursor,
   parseLibraryCursor,
+  toGameRecord,
+  toMovieRecord,
+  toTvShowRecord,
 } from '../services/LibraryService';
 import { SteamGameSearchProvider } from '../services/provider/SteamGameSearchProvider';
 import {
@@ -514,6 +517,69 @@ test('疑似重复检测只合并强标识或带年份和平台的同名候选',
     () => parseDuplicateListParameters({ category: 'movie', cursor: '0' }),
     /正整数/,
   );
+});
+
+test('统一详情响应保留三类记录的显示字段和来源身份', () => {
+  const common = {
+    id: 12n,
+    title: '详情记录',
+    posterUrl: null,
+    status: 'DONE',
+    rating: 5,
+    shortReview: '个人短评',
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    updatedAt: new Date('2026-01-02T00:00:00Z'),
+  };
+  const movie = toMovieRecord({
+    ...common,
+    overview: '电影简介',
+    releaseDate: '2025-12-31',
+    doubanId: '12345',
+    tmdbId: 987654321n,
+    imdbId: 'tt1234567',
+    traktId: '765',
+  });
+  assert.deepEqual({
+    overview: movie.overview,
+    releaseDate: movie.releaseDate,
+    doubanId: movie.doubanId,
+    tmdbId: movie.tmdbId,
+    imdbId: movie.imdbId,
+    traktId: movie.traktId,
+  }, {
+    overview: '电影简介',
+    releaseDate: '2025-12-31',
+    doubanId: '12345',
+    tmdbId: '987654321',
+    imdbId: 'tt1234567',
+    traktId: '765',
+  });
+
+  const show = toTvShowRecord({ ...common, firstAirDate: '2024-01-01', tmdbId: 44n });
+  assert.equal(show.firstAirDate, '2024-01-01');
+  assert.equal(show.tmdbId, '44');
+
+  const game = toGameRecord({
+    ...common,
+    platform: 'xbox',
+    rawgId: 77n,
+    steamAppId: 88n,
+    xboxId: 'xbox-title',
+    psnId: 'psn-title',
+  });
+  assert.deepEqual({
+    platform: game.platform,
+    rawgId: game.rawgId,
+    steamAppId: game.steamAppId,
+    xboxId: game.xboxId,
+    psnId: game.psnId,
+  }, {
+    platform: 'xbox',
+    rawgId: '77',
+    steamAppId: '88',
+    xboxId: 'xbox-title',
+    psnId: 'psn-title',
+  });
 });
 
 test('TMDB 详情返回可用于纠正重复候选的身份和原始字段', () => {

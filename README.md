@@ -148,6 +148,7 @@ curl -X POST http://localhost:18889/api/import/steam/owned
 | `/tv-shows/search` | 电视剧搜索 |
 | `/games/search` | 游戏搜索 |
 | `/library` | 记录库列表 + 评分短评工作台 |
+| `/library/:category/:id` | 统一记录详情、来源账本、个人记录和变更历史 |
 | `/timeline` | 时间线页面（按月份分组的海报墙） |
 | `/activity` | 操作日志（筛选、无限滚动、撤销） |
 | `/showcase` | 大屏展示（网格 + 全屏轮播） |

@@ -24,6 +24,20 @@ export type LibraryRecord = {
   createdAt: string;
   updatedAt?: string | null;
   importedAt?: string | null;
+  overview?: string | null;
+  releaseDate?: string | null;
+  firstAirDate?: string | null;
+  platform?: string | null;
+
+  // 来源身份
+  doubanId?: string | null;
+  tmdbId?: string | null;
+  imdbId?: string | null;
+  traktId?: string | null;
+  rawgId?: string | null;
+  steamAppId?: string | null;
+  xboxId?: string | null;
+  psnId?: string | null;
 
   // 豆瓣原始字段
   doubanTitle?: string | null;

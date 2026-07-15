@@ -564,7 +564,7 @@ async function updateTvShow(id: number, request: LibraryRecordUpdateRequest): Pr
   return toTvShowRecord(updated!);
 }
 
-function toMovieRecord(movie: any): LibraryRecordResponse {
+export function toMovieRecord(movie: any): LibraryRecordResponse {
   const sourceKey = detectMovieSource(movie);
   return {
     id: Number(movie.id),
@@ -583,6 +583,18 @@ function toMovieRecord(movie: any): LibraryRecordResponse {
     createdAt: movie.createdAt,
     updatedAt: movie.updatedAt,
     importedAt: null,
+    overview: movie.overview ?? null,
+    releaseDate: movie.releaseDate ?? null,
+    firstAirDate: null,
+    platform: null,
+    doubanId: movie.doubanId ?? null,
+    tmdbId: movie.tmdbId?.toString() ?? null,
+    imdbId: movie.imdbId ?? null,
+    traktId: movie.traktId ?? null,
+    rawgId: null,
+    steamAppId: null,
+    xboxId: null,
+    psnId: null,
     doubanTitle: movie.doubanTitle ?? null,
     doubanAltTitle: movie.doubanAltTitle ?? null,
     doubanIntro: movie.doubanIntro ?? null,
@@ -602,7 +614,7 @@ function toMovieRecord(movie: any): LibraryRecordResponse {
   };
 }
 
-function toGameRecord(game: any): LibraryRecordResponse {
+export function toGameRecord(game: any): LibraryRecordResponse {
   const sourceKey = detectGameSource(game);
   return {
     id: Number(game.id),
@@ -626,6 +638,18 @@ function toGameRecord(game: any): LibraryRecordResponse {
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
     importedAt: game.importedAt,
+    overview: null,
+    releaseDate: null,
+    firstAirDate: null,
+    platform: game.platform ?? null,
+    doubanId: null,
+    tmdbId: null,
+    imdbId: null,
+    traktId: null,
+    rawgId: game.rawgId?.toString() ?? null,
+    steamAppId: game.steamAppId?.toString() ?? null,
+    xboxId: game.xboxId ?? null,
+    psnId: game.psnId ?? null,
     doubanTitle: null, doubanAltTitle: null, doubanIntro: null,
     doubanRating: null, doubanDate: null, doubanComment: null,
     doubanLink: null, doubanAvgRating: null,
@@ -636,7 +660,7 @@ function toGameRecord(game: any): LibraryRecordResponse {
   };
 }
 
-function toTvShowRecord(show: any): LibraryRecordResponse {
+export function toTvShowRecord(show: any): LibraryRecordResponse {
   const sourceKey = detectTvShowSource(show);
   return {
     id: Number(show.id),
@@ -655,6 +679,18 @@ function toTvShowRecord(show: any): LibraryRecordResponse {
     createdAt: show.createdAt,
     updatedAt: show.updatedAt,
     importedAt: null,
+    overview: show.overview ?? null,
+    releaseDate: null,
+    firstAirDate: show.firstAirDate ?? null,
+    platform: null,
+    doubanId: show.doubanId ?? null,
+    tmdbId: show.tmdbId?.toString() ?? null,
+    imdbId: show.imdbId ?? null,
+    traktId: show.traktId ?? null,
+    rawgId: null,
+    steamAppId: null,
+    xboxId: null,
+    psnId: null,
     doubanTitle: show.doubanTitle ?? null,
     doubanAltTitle: show.doubanAltTitle ?? null,
     doubanIntro: show.doubanIntro ?? null,

@@ -1,9 +1,10 @@
 import { startTransition, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
 import { ImgWithFallback } from "../components/ImgWithFallback";
-import { ChevronDown, RotateCw } from "lucide-react";
+import { ArrowUpRight, ChevronDown, RotateCw } from "lucide-react";
 import RescrapeModal from "../components/RescrapeModal";
 import ActivityTimeline from "../components/ActivityTimeline";
 import type {
@@ -338,6 +339,14 @@ export default function LibraryPage() {
                       </p>
                     </div>
                   </button>
+                  <Link
+                    to={`/library/${record.category}/${record.id}`}
+                    className="absolute top-2 right-12 z-10 border border-[var(--line)] bg-[var(--surface)] p-2 text-[var(--muted)] opacity-0 transition-opacity hover:border-[var(--accent)] hover:text-[var(--accent)] group-hover:opacity-100"
+                    title={t("detail.open")}
+                    aria-label={t("detail.open")}
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
                   <button
                     type="button"
                     onClick={() => setRescrapeRecord(record)}

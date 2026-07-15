@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useActivityStore } from '../stores/activityStore'
 import { useI18nStore } from '../stores/i18nStore'
 import type { ActivityAction, ActivityRecord } from '../types/activity'
@@ -237,6 +238,9 @@ function ActivityRow({
   const { t } = useI18nStore()
   const actionColor = ACTION_COLORS[record.action]
   const actionLabel = t(ACTION_I18N_MAP[record.action])
+  const detailPath = record.action !== 'DELETE' && record.entityId
+    ? entityDetailPath(record.entityType, record.entityId)
+    : null
 
   return (
     <div
@@ -268,13 +272,20 @@ function ActivityRow({
       </span>
 
       {/* 实体标题 */}
-      <span
-        className={`shrink-0 font-bold text-white truncate max-w-[200px] ${
-          compact ? 'text-[10px]' : 'text-[11px]'
-        }`}
-      >
-        {record.entityTitle}
-      </span>
+      {detailPath ? (
+        <Link
+          to={detailPath}
+          className={`shrink-0 truncate max-w-[200px] font-bold text-white hover:text-[var(--accent)] ${
+            compact ? 'text-[10px]' : 'text-[11px]'
+          }`}
+        >
+          {record.entityTitle}
+        </Link>
+      ) : (
+        <span className={`shrink-0 truncate max-w-[200px] font-bold text-white ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+          {record.entityTitle}
+        </span>
+      )}
 
       {/* 变更摘要 */}
       <div className="flex-1 min-w-0 overflow-hidden">
@@ -292,4 +303,14 @@ function ActivityRow({
       )}
     </div>
   )
+}
+
+function entityDetailPath(entityType: string, entityId: string) {
+  const categories: Record<string, string> = {
+    MOVIE: 'movie',
+    TV_SHOW: 'tv_show',
+    GAME: 'game',
+  }
+  const category = categories[entityType]
+  return category ? `/library/${category}/${entityId}` : null
 }

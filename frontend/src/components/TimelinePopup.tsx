@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import type { LibraryRecord, RecordStatus } from "../types/library";
 import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
@@ -284,6 +285,13 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
           <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-[var(--dim)] border-t border-[var(--line)] pt-3">
             <span>{t("timeline.added")} {formatDate(createdAt)}</span>
             <div className="flex items-center gap-3">
+              <Link
+                to={`/library/${category}/${lightweightRecord.id}`}
+                className="flex items-center gap-1.5 border border-[var(--line)] px-2 py-1 text-white transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              >
+                <span className="text-[9px] font-bold uppercase tracking-widest">{t("detail.open")}</span>
+                <span>→</span>
+              </Link>
               {doubanDate && (
                 <span>豆瓣标记 {doubanDate}</span>
               )}

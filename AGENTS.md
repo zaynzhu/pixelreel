@@ -85,7 +85,7 @@ frontend/src/
 | — | `GET /api/search/rawg/:rawgId` (RAWG 游戏详情：评分、开发商、类型等) |
 | — | `GET /api/search/steam/:steamAppId` (Steam 游戏详情：Metacritic、开发商、类型等) |
 | — | `GET /api/search/proxy/image?url=` (图片代理，解决豆瓣防盗链) |
-| `/library` | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
+| `/library` 记录库；`/library/:category/:id` 统一详情页 | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | `GET /api/timeline?cursor=&limit=96&category=&year=`, `GET /api/timeline/years?category=` |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
@@ -117,6 +117,7 @@ frontend/src/
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **数据健康：** `/data-health` 只读审计显示字段缺口，不自动修改记录；电影/剧集检查封面、简介、日期和外部 ID，游戏只检查封面和外部 ID，问题列表按 BigInt ID 游标分页。
+- **统一记录详情：** `/library/:category/:id` 展示个人状态、评分、短评、来源身份与原始字段、游戏指标和记录级操作历史，并可保存个人记录、重新匹配元数据或进入数据健康页。记录库、时间线、活动日志和 Showcase 均提供详情入口。
 - **数据健康修复：** `POST /api/data-health/repair` 每次最多处理 50 条并创建唯一后台任务，只填充所选空字段及对应空 TMDB 原始字段；电影/剧集使用 TMDB，游戏仅支持 RAWG 封面，游戏外部 ID 必须人工核对，不能按标题自动绑定。
 - **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份、游戏仅按规范化标题+平台匹配。候选可逐条纠正辅助元数据，或整组标记为“确认不同”并恢复；裁决指纹随成员和共享标识变化而失效。不能自动合并或删除，豆瓣来源身份和原始字段必须保留。
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。

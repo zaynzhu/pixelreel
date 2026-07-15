@@ -8,6 +8,7 @@ const MovieSearch = lazy(() => import("./components/MovieSearch"))
 const TvShowSearch = lazy(() => import("./components/TvShowSearch"))
 const DashboardPage = lazy(() => import("./pages/DashboardPage"))
 const LibraryPage = lazy(() => import("./pages/LibraryPage"))
+const LibraryDetailPage = lazy(() => import("./pages/LibraryDetailPage"))
 const TimelinePage = lazy(() => import("./pages/TimelinePage"))
 const LoginPage = lazy(() => import("./pages/LoginPage"))
 const SettingsPage = lazy(() => import("./pages/SettingsPage"))
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="games/search" element={<GameSearch />} />
             <Route path="tv-shows/search" element={<TvShowSearch />} />
             <Route path="library" element={<LibraryPage />} />
+            <Route path="library/:category/:id" element={<LibraryDetailPage />} />
             <Route path="timeline" element={<TimelinePage />} />
             <Route path="activity" element={<ActivityPage />} />
             <Route path="showcase" element={<ShowcasePage />} />
