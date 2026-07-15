@@ -39,10 +39,14 @@ export function RandomPick({ compact }: RandomPickProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [category, setCategory] = useState<RandomCategory>("all")
   const [status, setStatus] = useState<RandomStatus>("all")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
 
   const fetchRandom = useCallback(async () => {
     const requestId = ++requestIdRef.current
+    setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({
         limit: String(RANDOM_PICK_LIMIT),
@@ -57,13 +61,20 @@ export function RandomPick({ compact }: RandomPickProps) {
       if (requestId !== requestIdRef.current) return
       setRecords(Array.isArray(data) ? data : [data])
       setRefreshKey((k) => k + 1)
-    } catch {
-      if (requestId === requestIdRef.current) setRecords([])
+    } catch (reason) {
+      if (requestId !== requestIdRef.current) return
+      setError(reason instanceof Error ? reason.message : t("showcase.random.error"))
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false)
     }
-  }, [category, status])
+  }, [category, status, t])
 
   useEffect(() => {
+    setRecords([])
     void fetchRandom()
+    return () => {
+      requestIdRef.current += 1
+    }
   }, [fetchRandom])
 
   useEffect(() => {
@@ -97,8 +108,9 @@ export function RandomPick({ compact }: RandomPickProps) {
               e.currentTarget.style.borderColor = "rgba(212,255,0,0.3)"
             }}
             onClick={fetchRandom}
+            disabled={loading}
           >
-            {t("showcase.random.btn")}
+            {loading ? t("showcase.random.loading") : t("showcase.random.btn")}
           </button>
         </div>
 
@@ -132,7 +144,22 @@ export function RandomPick({ compact }: RandomPickProps) {
           </select>
         </div>
 
-        {records.length > 0 ? (
+        {error ? (
+          <div
+            role="alert"
+            className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.06)] px-4 text-center"
+          >
+            <div className="font-display text-sm uppercase tracking-wider text-[var(--accent-deep)]">
+              {t("showcase.random.error")}
+            </div>
+            <p className="max-w-sm break-words font-mono text-[9px] leading-4 text-[var(--muted)]">
+              {error}
+            </p>
+            <button type="button" onClick={() => void fetchRandom()} disabled={loading} className="brutal-btn px-3 py-1 text-[9px]">
+              {loading ? t("showcase.random.loading") : t("showcase.random.retry")}
+            </button>
+          </div>
+        ) : records.length > 0 ? (
           <div className="grid min-h-0 flex-1 grid-cols-5 grid-rows-2 gap-2 overflow-hidden" key={refreshKey}>
             {records.map((record, i) => (
               <div
@@ -178,9 +205,11 @@ export function RandomPick({ compact }: RandomPickProps) {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-sm uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-              {category === "all" && status === "all"
-                ? t("showcase.random.empty")
-                : t("showcase.random.empty_filtered")}
+              {loading
+                ? t("showcase.random.loading")
+                : category === "all" && status === "all"
+                  ? t("showcase.random.empty")
+                  : t("showcase.random.empty_filtered")}
             </div>
           </div>
         )}
