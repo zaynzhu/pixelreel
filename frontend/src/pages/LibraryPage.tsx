@@ -275,88 +275,85 @@ export default function LibraryPage() {
             filteredRecords.map((record) => {
               const active = buildRecordKey(record) === buildRecordKey(selectedRecord);
               return (
-                <button
-                  key={buildRecordKey(record)}
-                  type="button"
-                  onClick={() => {
-                    setSaveMessage(null);
-                    startTransition(() => {
-                      setSelectedKey(buildRecordKey(record));
-                    });
-                  }}
-                  className={`group relative grid w-full gap-4 border px-4 py-4 text-left transition-all sm:grid-cols-[80px_1fr] ${
-                    active
-                      ? "border-[var(--accent)] bg-[#1a1a1a]"
-                      : "border-[var(--line)] bg-[var(--surface-hover)] hover:border-white"
-                  }`}
-                >
-                  {/* 重新刮削按钮 */}
+                <div key={buildRecordKey(record)} className="group relative">
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setRescrapeRecord(record)
+                    onClick={() => {
+                      setSaveMessage(null);
+                      startTransition(() => {
+                        setSelectedKey(buildRecordKey(record));
+                      });
                     }}
+                    className={`relative grid w-full gap-4 border px-4 py-4 text-left transition-all sm:grid-cols-[80px_1fr] ${
+                      active
+                        ? "border-[var(--accent)] bg-[#1a1a1a]"
+                        : "border-[var(--line)] bg-[var(--surface-hover)] hover:border-white"
+                    }`}
+                  >
+                    {active && (
+                      <div className="absolute top-0 bottom-0 left-0 w-1 bg-[var(--accent)]" />
+                    )}
+                    <div className="h-28 overflow-hidden bg-[#0a0a0a] border border-[var(--line)]">
+                      {record.posterUrl ? (
+                        <ImgWithFallback
+                          src={record.posterUrl}
+                          alt={record.title}
+                          className={`h-full w-full object-cover transition-all duration-300 ${active ? 'opacity-100 mix-blend-normal' : 'opacity-60 mix-blend-luminosity group-hover:opacity-100 group-hover:mix-blend-normal'}`}
+                          fallback={
+                            <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                              <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                              <span className="text-xl font-display font-bold opacity-15 text-[var(--accent)]">{record.title.charAt(0).toUpperCase()}</span>
+                            </div>
+                          }
+                        />
+                      ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                            <span className="text-xl font-display font-bold opacity-15 text-[var(--accent)]">{record.title.charAt(0).toUpperCase()}</span>
+                          </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge tone="accent">{categoryLabel(record.category, t)}</Badge>
+                        <Badge tone="muted">{record.sourceLabel}</Badge>
+                        {record.platformLabel && record.category === "game" ? (
+                          <Badge tone="muted">{record.platformLabel}</Badge>
+                        ) : null}
+                        {!(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0) && (
+                          <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="font-display text-xl text-white uppercase">{record.title}</h3>
+                          <p className="mt-1 text-[10px] text-[var(--muted)] uppercase tracking-widest">
+                            {buildRecordMeta(record, t)}
+                          </p>
+                        </div>
+                        <div className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-right">
+                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+                            {t("lib.list.metric")}
+                          </p>
+                          <p className="font-display mt-1 text-xl text-white">
+                            {record.rating == null ? t("dash.null") : <StarRating value={record.rating} />}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[var(--muted)] uppercase">
+                        {record.shortReview?.trim() || t("lib.list.no_log")}
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRescrapeRecord(record)}
                     className="absolute top-2 right-2 p-2 bg-[var(--surface)] border border-[var(--line)] opacity-0 group-hover:opacity-100 transition-opacity hover:border-[var(--accent)] hover:text-[var(--accent)] z-10"
                     title={t("lib.rescrape.btn")}
                   >
                     <RotateCw className="w-4 h-4" />
                   </button>
-                  {active && (
-                    <div className="absolute top-0 bottom-0 left-0 w-1 bg-[var(--accent)]" />
-                  )}
-                  <div className="h-28 overflow-hidden bg-[#0a0a0a] border border-[var(--line)]">
-                    {record.posterUrl ? (
-                      <ImgWithFallback
-                        src={record.posterUrl}
-                        alt={record.title}
-                        className={`h-full w-full object-cover transition-all duration-300 ${active ? 'opacity-100 mix-blend-normal' : 'opacity-60 mix-blend-luminosity group-hover:opacity-100 group-hover:mix-blend-normal'}`}
-                        fallback={
-                          <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
-                            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
-                            <span className="text-xl font-display font-bold opacity-15 text-[var(--accent)]">{record.title.charAt(0).toUpperCase()}</span>
-                          </div>
-                        }
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
-                        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
-                        <span className="text-xl font-display font-bold opacity-15 text-[var(--accent)]">{record.title.charAt(0).toUpperCase()}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone="accent">{categoryLabel(record.category, t)}</Badge>
-                      <Badge tone="muted">{record.sourceLabel}</Badge>
-                      {record.platformLabel && record.category === "game" ? (
-                        <Badge tone="muted">{record.platformLabel}</Badge>
-                      ) : null}
-                      {!(record.category === 'game' && record.status === 'WANT' && record.playtimeMinutes && record.playtimeMinutes > 0) && (
-                        <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
-                      )}
-                    </div>
-                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h3 className="font-display text-xl text-white uppercase">{record.title}</h3>
-                        <p className="mt-1 text-[10px] text-[var(--muted)] uppercase tracking-widest">
-                          {buildRecordMeta(record, t)}
-                        </p>
-                      </div>
-                      <div className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-right">
-                        <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
-                          {t("lib.list.metric")}
-                        </p>
-                        <p className="font-display mt-1 text-xl text-white">
-                          {record.rating == null ? t("dash.null") : <StarRating value={record.rating} />}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[var(--muted)] uppercase">
-                      {record.shortReview?.trim() || t("lib.list.no_log")}
-                    </p>
-                  </div>
-                </button>
+                </div>
               );
             })
           ) : (
