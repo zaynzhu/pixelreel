@@ -115,6 +115,7 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
   const [entityRecords, setEntityRecords] = useState<ActivityRecord[]>([])
   const [entityLoading, setEntityLoading] = useState(false)
   const [entityError, setEntityError] = useState<string | null>(null)
+  const latestEntityRequest = useRef(0)
 
   const isEntityMode = !!entityId
   const records = isEntityMode ? entityRecords : store.records
@@ -123,20 +124,28 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
 
   const loadEntityHistory = useCallback(async () => {
     if (!entityId) return
+    const requestId = ++latestEntityRequest.current
     setEntityLoading(true)
     setEntityError(null)
+    setEntityRecords([])
     try {
-      setEntityRecords(await store.fetchEntityHistory(entityType || '', entityId))
+      const nextRecords = await store.fetchEntityHistory(entityType || '', entityId)
+      if (requestId !== latestEntityRequest.current) return
+      setEntityRecords(nextRecords)
     } catch (reason) {
+      if (requestId !== latestEntityRequest.current) return
       setEntityError(reason instanceof Error ? reason.message : t('activity.load_error'))
     } finally {
-      setEntityLoading(false)
+      if (requestId === latestEntityRequest.current) setEntityLoading(false)
     }
   }, [entityId, entityType, store.fetchEntityHistory, t])
 
   // entity 模式：加载特定条目历史
   useEffect(() => {
     void loadEntityHistory()
+    return () => {
+      latestEntityRequest.current += 1
+    }
   }, [loadEntityHistory])
 
   // 全局模式：初始加载
