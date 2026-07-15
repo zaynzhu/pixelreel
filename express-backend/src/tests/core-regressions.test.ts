@@ -73,6 +73,7 @@ import {
 } from '../routes/request-validation';
 import {
   formatEnvLine,
+  parseSettingsUpdateBody,
   serializeSettingValue,
   validateAuthSettingValues,
   validateSettingValues,
@@ -138,6 +139,20 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ HOST: '"127.0.0.1"' }), 'HOST 不能包含引号');
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');
   assert.equal(validateSettingValues({ AUTH_ENABLED: 'false', PORT: '18889' }), null);
+});
+
+test('配置更新请求体只能包含非空 values 对象', () => {
+  assert.deepEqual(parseSettingsUpdateBody({ values: { HOST: '127.0.0.1' } }), {
+    HOST: '127.0.0.1',
+  });
+  assert.throws(() => parseSettingsUpdateBody(null), RequestValidationError);
+  assert.throws(() => parseSettingsUpdateBody({}), RequestValidationError);
+  assert.throws(() => parseSettingsUpdateBody({ values: [] }), RequestValidationError);
+  assert.throws(() => parseSettingsUpdateBody({ values: {} }), RequestValidationError);
+  assert.throws(
+    () => parseSettingsUpdateBody({ values: { HOST: '127.0.0.1' }, restart: true }),
+    RequestValidationError,
+  );
 });
 
 test('配置值仅在需要时添加引号', () => {

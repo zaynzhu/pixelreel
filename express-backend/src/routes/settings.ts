@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { validateAuthConfiguration } from '../config';
+import { RequestValidationError } from './request-validation';
 
 const router = Router();
 
@@ -173,6 +174,25 @@ export function serializeSettingValue(sensitive: boolean, value: string) {
   };
 }
 
+export function parseSettingsUpdateBody(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RequestValidationError('请求体必须是对象');
+  }
+
+  const body = value as Record<string, unknown>;
+  const unknownKey = Object.keys(body).find(key => key !== 'values');
+  if (unknownKey) throw new RequestValidationError(`未知字段: ${unknownKey}`);
+
+  const values = body.values;
+  if (!values || typeof values !== 'object' || Array.isArray(values)) {
+    throw new RequestValidationError('缺少 values 参数');
+  }
+  if (Object.keys(values).length === 0) {
+    throw new RequestValidationError('values 不能为空');
+  }
+  return values as Record<string, unknown>;
+}
+
 export function validateSettingValues(values: Record<string, unknown>): string | null {
   for (const [key, value] of Object.entries(values)) {
     const field = FIELD_BY_KEY.get(key);
@@ -284,11 +304,7 @@ router.get('/', (_req: Request, res: Response, next: NextFunction) => {
 // ── PUT /api/settings ──
 router.put('/', (req: Request, res: Response, next: NextFunction) => {
   try {
-    const values = (req.body as { values?: Record<string, unknown> } | null)?.values;
-    if (!values || typeof values !== 'object' || Array.isArray(values)) {
-      res.status(400).json({ error: '缺少 values 参数' });
-      return;
-    }
+    const values = parseSettingsUpdateBody(req.body);
 
     const validationError = validateSettingValues(values);
     if (validationError) {
