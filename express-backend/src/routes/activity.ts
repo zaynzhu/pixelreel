@@ -12,6 +12,7 @@ import {
 const router = Router()
 
 const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE'])
+const undoInProgress = new Set<string>()
 
 export function parseActivityCursor(value: unknown): { createdAt: Date; id: bigint } | null {
   const cursor = parseStringParameter(value, 'cursor')
@@ -24,7 +25,13 @@ export function parseActivityCursor(value: unknown): { createdAt: Date; id: bigi
   return { createdAt, id }
 }
 
-function serializeLog(entry: any) {
+export function getUndoneLogId(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null
+  const undoneLogId = (metadata as Record<string, unknown>).undoneLogId
+  return typeof undoneLogId === 'string' && /^\d+$/.test(undoneLogId) ? undoneLogId : null
+}
+
+export function serializeLog(entry: any, undoneLogIds = new Set<string>()) {
   return {
     id: entry.id.toString(),
     action: entry.action,
@@ -35,7 +42,9 @@ function serializeLog(entry: any) {
     newValues: entry.newValues,
     metadata: entry.metadata,
     createdAt: entry.createdAt,
-    undoable: UNDOABLE_ACTIONS.has(entry.action) && entry.entityId != null,
+    undoable: UNDOABLE_ACTIONS.has(entry.action)
+      && entry.entityId != null
+      && !undoneLogIds.has(entry.id.toString()),
   }
 }
 
@@ -78,7 +87,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       ]
     }
 
-    const rows = await getDb().activityLog.findMany({
+    const db = getDb()
+    const rows = await db.activityLog.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
@@ -86,13 +96,32 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const hasMore = rows.length > limit
     const items = rows.slice(0, limit)
+    const undoableLogIds = items
+      .filter(entry => UNDOABLE_ACTIONS.has(entry.action) && entry.entityId != null)
+      .map(entry => entry.id.toString())
+    const undoneLogIds = new Set<string>()
+    if (undoableLogIds.length > 0) {
+      const undoRows = await db.activityLog.findMany({
+        where: {
+          action: 'UNDO',
+          OR: undoableLogIds.map(undoneLogId => ({
+            metadata: { path: '$.undoneLogId', equals: undoneLogId },
+          })),
+        },
+        select: { metadata: true },
+      })
+      for (const undoRow of undoRows) {
+        const undoneLogId = getUndoneLogId(undoRow.metadata)
+        if (undoneLogId) undoneLogIds.add(undoneLogId)
+      }
+    }
     const last = items[items.length - 1]
     const nextCursor = hasMore && last
       ? `${new Date(last.createdAt).toISOString()}__${last.id}`
       : null
 
     res.json({
-      records: items.map(serializeLog),
+      records: items.map(entry => serializeLog(entry, undoneLogIds)),
       nextCursor,
     })
   } catch (err) {
@@ -104,6 +133,15 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parsePositiveBigIntParameter(req.params.id, 'id', true)!
+    const undoKey = id.toString()
+    if (undoInProgress.has(undoKey)) {
+      res.status(409).json({ error: '该操作正在撤销' })
+      return
+    }
+    undoInProgress.add(undoKey)
+    const releaseUndoLock = () => undoInProgress.delete(undoKey)
+    res.once('finish', releaseUndoLock)
+    res.once('close', releaseUndoLock)
 
     const entry = await getDb().activityLog.findUnique({ where: { id } })
     if (!entry) {
@@ -118,6 +156,18 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
 
     if (entry.entityId == null) {
       res.status(400).json({ error: '缺少 entityId，无法撤销' })
+      return
+    }
+
+    const existingUndo = await getDb().activityLog.findFirst({
+      where: {
+        action: 'UNDO',
+        metadata: { path: '$.undoneLogId', equals: undoKey },
+      },
+      select: { id: true },
+    })
+    if (existingUndo) {
+      res.status(409).json({ error: '该操作已撤销' })
       return
     }
 
@@ -165,7 +215,7 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
         if (value !== undefined) restoreData[key] = value
       }
 
-      const updated = await (delegate as any).update({
+      await (delegate as any).update({
         where: { id: entityId },
         data: restoreData,
       })

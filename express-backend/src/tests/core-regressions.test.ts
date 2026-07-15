@@ -19,7 +19,7 @@ import {
   parseLoginBody,
   secureCredentialEqual,
 } from '../routes/auth';
-import { parseActivityCursor } from '../routes/activity';
+import { getUndoneLogId, parseActivityCursor, serializeLog } from '../routes/activity';
 import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
 import {
@@ -196,6 +196,26 @@ test('活动日志参数拒绝非法游标、ID 和日期', () => {
   assert.throws(() => parseActivityCursor('2026-07-15T00:00:00.000Z__bad'), RequestValidationError);
   assert.throws(() => parseActivityCursor('invalid-cursor'), RequestValidationError);
   assert.equal(parseActivityCursor(undefined), null);
+});
+
+test('已撤销的活动日志不再标记为可撤销', () => {
+  const entry = {
+    id: 42n,
+    action: 'UPDATE',
+    entityType: 'MOVIE',
+    entityId: 7n,
+    entityTitle: '测试电影',
+    oldValues: { rating: 1 },
+    newValues: { rating: 2 },
+    metadata: null,
+    createdAt: new Date('2026-07-15T00:00:00.000Z'),
+  };
+
+  assert.equal(getUndoneLogId({ undoneLogId: '42' }), '42');
+  assert.equal(getUndoneLogId({ undoneLogId: 42 }), null);
+  assert.equal(getUndoneLogId(null), null);
+  assert.equal(serializeLog(entry).undoable, true);
+  assert.equal(serializeLog(entry, new Set(['42'])).undoable, false);
 });
 
 test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {
