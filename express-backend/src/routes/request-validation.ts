@@ -1,6 +1,8 @@
 import { RecordStatus } from '../enums/RecordStatus';
 import type { LibraryRecordUpdateRequest } from '../dto/library';
 
+const EXTERNAL_SEARCH_PARAMETER_KEYS = new Set(['query', 'page', 'providers']);
+
 export class RequestValidationError extends Error {
   readonly status = 400;
 
@@ -142,6 +144,9 @@ export function parseExternalSearchParameters(
   value: Record<string, unknown>,
   allowedProviders: readonly string[],
 ) {
+  const unknownKey = Object.keys(value).find(key => !EXTERNAL_SEARCH_PARAMETER_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+
   return {
     query: parseBoundedStringParameter(value.query, 'query', 200, true)!,
     page: parsePositiveIntegerParameter(value.page, 'page', 1, 1000),

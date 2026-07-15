@@ -519,6 +519,7 @@ test('外部搜索在发起请求前校验关键词、页码、Provider 和详�
   assert.throws(() => parseExternalSearchParameters({ query: '测试', page: '1001' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'unknown' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'tmdb,' }, providers), RequestValidationError);
+  assert.throws(() => parseExternalSearchParameters({ query: '测试', limit: '10' }, providers), RequestValidationError);
   assert.throws(() => parsePatternParameter('1234567', 'imdbId', /^tt\d{7,10}$/, 12), RequestValidationError);
 });
 
