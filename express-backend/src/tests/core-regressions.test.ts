@@ -26,7 +26,7 @@ import {
   parseActivityListParameters,
   serializeLog,
 } from '../routes/activity';
-import { parseAnalyticsYear } from '../routes/analytics';
+import { parseAnalyticsParameters, parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
 import {
   assertKnownImportParameters,
@@ -54,6 +54,7 @@ import { assertAllowedImageProxyUrl, validateImageProxyRedirect } from '../route
 import {
   parseTimelineCategory,
   parseTimelineListParameters,
+  parseTimelineYearsParameters,
 } from '../routes/timeline';
 import {
   parseTraktImportParameters,
@@ -564,8 +565,10 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.equal(parseLibraryRandomParameters({}), 1);
   assert.equal(parseLibraryRandomParameters({ limit: '15', t: '1784040000000' }), 15);
   assert.equal(parseTimelineCategory(undefined), 'all');
+  assert.equal(parseTimelineYearsParameters({ category: 'tv_show' }), 'tv_show');
   assert.equal(parseAnalyticsYear(undefined, 2026), 2026);
   assert.equal(parseAnalyticsYear('2025', 2026), 2025);
+  assert.equal(parseAnalyticsParameters({ year: '2025' }, 2026), 2025);
 
   assert.throws(() => parseLibraryListParameters({ cursor: 'invalid' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ cursor: '2026-07-15T00:00:00.000Z__1.5' }), RequestValidationError);
@@ -578,7 +581,10 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseLibraryRandomParameters({ t: 'invalid' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseTimelineCategory(['all']), RequestValidationError);
+  assert.throws(() => parseTimelineListParameters({ verbose: 'true' }), RequestValidationError);
+  assert.throws(() => parseTimelineYearsParameters({ year: '2026' }), RequestValidationError);
   assert.throws(() => parseAnalyticsYear('1899', 2026), RequestValidationError);
+  assert.throws(() => parseAnalyticsParameters({ verbose: 'true' }, 2026), RequestValidationError);
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {
