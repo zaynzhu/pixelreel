@@ -2,12 +2,43 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import fs from 'fs'
 import path from 'path'
+import {
+  parseBoundedStringParameter,
+  parseEnumParameter,
+  parsePositiveBigIntParameter,
+  RequestValidationError,
+} from './request-validation'
 
 const router = Router()
+const TOOL_CATEGORIES = ['movie', 'tv_show'] as const
+
+export function parseToolSearchParameters(value: Record<string, unknown>) {
+  const unknownKey = Object.keys(value).find(key => key !== 'query')
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`)
+  return {
+    query: parseBoundedStringParameter(value.query, 'query', 200),
+  }
+}
+
+export function parseConvertCategoryBody(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RequestValidationError('请求体必须是对象')
+  }
+
+  const body = value as Record<string, unknown>
+  const unknownKey = Object.keys(body).find(key => !['id', 'from', 'to'].includes(key))
+  if (unknownKey) throw new RequestValidationError(`未知字段: ${unknownKey}`)
+
+  const id = parsePositiveBigIntParameter(body.id, 'id', true)!
+  const from = parseEnumParameter(body.from, 'from', TOOL_CATEGORIES, true)!
+  const to = parseEnumParameter(body.to, 'to', TOOL_CATEGORIES, true)!
+  if (from === to) throw new RequestValidationError('from 和 to 不能相同')
+  return { id, from, to }
+}
 
 // 搜索电影和电视剧记录
 router.get('/search', async (req: Request, res: Response) => {
-  const query = (req.query.query as string || '').trim()
+  const { query } = parseToolSearchParameters(req.query)
   if (!query) {
     return res.json({ results: [] })
   }
@@ -71,29 +102,7 @@ router.get('/search', async (req: Request, res: Response) => {
 
 // 转换记录类型（movie ↔ tv_show）
 router.post('/convert-category', async (req: Request, res: Response, next: NextFunction) => {
-  const { id, from, to } = req.body
-
-  // 参数验证
-  if (id == null || !from || !to) {
-    return res.status(400).json({ error: '缺少必填参数 id / from / to' })
-  }
-  if (from !== 'movie' && from !== 'tv_show') {
-    return res.status(400).json({ error: 'from 必须是 movie 或 tv_show' })
-  }
-  if (to !== 'movie' && to !== 'tv_show') {
-    return res.status(400).json({ error: 'to 必须是 movie 或 tv_show' })
-  }
-  if (from === to) {
-    return res.status(400).json({ error: 'from 和 to 不能相同' })
-  }
-
-  // BigInt 验证
-  let numericId: bigint
-  try {
-    numericId = BigInt(id)
-  } catch {
-    return res.status(400).json({ error: 'id 必须是有效的数字' })
-  }
+  const { id: numericId, from, to } = parseConvertCategoryBody(req.body)
 
   const db = getDb()
 
@@ -106,12 +115,12 @@ router.post('/convert-category', async (req: Request, res: Response, next: NextF
   }
 
   if (!sourceRecord) {
-    return res.status(404).json({ error: `${from} 记录 ${id} 不存在` })
+    return res.status(404).json({ error: `${from} 记录 ${numericId} 不存在` })
   }
 
   // 备份原始数据（保留，不自动删除）
   const timestamp = Date.now()
-  const backupPath = path.join('temp', `convert_${id}_${timestamp}.json`)
+  const backupPath = path.join('temp', `convert_${numericId}_${timestamp}.json`)
   const absBackupPath = path.resolve(__dirname, '../../', backupPath)
 
   fs.mkdirSync(path.dirname(absBackupPath), { recursive: true })

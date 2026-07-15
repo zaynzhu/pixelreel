@@ -36,6 +36,7 @@ import {
   parseTimelineListParameters,
 } from '../routes/timeline';
 import { parseTraktImportParameters } from '../routes/trakt';
+import { parseConvertCategoryBody, parseToolSearchParameters } from '../routes/tools';
 import {
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
@@ -566,6 +567,37 @@ test('Trakt 导入仅接受状态参数且拒绝通过 URL 传递凭据', () => 
   );
   assert.throws(
     () => parseTraktImportParameters({ status: 'INVALID' }),
+    RequestValidationError,
+  );
+});
+
+test('工具页在查询和转换前严格校验参数', () => {
+  assert.deepEqual(parseToolSearchParameters({ query: ' 科幻 ' }), { query: '科幻' });
+  assert.deepEqual(parseToolSearchParameters({}), { query: null });
+  assert.throws(
+    () => parseToolSearchParameters({ query: 'test', limit: '100' }),
+    RequestValidationError,
+  );
+  assert.throws(
+    () => parseToolSearchParameters({ query: 'a'.repeat(201) }),
+    RequestValidationError,
+  );
+
+  assert.deepEqual(parseConvertCategoryBody({ id: '42', from: 'movie', to: 'tv_show' }), {
+    id: 42n,
+    from: 'movie',
+    to: 'tv_show',
+  });
+  assert.throws(
+    () => parseConvertCategoryBody({ id: '0', from: 'movie', to: 'tv_show' }),
+    RequestValidationError,
+  );
+  assert.throws(
+    () => parseConvertCategoryBody({ id: '42', from: 'movie', to: 'movie' }),
+    RequestValidationError,
+  );
+  assert.throws(
+    () => parseConvertCategoryBody({ id: '42', from: 'movie', to: 'tv_show', force: true }),
     RequestValidationError,
   );
 });
