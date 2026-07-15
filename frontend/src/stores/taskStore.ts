@@ -20,12 +20,15 @@ interface TaskState {
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let latestTaskPollRequest = 0;
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   pollTasks: async () => {
+    const requestId = ++latestTaskPollRequest;
     try {
       const tasks = await apiFetch<Task[]>('/import/tasks');
+      if (requestId !== latestTaskPollRequest) return;
       set({ tasks });
     } catch {
       // 静默失败，下次轮询重试
@@ -45,6 +48,7 @@ export function startPolling() {
 }
 
 export function stopPolling() {
+  latestTaskPollRequest++;
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
