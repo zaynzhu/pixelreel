@@ -30,6 +30,7 @@
 - **多平台搜索聚合** -- 同时搜索 TMDB、OMDb、豆瓣、IMDb、Trakt、RAWG、Steam，一个入口搜遍全网
 - **一键数据导入** -- 从豆瓣、Trakt、Steam 批量导入，自动填充海报和详情；Xbox、PSN 仍处于实验性阶段
 - **导入审核队列** -- 新同步记录先进入待审核区，可批量接受、忽略或打开详情修正，忽略不会删除数据
+- **资料库安全快照** -- 一键下载电影、剧集、游戏和豆瓣原始字段的只读 JSON，不包含设置与密钥
 - **统一记录库** -- 电影、电视剧、游戏混排展示，支持分类/年份/状态多维筛选和评分短评
 - **时间线海报墙** -- 按月份分组的精美海报墙，支持年份切换和详情弹窗
 - **雷达发现** -- 聚合 TMDB 热映/趋势 + 优酷/腾讯片单，一键加入想看列表
@@ -157,6 +158,7 @@ curl -X POST http://localhost:18889/api/import/steam/owned
 | `/analytics` | 数据分析（年度报告 + 习惯洞察） |
 | `/sync` | 多来源同步中心（配置状态、同步操作、任务进度与结果） |
 | `/sync/review` | 新导入审核队列（接受、忽略、修正） |
+| `/tools` | 数据维护工具与资料库安全快照 |
 | `/settings` | 系统设置（环境变量配置） |
 | `/radar` | 雷达发现（TMDB + 优酷 + 腾讯聚合） |
 | `/login` | 登录页 |
@@ -209,6 +211,14 @@ POST   /api/import/psn/owned         # 实验性，未通过真实账号链路�
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
 POST   /api/import/steam/backfill
+```
+
+#### 工具
+
+```text
+GET    /api/tools/export-library    下载完整资料库 JSON 快照
+GET    /api/tools/search?query=     搜索待转换的影视记录
+POST   /api/tools/convert-category  在电影与剧集之间转换类型
 ```
 
 #### 雷达

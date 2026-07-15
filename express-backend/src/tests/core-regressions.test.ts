@@ -95,6 +95,11 @@ import {
 } from '../routes/trakt';
 import { parseConvertCategoryBody, parseToolSearchParameters } from '../routes/tools';
 import {
+  buildLibraryExportSnapshot,
+  libraryExportFilename,
+  serializeLibraryExportSnapshot,
+} from '../services/LibraryExportService';
+import {
   assertEmptyRequestBody,
   assertNoQueryParameters,
   parsePositiveIntegerParameter,
@@ -1603,6 +1608,35 @@ test('工具页在查询和转换前严格校验参数', () => {
     () => parseConvertCategoryBody({ id: '42', from: 'movie', to: 'tv_show', force: true }),
     RequestValidationError,
   );
+});
+
+test('资料库快照保留豆瓣原始字段并生成可移植 JSON', () => {
+  const exportedAt = new Date('2026-07-15T08:30:45.123Z');
+  const snapshot = buildLibraryExportSnapshot({
+    movies: [{
+      id: 1n,
+      title: '豆瓣电影',
+      doubanId: '1292052',
+      doubanTitle: '肖申克的救赎',
+      doubanComment: '保留原始短评',
+    }],
+    tvShows: [{ id: 9_007_199_254_740_992n, title: '剧集' }],
+    games: [{ id: 3n, title: '游戏' }],
+  }, exportedAt);
+
+  assert.deepEqual(snapshot.counts, { movies: 1, tvShows: 1, games: 1, total: 3 });
+  assert.equal(snapshot.format, 'pixelreel-library-export');
+  assert.equal(snapshot.version, 1);
+  assert.equal(snapshot.exportedAt, exportedAt.toISOString());
+  assert.equal(libraryExportFilename(exportedAt), 'pixelreel-library-2026-07-15T08-30-45Z.json');
+
+  const parsed = JSON.parse(serializeLibraryExportSnapshot(snapshot));
+  assert.equal(parsed.records.movies[0].id, 1);
+  assert.equal(parsed.records.tvShows[0].id, '9007199254740992');
+  assert.equal(parsed.records.movies[0].doubanId, '1292052');
+  assert.equal(parsed.records.movies[0].doubanTitle, '肖申克的救赎');
+  assert.equal(parsed.records.movies[0].doubanComment, '保留原始短评');
+  assert.deepEqual(Object.keys(parsed), ['format', 'version', 'exportedAt', 'counts', 'records']);
 });
 
 test('健康检查区分数据库正常和不可用', async () => {

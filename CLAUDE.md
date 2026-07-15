@@ -95,7 +95,7 @@ frontend/src/
 | `/sync` | `GET /api/import/sources/status`，并复用各来源导入接口与任务接口 |
 | `/sync/review` | `GET /api/library?importReview=pending|ignored`, `POST /api/library/import-review` |
 | `/data-health` | `GET /api/data-health/summary`, `GET /api/data-health/issues`, `GET /api/data-health/duplicates`, `POST/DELETE /api/data-health/duplicates/review`, `POST /api/data-health/repair`（数据完整性审计、重复候选裁决和定向修复） |
-| `/tools` | `GET /api/tools/search?query=`（搜索电影/电视剧记录）, `POST /api/tools/convert-category`（转换记录类型） |
+| `/tools` | `GET /api/tools/export-library`（只读资料库快照）, `GET /api/tools/search?query=`（搜索电影/电视剧记录）, `POST /api/tools/convert-category`（转换记录类型） |
 | `/radar` | `GET /api/radar?category=&type=&platform=&source=&page=&limit=&syncType=`（新片雷达列表，含 inLibrary 标记） |
 | `/radar` | `GET /api/radar/new-releases/status`（新片同步状态） |
 | `/radar` | `POST /api/radar/sync-new-releases`（触发新片全量同步） |
@@ -130,6 +130,7 @@ frontend/src/
 - **数据健康修复：** `POST /api/data-health/repair` 每次最多处理 50 条并创建唯一后台任务，只填充所选空字段及对应空 TMDB 原始字段；电影/剧集使用 TMDB，游戏仅支持 RAWG 封面，游戏外部 ID 必须人工核对，不能按标题自动绑定。
 - **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份、游戏仅按规范化标题+平台匹配。候选可逐条纠正辅助元数据，或整组标记为“确认不同”并恢复；裁决指纹随成员和共享标识变化而失效。不能自动合并或删除，豆瓣来源身份和原始字段必须保留。
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。
+- **资料库快照：** `GET /api/tools/export-library` 在只读事务中按 ID 导出全部 Movie/TvShow/Game 字段，包含豆瓣原始字段和导入审核状态；快照格式为 `pixelreel-library-export` v1，不包含环境变量、Settings 或任何凭据，也不提供覆盖/恢复写入入口。
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
 - **主机平台导入：** Xbox/PSN 当前是未通过真实账号链路验证的实验性代码，搜索 Provider 仍为占位。同步中心只标记“实验性未接入”，不提供启动入口，也不计入正式可用来源。
@@ -238,7 +239,8 @@ frontend/src/
 ## 工具页面
 
 - **路径：** `/tools`
-- **功能：** 搜索记录并转换类型（movie ↔ tv_show）
+- **功能：** 下载完整资料库安全快照；搜索记录并转换类型（movie ↔ tv_show）
+- **快照：** `GET /api/tools/export-library` 下载版本化 JSON，包含全部 Movie/TvShow/Game 字段和数量清单，不包含配置与密钥
 - **搜索：** `GET /api/tools/search?query=` 搜索 movie 和 tv_show 表的 title/doubanTitle/tmdbTitle
 - **转换：** `POST /api/tools/convert-category` 参数 `{ id, from, to }`，使用事务保护 create + delete 操作
 - **备份：** 转换前自动备份到 `express-backend/temp/convert_{id}_{timestamp}.json`，保留不自动删除
@@ -257,4 +259,4 @@ frontend/src/
 - **时间线集成：** TimelinePopup 中的"重新刮削"按钮通过 `onRescrape` 回调通知 TimelinePage，由 TimelinePage 管理 RescrapeModal 状态
 - **数据源：** 豆瓣原始数据在 `express-backend/data/douban-harvester/collect.json`，包含 title/date/comment 等字段
 - **记录类别：** 电影在 `movie` 表，电视剧在 `tv_show` 表，游戏在 `game` 表。修改记录类别需要在数据库中移动记录（删除旧表记录，在新表创建记录）
-- **时间字段：** `createdAt` 和 `updatedAt` 是 Prisma 自动生成的，修改记录类别时会丢失原始时间。如需保留，需从 `collect.json` 中获取 `date` 字段手动更新 `doubanDate`
+- **时间字段：** 分类转换显式复制 `createdAt` 和 `updatedAt`，保留原始记录时间；`doubanDate` 作为豆瓣原始字段一并复制

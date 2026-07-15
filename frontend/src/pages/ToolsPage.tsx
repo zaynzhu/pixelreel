@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useI18nStore } from '../stores/i18nStore';
-import { apiFetch } from '../api';
+import { apiDownload, apiFetch } from '../api';
 import { toast } from '../stores/toastStore';
 import { confirmDialog } from '../components/Toast';
 import { ImgWithFallback } from '../components/ImgWithFallback';
 import { proxiedImageUrl } from '../imageProxy';
+import { Download, ShieldCheck } from 'lucide-react';
 
 interface SearchResult {
   id: number;
@@ -33,6 +34,28 @@ export default function ToolsPage() {
   const [searching, setSearching] = useState(false);
   const [converting, setConverting] = useState<number | null>(null);
   const [searched, setSearched] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const { blob, filename } = await apiDownload('/tools/export-library')
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename || 'pixelreel-library.json'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+      toast(t('tools.export.success'))
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t('tools.export.failed'), 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -96,6 +119,37 @@ export default function ToolsPage() {
         <h1 className="text-2xl text-white font-display">{t('tools.title')}</h1>
         <p className="mt-2 text-xs text-[var(--muted)]">{t('tools.desc')}</p>
       </div>
+
+      <section className="overflow-hidden border border-[var(--accent)]/40 bg-[var(--surface)]">
+        <div className="grid gap-px bg-[var(--line)] lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="bg-[var(--surface)] p-6">
+            <div className="flex items-start gap-4">
+              <div className="border border-[var(--accent)] p-3 text-[var(--accent)]">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <div>
+                <span className="section-kicker">{t('tools.export.kicker')}</span>
+                <h2 className="font-display text-2xl text-white">{t('tools.export.title')}</h2>
+                <p className="mt-2 max-w-2xl text-xs leading-6 text-[var(--muted)]">{t('tools.export.desc')}</p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-px bg-[var(--line)] sm:grid-cols-3">
+              <ExportSeal label={t('tools.export.scope')} value={t('tools.export.scope_value')} />
+              <ExportSeal label={t('tools.export.douban')} value={t('tools.export.douban_value')} />
+              <ExportSeal label={t('tools.export.secrets')} value={t('tools.export.secrets_value')} />
+            </div>
+          </div>
+          <div className="flex flex-col justify-between bg-[#080808] p-6">
+            <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-[var(--muted)]">
+              {t('tools.export.format')}
+            </div>
+            <button type="button" onClick={() => void handleExport()} disabled={exporting} className="brutal-btn-accent mt-10 w-full justify-between">
+              <span>{exporting ? t('tools.export.exporting') : t('tools.export.action')}</span>
+              <Download className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Convert Record Type */}
       <div className="border border-[var(--line)] bg-[var(--surface)] p-6">
@@ -219,4 +273,13 @@ export default function ToolsPage() {
       </div>
     </div>
   );
+}
+
+function ExportSeal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-[#0a0a0a] p-4">
+      <div className="font-mono text-[8px] uppercase tracking-[0.2em] text-[var(--muted)]">{label}</div>
+      <div className="mt-2 text-[10px] font-bold uppercase tracking-wider text-white">{value}</div>
+    </div>
+  )
 }

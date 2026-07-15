@@ -64,3 +64,21 @@ export async function apiFetch<T = unknown>(
   }
   return undefined as unknown as T;
 }
+
+export async function apiDownload(path: string): Promise<{ blob: Blob; filename: string | null }> {
+  const token = getToken()
+  const headers = new Headers()
+  if (token) headers.set("Authorization", `Bearer ${token}`)
+
+  const response = await fetch(`${API_BASE}${path}`, { headers })
+  if (response.status === 401) {
+    localStorage.removeItem("pixelreel_token")
+    window.location.href = "/login"
+    throw new Error("登录已过期，请重新登录")
+  }
+  if (!response.ok) throw new Error(await getApiErrorMessage(response))
+
+  const disposition = response.headers.get("content-disposition") || ""
+  const filename = disposition.match(/filename="([^"]+)"/i)?.[1] ?? null
+  return { blob: await response.blob(), filename }
+}

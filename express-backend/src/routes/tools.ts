@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import fs from 'fs'
 import path from 'path'
+import { exportLibrarySnapshot } from '../services/LibraryExportService'
 import {
   assertNoQueryParameters,
   parseBoundedStringParameter,
@@ -36,6 +37,16 @@ export function parseConvertCategoryBody(value: unknown) {
   if (from === to) throw new RequestValidationError('from 和 to 不能相同')
   return { id, from, to }
 }
+
+// 导出完整资料库快照，只读，不包含环境变量或凭据
+router.get('/export-library', async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query)
+  const { filename, json } = await exportLibrarySnapshot()
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+  res.setHeader('Content-Length', Buffer.byteLength(json, 'utf8'))
+  res.send(json)
+})
 
 // 搜索电影和电视剧记录
 router.get('/search', async (req: Request, res: Response) => {
