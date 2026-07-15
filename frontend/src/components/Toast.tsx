@@ -1,5 +1,6 @@
 import { useToastStore, type ToastType } from '../stores/toastStore';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useI18nStore } from '../stores/i18nStore';
 
 // ── Toast 容器 ──
 
@@ -42,40 +43,58 @@ function ToastItem({ id, message, type, onDismiss }: {
 
 let confirmResolve: ((value: boolean) => void) | null = null;
 let confirmState = { open: false, message: '', danger: false };
+const confirmListeners = new Set<() => void>()
+
+function subscribeConfirm(listener: () => void) {
+  confirmListeners.add(listener)
+  return () => confirmListeners.delete(listener)
+}
+
+function getConfirmState() {
+  return confirmState
+}
+
+function notifyConfirmListeners() {
+  confirmListeners.forEach((listener) => listener())
+}
+
+function settleConfirm(value: boolean) {
+  const resolve = confirmResolve
+  confirmResolve = null
+  confirmState = { open: false, message: '', danger: false }
+  notifyConfirmListeners()
+  resolve?.(value)
+}
 
 export function useConfirmDialog() {
-  const [state, setState] = useState(confirmState);
-
-  useEffect(() => {
-    const handler = (value: boolean) => {
-      if (confirmResolve) confirmResolve(value);
-      setState({ open: false, message: '', danger: false });
-      confirmResolve = null;
-    };
-    (window as any).__confirmHandler = handler;
-
-    const interval = setInterval(() => {
-      if (confirmState.open !== state.open || confirmState.message !== state.message) {
-        setState({ ...confirmState });
-      }
-    }, 50);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [state]);
-
-  return state;
+  return useSyncExternalStore(subscribeConfirm, getConfirmState, getConfirmState)
 }
 
 export function confirmDialog(message: string, danger = false): Promise<boolean> {
   return new Promise((resolve) => {
-    confirmResolve = resolve;
-    confirmState = { open: true, message, danger };
-  });
+    if (confirmResolve) settleConfirm(false)
+    confirmResolve = resolve
+    confirmState = { open: true, message, danger }
+    notifyConfirmListeners()
+  })
 }
 
 export function ConfirmDialog() {
   const state = useConfirmDialog();
+  const { t } = useI18nStore()
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!state.open) return
+
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const focusFrame = requestAnimationFrame(() => cancelButtonRef.current?.focus())
+
+    return () => {
+      cancelAnimationFrame(focusFrame)
+      previouslyFocused?.focus()
+    }
+  }, [state.open])
 
   if (!state.open) return null;
 
@@ -85,15 +104,26 @@ export function ConfirmDialog() {
     : 'border border-[var(--line)] bg-[var(--surface-hover)] text-white hover:bg-white hover:text-black';
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => (window as any).__confirmHandler?.(false)}>
-      <div className={`border ${borderColor} bg-[var(--surface)] p-6 shadow-[0_0_60px_rgba(0,0,0,0.8)] max-w-sm w-full`} onClick={(e) => e.stopPropagation()}>
-        <p className="text-sm text-[var(--ink)] mb-6">{state.message}</p>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => settleConfirm(false)}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-message"
+        className={`border ${borderColor} bg-[var(--surface)] p-6 shadow-[0_0_60px_rgba(0,0,0,0.8)] max-w-sm w-full`}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') settleConfirm(false)
+        }}
+      >
+        <h2 id="confirm-dialog-title" className="sr-only">{t('confirm.title')}</h2>
+        <p id="confirm-dialog-message" className="text-sm text-[var(--ink)] mb-6">{state.message}</p>
         <div className="flex justify-end gap-3">
-          <button onClick={() => (window as any).__confirmHandler?.(false)} className="text-xs uppercase tracking-widest text-[var(--muted)] hover:text-white px-4 py-2 transition-colors">
-            取消
+          <button ref={cancelButtonRef} type="button" onClick={() => settleConfirm(false)} className="text-xs uppercase tracking-widest text-[var(--muted)] hover:text-white px-4 py-2 transition-colors">
+            {t('confirm.cancel')}
           </button>
-          <button onClick={() => (window as any).__confirmHandler?.(true)} className={`${btnClass} px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all`}>
-            确认
+          <button type="button" onClick={() => settleConfirm(true)} className={`${btnClass} px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all`}>
+            {t('confirm.accept')}
           </button>
         </div>
       </div>

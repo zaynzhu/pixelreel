@@ -207,6 +207,9 @@ const dictionaries = {
     "timeline.close": "CLOSE",
 
     "task.panel.close": "CLOSE TASKS",
+    "confirm.title": "CONFIRM ACTION",
+    "confirm.cancel": "CANCEL",
+    "confirm.accept": "CONFIRM",
 
     // Activity
     "activity.title": "ACTIVITY LOG",
@@ -556,6 +559,9 @@ const dictionaries = {
     "timeline.close": "关闭",
 
     "task.panel.close": "关闭任务面板",
+    "confirm.title": "确认操作",
+    "confirm.cancel": "取消",
+    "confirm.accept": "确认",
 
     // Activity
     "activity.title": "操作日志",
