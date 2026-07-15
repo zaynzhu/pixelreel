@@ -27,6 +27,7 @@ export interface ProfileSummaryResponse {
   nextUp: {
     resume: ActionQueueItem[];
     backlog: ActionQueueItem[];
+    reflect: ActionQueueItem[];
   };
   recentItems: RecentRecordItem[];
   yearlyTimeline: YearlyTimelineItem[];

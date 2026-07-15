@@ -22,7 +22,7 @@ export function NextUpQueue({ queue, loading }: Props) {
         <p className="max-w-xl text-xs leading-5 text-[var(--muted)]">{t("dash.queue.desc")}</p>
       </div>
 
-      <div className="mt-6 grid border border-[var(--line)] lg:grid-cols-2 lg:divide-x lg:divide-[var(--line)]">
+      <div className="mt-6 grid divide-y divide-[var(--line)] border border-[var(--line)] lg:grid-cols-3 lg:divide-x lg:divide-y-0">
         <QueueLane
           title={t("dash.queue.resume")}
           rule={t("dash.queue.resume_rule")}
@@ -30,6 +30,7 @@ export function NextUpQueue({ queue, loading }: Props) {
           loading={loading}
           empty={t("dash.queue.resume_empty")}
           tone="accent"
+          detail="playtime"
         />
         <QueueLane
           title={t("dash.queue.backlog")}
@@ -38,6 +39,16 @@ export function NextUpQueue({ queue, loading }: Props) {
           loading={loading}
           empty={t("dash.queue.backlog_empty")}
           tone="deep"
+          detail="added"
+        />
+        <QueueLane
+          title={t("dash.queue.reflect")}
+          rule={t("dash.queue.reflect_rule")}
+          items={queue?.reflect ?? []}
+          loading={loading}
+          empty={t("dash.queue.reflect_empty")}
+          tone="memory"
+          detail="review"
         />
       </div>
     </section>
@@ -51,16 +62,22 @@ function QueueLane({
   loading,
   empty,
   tone,
+  detail,
 }: {
   title: string
   rule: string
   items: ActionQueueItem[]
   loading: boolean
   empty: string
-  tone: "accent" | "deep"
+  tone: "accent" | "deep" | "memory"
+  detail: "playtime" | "added" | "review"
 }) {
   const { t } = useI18nStore()
-  const color = tone === "accent" ? "var(--accent)" : "var(--accent-deep)"
+  const color = tone === "accent"
+    ? "var(--accent)"
+    : tone === "deep"
+      ? "var(--accent-deep)"
+      : "var(--signal-memory)"
 
   return (
     <div className="bg-black/10 p-4 sm:p-5">
@@ -100,7 +117,7 @@ function QueueLane({
                   {item.title}
                 </div>
                 <div className="mt-1 truncate text-[9px] uppercase tracking-wider text-[var(--muted)]">
-                  {item.subtitle} // {queueItemDetail(item, t)}
+                  {item.subtitle} // {queueItemDetail(item, t, detail)}
                 </div>
               </div>
               <span className="text-xs text-[var(--muted)] transition-transform group-hover:translate-x-1 group-hover:text-white">→</span>
@@ -116,9 +133,16 @@ function QueueLane({
   )
 }
 
-function queueItemDetail(item: ActionQueueItem, t: ReturnType<typeof useI18nStore.getState>["t"]) {
+function queueItemDetail(
+  item: ActionQueueItem,
+  t: ReturnType<typeof useI18nStore.getState>["t"],
+  detail: "playtime" | "added" | "review",
+) {
+  if (detail === "review") {
+    return t("dash.queue.rating_review", item.rating ?? 0)
+  }
   const minutes = item.playtimeMinutes ?? 0
-  if (item.status === "IN_PROGRESS" && minutes > 0) {
+  if (detail === "playtime" && minutes > 0) {
     const hours = Math.floor(minutes / 60)
     const remainingMinutes = minutes % 60
     return hours > 0

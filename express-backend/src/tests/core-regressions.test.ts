@@ -1791,7 +1791,7 @@ test('已游玩的想玩游戏按进行中统计', () => {
   });
 });
 
-test('首页行动队列优先继续高时长游戏并唤回等待最久记录', () => {
+test('首页行动队列覆盖继续游玩、等待最久和高分未回顾记录', () => {
   const item = (id: number, status: string, createdAt: string, extra = {}) => ({
     id,
     title: `条目 ${id}`,
@@ -1803,19 +1803,25 @@ test('首页行动队列优先继续高时长游戏并唤回等待最久记录',
   });
   const queue = buildNextUpQueue(
     [
-      item(1, RecordStatus.WANT, '2024-01-01T00:00:00.000Z'),
-      item(2, RecordStatus.DONE, '2023-01-01T00:00:00.000Z'),
+      item(1, RecordStatus.WANT, '2024-01-01T00:00:00.000Z', { rating: 5 }),
+      item(2, RecordStatus.DONE, '2023-01-01T00:00:00.000Z', { rating: 5 }),
+      item(3, RecordStatus.DONE, '2026-01-01T00:00:00.000Z', { rating: 4 }),
     ],
     [
       item(10, RecordStatus.WANT, '2025-01-01T00:00:00.000Z', { playtimeMinutes: 30 }),
       item(11, RecordStatus.IN_PROGRESS, '2026-01-01T00:00:00.000Z', { playtimeMinutes: 120 }),
       item(12, RecordStatus.WANT, '2022-01-01T00:00:00.000Z', { playtimeMinutes: 0 }),
     ],
-    [item(20, RecordStatus.WANT, '2023-01-01T00:00:00.000Z')],
+    [
+      item(20, RecordStatus.WANT, '2023-01-01T00:00:00.000Z'),
+      item(21, RecordStatus.DONE, '2026-02-01T00:00:00.000Z', { rating: 5, shortReview: '已经写过' }),
+      item(22, RecordStatus.DONE, '2025-01-01T00:00:00.000Z', { rating: 3 }),
+    ],
   );
 
   assert.deepEqual(queue.resume.map(record => record.id), [11, 10]);
   assert.deepEqual(queue.backlog.map(record => record.id), [12, 20, 1]);
+  assert.deepEqual(queue.reflect.map(record => record.id), [2, 3]);
   assert.equal(queue.resume[1].status, RecordStatus.IN_PROGRESS);
 });
 

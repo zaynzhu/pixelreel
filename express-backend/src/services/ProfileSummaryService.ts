@@ -114,7 +114,27 @@ export function buildNextUpQueue(movies: any[], games: any[], tvShows: any[]) {
     ))
     .slice(0, ACTION_QUEUE_LIMIT);
 
-  return { resume, backlog };
+  const reflect = [
+    ...movies.map(record => ({ category: 'movie' as const, record })),
+    ...tvShows.map(record => ({ category: 'tv_show' as const, record })),
+    ...games.map(record => ({ category: 'game' as const, record })),
+  ]
+    .filter(({ record }) => (
+      safeStatus(record.status) === RecordStatus.DONE
+      && record.rating != null
+      && record.rating >= 4
+      && !record.shortReview?.trim()
+    ))
+    .map(({ category, record }) => toActionQueueItem(category, record))
+    .sort((left, right) => (
+      (right.rating ?? 0) - (left.rating ?? 0)
+      || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      || left.category.localeCompare(right.category)
+      || right.id - left.id
+    ))
+    .slice(0, ACTION_QUEUE_LIMIT);
+
+  return { resume, backlog, reflect };
 }
 
 function toActionQueueItem(

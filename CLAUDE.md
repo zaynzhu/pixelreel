@@ -158,7 +158,7 @@ frontend/src/
 - **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据。
 - **年份筛选：** AnalyticsService 中「已完成」对豆瓣影视优先使用严格合法的 `doubanDate`，缺失或非法时回退 `updatedAt`；其他来源使用 `updatedAt`。评分、短评、Top 榜、来源分布和跨平台评分使用 `createdAt`。
 - **分析年份：** `GET /api/analytics?year=` 同时返回按降序排列的 `availableYears`，由记录创建年份和完成年份并集生成，并保留当前选择。前端只能在该列表内跳转，过期年份请求不能覆盖最新结果。
-- **首页行动队列：** `GET /api/profile/summary` 的 `nextUp.resume` 按有效 IN_PROGRESS 游戏的游玩时长降序排列，`nextUp.backlog` 按有效 WANT 记录的 `createdAt` 升序排列；两组各取 4 条，只读推导且不写数据库。
+- **首页行动队列：** `GET /api/profile/summary` 的 `nextUp.resume` 按有效 IN_PROGRESS 游戏的游玩时长降序排列，`nextUp.backlog` 按有效 WANT 记录的 `createdAt` 升序排列，`nextUp.reflect` 选取评分至少 4 分、已完成且无短评的记录并按评分和入库时间降序排列；三组各取 4 条，只读推导且不写数据库。
 - **tmdbGenreIds 格式：** 逗号分隔字符串（如 `"28,12,878"`），不是数组。Prisma schema 为 String 类型。
 - **赛博朋克主题：** CSS 自定义属性（`--accent: #d4ff00`，`--accent-deep: #ff4400`），Syne + JetBrains Mono 字体，扫描线遮罩。Showcase 专用类（`@layer components`）：`.showcase-panel`（发光边框面板）、`.showcase-number`（脉冲发光数字）、`.showcase-poster`（扫描线海报 + hover 发光）、`.showcase-bg`（动态径向渐变背景）。
 
