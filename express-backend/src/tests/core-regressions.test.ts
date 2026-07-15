@@ -628,6 +628,28 @@ test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {
   assert.equal(internalError.internalMessage, 'DATABASE_URL=/secret/path');
   assert.equal(getHttpErrorResponse(Object.assign(new Error('bad status'), { status: 200 })).status, 500);
 
+  const notFoundError = Object.assign(new Error('Prisma record not found'), {
+    name: 'PrismaClientKnownRequestError',
+    code: 'P2025',
+  });
+  assert.deepEqual(getHttpErrorResponse(notFoundError), {
+    status: 404,
+    message: '记录不存在',
+    internalMessage: 'Prisma record not found',
+    stack: notFoundError.stack,
+  });
+
+  const conflictError = Object.assign(new Error('Unique constraint failed'), {
+    name: 'PrismaClientKnownRequestError',
+    code: 'P2002',
+  });
+  assert.deepEqual(getHttpErrorResponse(conflictError), {
+    status: 409,
+    message: '记录已存在',
+    internalMessage: 'Unique constraint failed',
+    stack: conflictError.stack,
+  });
+
   let statusCode = 200;
   let responseBody: unknown;
   const response = {

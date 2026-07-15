@@ -1,16 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 
+function getPrismaErrorResponse(error: unknown) {
+  if (!(error instanceof Error) || error.name !== 'PrismaClientKnownRequestError') return null;
+  const code = (error as Error & { code?: unknown }).code;
+  if (code === 'P2025') return { status: 404, message: '记录不存在' };
+  if (code === 'P2002') return { status: 409, message: '记录已存在' };
+  return null;
+}
+
 export function getHttpErrorResponse(error: unknown) {
   const rawStatus = typeof error === 'object' && error !== null
     ? Number((error as { status?: unknown }).status)
     : NaN;
-  const status = Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599
-    ? rawStatus
-    : 500;
+  const hasValidStatus = Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599;
+  const prismaResponse = hasValidStatus ? null : getPrismaErrorResponse(error);
+  const status = hasValidStatus ? rawStatus : prismaResponse?.status ?? 500;
   const internalMessage = error instanceof Error ? error.message : String(error);
   return {
     status,
-    message: status >= 500 ? '内部服务器错误' : internalMessage,
+    message: status >= 500 ? '内部服务器错误' : prismaResponse?.message ?? internalMessage,
     internalMessage,
     stack: error instanceof Error ? error.stack : undefined,
   };
