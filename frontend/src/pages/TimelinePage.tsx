@@ -388,6 +388,9 @@ export default function TimelinePage() {
         fullRecord={popupRecord ? detailCache[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
         loading={popupRecord ? detailLoading[`${popupRecord.category}:${popupRecord.id}`] ?? false : false}
         error={popupRecord ? detailErrors[`${popupRecord.category}:${popupRecord.id}`] ?? null : null}
+        onRetry={() => {
+          if (popupRecord) void fetchDetail(popupRecord.category, popupRecord.id);
+        }}
         onClose={() => setPopupRecord(null)}
         onRescrape={(record) => {
           setPopupRecord(null);

@@ -12,11 +12,12 @@ interface TimelinePopupProps {
   fullRecord: LibraryRecord | null;
   loading: boolean;
   error: string | null;
+  onRetry: () => void;
   onClose: () => void;
   onRescrape?: (record: LibraryRecord) => void;
 }
 
-export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose, onRescrape }: TimelinePopupProps) {
+export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onRetry, onClose, onRescrape }: TimelinePopupProps) {
   const { t } = useI18nStore();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -188,7 +189,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
                 <span className="neo-badge text-[10px]">{tmdbReleaseDate}</span>
               )}
               {loading && (
-                <span className="text-[9px] text-[var(--muted)] uppercase tracking-widest animate-pulse">LOADING...</span>
+                <span className="text-[9px] text-[var(--muted)] uppercase tracking-widest animate-pulse">{t("detail.loading")}</span>
               )}
               {error && (
                 <span className="text-[9px] text-red-400 uppercase tracking-widest">ERR</span>
@@ -237,6 +238,18 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
 
         {/* Bottom: Platform ratings + overview */}
         <div className="p-5 space-y-4">
+          {error && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-red-500/50 bg-red-500/10 p-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-red-400">{t("detail.error")}</p>
+                <p className="mt-1 break-words text-[10px] text-[var(--muted)]">{error}</p>
+              </div>
+              <button type="button" onClick={onRetry} disabled={loading} className="brutal-btn px-3 py-1 text-[9px]">
+                {loading ? t("detail.loading") : t("detail.retry")}
+              </button>
+            </div>
+          )}
+
           {/* 平台评分行 */}
           <div className="flex flex-wrap gap-4">
             {hasDouban && (

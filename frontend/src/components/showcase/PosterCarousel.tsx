@@ -163,6 +163,9 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
         fullRecord={selectedRecord ? detailCache[`${selectedRecord.category}:${selectedRecord.id}`] ?? null : null}
         loading={selectedRecord ? detailLoading[`${selectedRecord.category}:${selectedRecord.id}`] ?? false : false}
         error={selectedRecord ? detailErrors[`${selectedRecord.category}:${selectedRecord.id}`] ?? null : null}
+        onRetry={() => {
+          if (selectedRecord) void fetchDetail(selectedRecord.category, selectedRecord.id)
+        }}
         onClose={() => setSelectedRecord(null)}
       />
     </>
