@@ -59,6 +59,12 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     setLoading(true)
     setLoadingMore(false)
     setError(null)
+    setGroups([])
+    setTotalGroups(0)
+    setTotalRecords(0)
+    setUnreviewedGroups(0)
+    setReviewedGroups(0)
+    setNextCursor(null)
     setRescrapeRecord(null)
     setOpeningRecordId(null)
     setReviewingGroupKey(null)
@@ -87,6 +93,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     const requestId = latestDuplicateRequest.current
     const requestViewKey = duplicateViewKey
     setLoadingMore(true)
+    setError(null)
     try {
       const data = await fetchGroups(nextCursor)
       if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
@@ -218,8 +225,16 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       </div>
 
       {error && (
-        <div className="border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4 text-xs text-[var(--accent-deep)]">
-          {error}
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent-deep)]">
+              {t("health.duplicates.error")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">{error}</p>
+          </div>
+          <button type="button" onClick={() => void refreshGroups()} className="brutal-btn">
+            {t("health.retry")}
+          </button>
         </div>
       )}
 
@@ -227,7 +242,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
         <div className="px-5 py-16 text-center text-xs uppercase tracking-widest text-[var(--muted)]">
           {t("health.loading")}
         </div>
-      ) : groups.length === 0 ? (
+      ) : error && groups.length === 0 ? null : groups.length === 0 ? (
         <div className="px-5 py-16 text-center">
           <div className="text-2xl text-[var(--accent)]">✓</div>
           <p className="mt-3 text-sm text-white">
