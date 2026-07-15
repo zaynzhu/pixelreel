@@ -634,6 +634,9 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     category: 'all',
     year: undefined,
     status: undefined,
+    query: undefined,
+    source: 'all',
+    review: 'all',
   });
   assert.deepEqual(parseLibraryListParameters({
     cursor,
@@ -642,6 +645,9 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     category: 'media',
     year: '2026',
     status: 'done',
+    query: ' 后室 ',
+    source: 'douban',
+    review: 'reviewed',
   }), {
     cursor,
     limit: 100,
@@ -649,6 +655,9 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     category: 'media',
     year: 2026,
     status: RecordStatus.DONE,
+    query: '后室',
+    source: 'douban',
+    review: 'reviewed',
   });
   assert.deepEqual(parseTimelineListParameters({
     cursor,
@@ -684,6 +693,9 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseLibraryListParameters({ category: 'unknown' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ year: '2026x' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ status: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ query: 'x'.repeat(201) }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ source: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ review: 'unknown' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ t: 'invalid' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ verbose: 'true' }), RequestValidationError);

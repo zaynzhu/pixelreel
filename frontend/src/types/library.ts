@@ -1,6 +1,10 @@
 export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE" | "DROPPED";
 
 export type LibraryCategory = "movie" | "game" | "tv_show";
+export type LibrarySourceFilter =
+  | "all" | "douban" | "tmdb" | "imdb" | "trakt"
+  | "steam" | "rawg" | "xbox" | "psn" | "manual";
+export type LibraryReviewFilter = "all" | "reviewed" | "unreviewed";
 
 export type LibraryRecord = {
   id: number;

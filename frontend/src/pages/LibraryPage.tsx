@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
@@ -10,6 +10,8 @@ import type {
   LibraryCategory,
   LibraryRecord,
   LibraryRecordUpdateInput,
+  LibraryReviewFilter,
+  LibrarySourceFilter,
   RecordStatus,
 } from "../types/library";
 
@@ -39,8 +41,9 @@ export default function LibraryPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [status, setStatus] = useState<"all" | RecordStatus>("all");
-  const [source, setSource] = useState("all");
-  const [reviewFilter, setReviewFilter] = useState<"all" | "reviewed" | "unreviewed">("all");
+  const [source, setSource] = useState<LibrarySourceFilter>("all");
+  const [reviewFilter, setReviewFilter] = useState<LibraryReviewFilter>("all");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortValue>("recent");
   const [selectedKey, setSelectedKey] = useState<SelectedRecordKey | null>(null);
   const [form, setForm] = useState<LibraryRecordUpdateInput>({
@@ -52,12 +55,24 @@ export default function LibraryPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null);
 
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     setSource("all");
-    void fetchRecords({ category, status });
-  }, [category, fetchRecords, status]);
+  }, [category]);
+
+  useEffect(() => {
+    void fetchRecords({
+      category,
+      status,
+      query: debouncedQuery,
+      source,
+      review: reviewFilter,
+    });
+  }, [category, debouncedQuery, fetchRecords, reviewFilter, source, status]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -76,32 +91,9 @@ export default function LibraryPage() {
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, fetchMore]);
 
-  const sourceOptions = Array.from(
-    new Map(records.map((record) => [record.sourceKey, record.sourceLabel])).entries()
-  ).map(([value, label]) => ({ value, label }));
+  const sourceOptions = buildSourceOptions(category, t);
 
-  const filteredRecords = records
-    .filter((record) => (category === "all" ? true : record.category === category))
-    .filter((record) => (status === "all" ? true : record.status === status))
-    .filter((record) => (source === "all" ? true : record.sourceKey === source))
-    .filter((record) => {
-      if (reviewFilter === "reviewed") {
-        return Boolean(record.shortReview?.trim());
-      }
-      if (reviewFilter === "unreviewed") {
-        return !record.shortReview?.trim();
-      }
-      return true;
-    })
-    .filter((record) => {
-      if (!deferredQuery) {
-        return true;
-      }
-      return [record.title, record.sourceLabel, record.platformLabel ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(deferredQuery);
-    })
+  const filteredRecords = [...records]
     .sort((left, right) => compareRecords(left, right, sortBy));
 
   const selectedRecord =
@@ -652,6 +644,27 @@ function compareRecords(left: LibraryRecord, right: LibraryRecord, sortBy: strin
     return left.title.localeCompare(right.title, "zh-CN") || compareByRecent(left, right);
   }
   return compareByRecent(left, right);
+}
+
+function buildSourceOptions(category: CategoryFilter, t: any) {
+  const mediaOptions = [
+    { value: "douban", label: t("global.source.douban") },
+    { value: "tmdb", label: "TMDB" },
+    { value: "imdb", label: "IMDb" },
+    { value: "trakt", label: "Trakt" },
+  ];
+  const gameOptions = [
+    { value: "steam", label: "Steam" },
+    { value: "rawg", label: "RAWG" },
+    { value: "xbox", label: "Xbox" },
+    { value: "psn", label: "PSN" },
+  ];
+  const options = category === "game"
+    ? gameOptions
+    : category === "movie" || category === "tv_show"
+      ? mediaOptions
+      : [...mediaOptions, ...gameOptions];
+  return [...options, { value: "manual", label: t("global.source.manual") }];
 }
 
 function compareByRecent(left: LibraryRecord, right: LibraryRecord) {

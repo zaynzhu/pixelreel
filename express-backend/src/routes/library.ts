@@ -3,6 +3,7 @@ import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords
 import {
   assertNoQueryParameters,
   parseBooleanParameter,
+  parseBoundedStringParameter,
   parseEnumParameter,
   parseLibraryRecordUpdateBody,
   parsePaginationCursorParameter,
@@ -16,9 +17,15 @@ import {
 
 const router = Router();
 const LIBRARY_CATEGORIES = ['all', 'media', 'movie', 'tv_show', 'game'] as const;
+const LIBRARY_SOURCES = [
+  'all', 'douban', 'tmdb', 'imdb', 'trakt',
+  'steam', 'rawg', 'xbox', 'psn', 'manual',
+] as const;
+const LIBRARY_REVIEW_FILTERS = ['all', 'reviewed', 'unreviewed'] as const;
 const RECORD_CATEGORIES = ['movie', 'tv_show', 'tvshow', 'game'] as const;
 const LIBRARY_LIST_PARAMETER_KEYS = new Set([
   'cursor', 'limit', 'includeTotals', 'category', 'year', 'status',
+  'query', 'source', 'review',
 ]);
 const LIBRARY_RANDOM_PARAMETER_KEYS = new Set(['limit', 't']);
 
@@ -36,6 +43,9 @@ export function parseLibraryListParameters(query: Record<string, unknown>) {
     category: parseEnumParameter(query.category, 'category', LIBRARY_CATEGORIES) ?? 'all',
     year: parseYearParameter(query.year) ?? undefined,
     status: parseRecordStatusParameter(query.status, null) ?? undefined,
+    query: parseBoundedStringParameter(query.query, 'query', 200) ?? undefined,
+    source: parseEnumParameter(query.source, 'source', LIBRARY_SOURCES) ?? 'all',
+    review: parseEnumParameter(query.review, 'review', LIBRARY_REVIEW_FILTERS) ?? 'all',
   };
 }
 
@@ -50,7 +60,7 @@ export function parseLibraryRecordCategory(value: unknown) {
   return parseEnumParameter(normalized, 'category', RECORD_CATEGORIES, true)!;
 }
 
-// GET /api/library — 游标分页混合列表，支持 category/year/status 筛选
+// GET /api/library — 游标分页混合列表，支持类别、状态、来源、日志和关键词筛选
 router.get('/', async (req: Request, res: Response) => {
   const parameters = parseLibraryListParameters(req.query as Record<string, unknown>);
   const result = await listRecords(parameters);

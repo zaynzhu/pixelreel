@@ -179,7 +179,7 @@ GET /api/search/proxy/image?url=    图片代理（防盗链）
 #### 记录库与时间线
 
 ```text
-GET   /api/library?cursor=&limit=50&category=&year=&status=
+GET   /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=
 GET   /api/library/:category/:id
 PATCH /api/library/:category/:id
 GET   /api/library/random?limit=N

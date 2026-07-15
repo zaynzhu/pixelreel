@@ -1,10 +1,15 @@
 import { getDb } from '../config/db';
+import type { Prisma } from '@prisma/client';
 import { LibraryRecordResponse, LibraryRecordUpdateRequest } from '../dto/library';
 import { RecordStatus, parseRecordStatus } from '../enums/RecordStatus';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
 export type LibraryCategoryFilter = 'all' | 'media' | 'movie' | 'tv_show' | 'game';
+export type LibrarySourceFilter =
+  | 'all' | 'douban' | 'tmdb' | 'imdb' | 'trakt'
+  | 'steam' | 'rawg' | 'xbox' | 'psn' | 'manual';
+export type LibraryReviewFilter = 'all' | 'reviewed' | 'unreviewed';
 
 export interface ListRecordsOptions {
   cursor?: string;
@@ -13,6 +18,9 @@ export interface ListRecordsOptions {
   category?: LibraryCategoryFilter;
   year?: number;
   status?: RecordStatus;
+  query?: string;
+  source?: LibrarySourceFilter;
+  review?: LibraryReviewFilter;
 }
 
 export function normalizeCategory(value?: string): LibraryCategoryFilter {
@@ -63,6 +71,103 @@ function buildBaseWhere(options: ListRecordsOptions) {
   };
 }
 
+function buildReviewWhere(review: LibraryReviewFilter = 'all') {
+  if (review === 'reviewed') {
+    return { AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] };
+  }
+  if (review === 'unreviewed') {
+    return { OR: [{ shortReview: null }, { shortReview: '' }] };
+  }
+  return {};
+}
+
+function buildMovieSourceWhere(source: LibrarySourceFilter = 'all') {
+  switch (source) {
+    case 'douban': return { doubanId: { not: null } };
+    case 'tmdb': return { doubanId: null, tmdbId: { not: null } };
+    case 'imdb': return { doubanId: null, tmdbId: null, imdbId: { not: null } };
+    case 'trakt': return { doubanId: null, tmdbId: null, imdbId: null, traktId: { not: null } };
+    case 'manual': return { doubanId: null, tmdbId: null, imdbId: null, traktId: null };
+    default: return {};
+  }
+}
+
+function buildGameSourceWhere(source: LibrarySourceFilter = 'all') {
+  switch (source) {
+    case 'psn': return { psnId: { not: null } };
+    case 'xbox': return { psnId: null, xboxId: { not: null } };
+    case 'steam': return { psnId: null, xboxId: null, steamAppId: { not: null } };
+    case 'rawg': return { psnId: null, xboxId: null, steamAppId: null, rawgId: { not: null } };
+    case 'manual': return { psnId: null, xboxId: null, steamAppId: null, rawgId: null };
+    default: return {};
+  }
+}
+
+function buildMediaQueryWhere(query?: string) {
+  if (!query) return {};
+  return {
+    OR: [
+      { title: { contains: query } },
+      { doubanTitle: { contains: query } },
+      { doubanAltTitle: { contains: query } },
+      { tmdbTitle: { contains: query } },
+    ],
+  };
+}
+
+function buildGameQueryWhere(query?: string) {
+  if (!query) return {};
+  return {
+    OR: [
+      { title: { contains: query } },
+      { platform: { contains: query } },
+    ],
+  };
+}
+
+function buildEntityWhere(
+  kind: 'movie',
+  options: ListRecordsOptions,
+  cursorWhere?: Record<string, unknown>,
+): Prisma.MovieWhereInput;
+function buildEntityWhere(
+  kind: 'tv_show',
+  options: ListRecordsOptions,
+  cursorWhere?: Record<string, unknown>,
+): Prisma.TvShowWhereInput;
+function buildEntityWhere(
+  kind: 'game',
+  options: ListRecordsOptions,
+  cursorWhere?: Record<string, unknown>,
+): Prisma.GameWhereInput;
+function buildEntityWhere(
+  kind: 'movie' | 'tv_show' | 'game',
+  options: ListRecordsOptions,
+  cursorWhere: Record<string, unknown> = {},
+): Prisma.MovieWhereInput | Prisma.TvShowWhereInput | Prisma.GameWhereInput {
+  const sourceWhere = kind === 'game'
+    ? buildGameSourceWhere(options.source)
+    : buildMovieSourceWhere(options.source);
+  const queryWhere = kind === 'game'
+    ? buildGameQueryWhere(options.query)
+    : buildMediaQueryWhere(options.query);
+  return {
+    AND: [
+      buildBaseWhere(options),
+      buildReviewWhere(options.review),
+      sourceWhere,
+      queryWhere,
+      cursorWhere,
+    ].filter(part => Object.keys(part).length > 0),
+  } as Prisma.MovieWhereInput | Prisma.TvShowWhereInput | Prisma.GameWhereInput;
+}
+
+function sourceSupportsKind(source: LibrarySourceFilter = 'all', kind: 'media' | 'game') {
+  if (source === 'all' || source === 'manual') return true;
+  const mediaSources: LibrarySourceFilter[] = ['douban', 'tmdb', 'imdb', 'trakt'];
+  return kind === 'media' ? mediaSources.includes(source) : !mediaSources.includes(source);
+}
+
 export function buildCompletedWhere(options?: ListRecordsOptions) {
   if (options?.status && options.status !== RecordStatus.DONE) return null;
   return {
@@ -78,7 +183,7 @@ export async function listRecords(
   const pageTake = limit + 1;
   const cursorObj = options?.cursor ? parseCursor(options.cursor) : undefined;
 
-  const baseWhere = buildBaseWhere(options ?? {});
+  const resolvedOptions = options ?? {};
   const cursorWhere = cursorObj
     ? {
         OR: [
@@ -88,25 +193,28 @@ export async function listRecords(
       }
     : {};
 
-  const where = {
-    AND: [baseWhere, cursorWhere].filter((part) => Object.keys(part).length > 0),
-  };
+  const movieWhere = buildEntityWhere('movie', resolvedOptions, cursorWhere);
+  const tvShowWhere = buildEntityWhere('tv_show', resolvedOptions, cursorWhere);
+  const gameWhere = buildEntityWhere('game', resolvedOptions, cursorWhere);
 
   const category = options?.category ?? 'all';
   // media is a PixelReel UI convention for movie + tv_show.
-  const includeMovies = category === 'all' || category === 'media' || category === 'movie';
-  const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
-  const includeGames = category === 'all' || category === 'game';
+  const includeMovies = (category === 'all' || category === 'media' || category === 'movie')
+    && sourceSupportsKind(options?.source, 'media');
+  const includeTvShows = (category === 'all' || category === 'media' || category === 'tv_show')
+    && sourceSupportsKind(options?.source, 'media');
+  const includeGames = (category === 'all' || category === 'game')
+    && sourceSupportsKind(options?.source, 'game');
 
   const [movies, games, tvShows, totals] = await Promise.all([
     includeMovies
-      ? getDb().movie.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().movie.findMany({ where: movieWhere, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
       : Promise.resolve([]),
     includeGames
-      ? getDb().game.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().game.findMany({ where: gameWhere, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
       : Promise.resolve([]),
     includeTvShows
-      ? getDb().tvShow.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().tvShow.findMany({ where: tvShowWhere, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
       : Promise.resolve([]),
     options?.includeTotals === false ? Promise.resolve(undefined) : fetchTotals(options),
   ]);
@@ -137,12 +245,18 @@ export async function listRecords(
 
 async function fetchTotals(options?: ListRecordsOptions) {
   const db = getDb();
-  const baseWhere = buildBaseWhere(options ?? {});
+  const resolvedOptions = options ?? {};
+  const movieWhere = buildEntityWhere('movie', resolvedOptions);
+  const tvShowWhere = buildEntityWhere('tv_show', resolvedOptions);
+  const gameWhere = buildEntityWhere('game', resolvedOptions);
   const completedWhere = buildCompletedWhere(options);
   const category = options?.category ?? 'all';
-  const includeMovies = category === 'all' || category === 'media' || category === 'movie';
-  const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
-  const includeGames = category === 'all' || category === 'game';
+  const includeMovies = (category === 'all' || category === 'media' || category === 'movie')
+    && sourceSupportsKind(options?.source, 'media');
+  const includeTvShows = (category === 'all' || category === 'media' || category === 'tv_show')
+    && sourceSupportsKind(options?.source, 'media');
+  const includeGames = (category === 'all' || category === 'game')
+    && sourceSupportsKind(options?.source, 'game');
 
   const [
     movieCount, tvCount, gameCount,
@@ -150,18 +264,18 @@ async function fetchTotals(options?: ListRecordsOptions) {
     movieReviewed, tvReviewed, gameReviewed,
     movieDone, tvDone, gameDone,
   ] = await Promise.all([
-    includeMovies ? db.movie.count({ where: baseWhere }) : Promise.resolve(0),
-    includeTvShows ? db.tvShow.count({ where: baseWhere }) : Promise.resolve(0),
-    includeGames ? db.game.count({ where: baseWhere }) : Promise.resolve(0),
-    includeMovies ? db.movie.count({ where: { ...baseWhere, rating: { not: null } } }) : Promise.resolve(0),
-    includeTvShows ? db.tvShow.count({ where: { ...baseWhere, rating: { not: null } } }) : Promise.resolve(0),
-    includeGames ? db.game.count({ where: { ...baseWhere, rating: { not: null } } }) : Promise.resolve(0),
-    includeMovies ? db.movie.count({ where: { ...baseWhere, AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
-    includeTvShows ? db.tvShow.count({ where: { ...baseWhere, AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
-    includeGames ? db.game.count({ where: { ...baseWhere, AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
-    includeMovies && completedWhere ? db.movie.count({ where: completedWhere }) : Promise.resolve(0),
-    includeTvShows && completedWhere ? db.tvShow.count({ where: completedWhere }) : Promise.resolve(0),
-    includeGames && completedWhere ? db.game.count({ where: completedWhere }) : Promise.resolve(0),
+    includeMovies ? db.movie.count({ where: movieWhere }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: tvShowWhere }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: gameWhere }) : Promise.resolve(0),
+    includeMovies ? db.movie.count({ where: { AND: [movieWhere, { rating: { not: null } }] } }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: { AND: [tvShowWhere, { rating: { not: null } }] } }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: { AND: [gameWhere, { rating: { not: null } }] } }) : Promise.resolve(0),
+    includeMovies ? db.movie.count({ where: { AND: [movieWhere, { shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where: { AND: [tvShowWhere, { shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where: { AND: [gameWhere, { shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
+    includeMovies && completedWhere ? db.movie.count({ where: { AND: [movieWhere, completedWhere] } }) : Promise.resolve(0),
+    includeTvShows && completedWhere ? db.tvShow.count({ where: { AND: [tvShowWhere, completedWhere] } }) : Promise.resolve(0),
+    includeGames && completedWhere ? db.game.count({ where: { AND: [gameWhere, completedWhere] } }) : Promise.resolve(0),
   ]);
   return {
     total: movieCount + tvCount + gameCount,
