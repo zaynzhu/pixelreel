@@ -101,6 +101,7 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
+import { buildCrossPlatformRatings } from '../services/AnalyticsService';
 import {
   parseSteamOwnedGamesResponse,
   resolveSteamImportStatus,
@@ -1128,6 +1129,18 @@ test('已游玩的想玩游戏按进行中统计', () => {
   assert.equal(effectiveGameStatus({ status: 'WANT', playtimeMinutes: 30 }), 'IN_PROGRESS');
   assert.equal(effectiveGameStatus({ status: 'WANT', playtimeMinutes: 0 }), 'WANT');
   assert.equal(effectiveGameStatus({ status: 'DONE', playtimeMinutes: 30 }), 'DONE');
+});
+
+test('跨平台评分按相同分数组合聚合', () => {
+  assert.deepEqual(buildCrossPlatformRatings([
+    { doubanRating: 5, tmdbVoteAverage: 8.0 },
+    { doubanRating: 5, tmdbVoteAverage: 8.0 },
+    { doubanRating: 4, tmdbVoteAverage: 7.5 },
+    { doubanRating: null, tmdbVoteAverage: 9.0 },
+  ]), [
+    { doubanRating: 4, tmdbRating: 3.8, count: 1 },
+    { doubanRating: 5, tmdbRating: 4, count: 2 },
+  ]);
 });
 
 test('Steam 导入默认状态尊重显式状态和游玩时长', () => {

@@ -25,9 +25,9 @@ export interface AnalyticsData {
     tvShows: Array<{ source: string; label: string; count: number }>
   }
   crossPlatformRatings: Array<{
-    title: string
     doubanRating: number
     tmdbRating: number
+    count: number
   }>
   topRated: Array<{
     category: string

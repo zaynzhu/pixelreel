@@ -5,9 +5,60 @@ import { RecordStatus } from '../enums/RecordStatus'
 export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
   const db = getDb()
   const [movies, games, tvShows] = await Promise.all([
-    db.movie.findMany({ orderBy: { updatedAt: 'desc' } }),
-    db.game.findMany({ orderBy: { updatedAt: 'desc' } }),
-    db.tvShow.findMany({ orderBy: { updatedAt: 'desc' } }),
+    db.movie.findMany({
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        status: true,
+        rating: true,
+        shortReview: true,
+        createdAt: true,
+        updatedAt: true,
+        tmdbId: true,
+        doubanId: true,
+        imdbId: true,
+        traktId: true,
+        doubanRating: true,
+        tmdbVoteAverage: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    db.game.findMany({
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        status: true,
+        rating: true,
+        shortReview: true,
+        createdAt: true,
+        updatedAt: true,
+        platform: true,
+        steamAppId: true,
+        xboxId: true,
+        psnId: true,
+        rawgId: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    db.tvShow.findMany({
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        status: true,
+        rating: true,
+        shortReview: true,
+        createdAt: true,
+        updatedAt: true,
+        tmdbId: true,
+        doubanId: true,
+        imdbId: true,
+        traktId: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
   ])
 
   const yearStart = new Date(year, 0, 1)
@@ -139,14 +190,25 @@ function buildSourceBreakdown(
   return { movies: movieSources, games: gamePlatforms, tvShows: tvSources }
 }
 
-function buildCrossPlatformRatings(movies: any[]): AnalyticsResponse['crossPlatformRatings'] {
-  return movies
-    .filter(m => m.doubanRating != null && m.tmdbVoteAverage != null)
-    .map(m => ({
-      title: m.title,
-      doubanRating: m.doubanRating,
-      tmdbRating: Math.round((Number(m.tmdbVoteAverage) / 2) * 10) / 10,
-    }))
+export function buildCrossPlatformRatings(movies: any[]): AnalyticsResponse['crossPlatformRatings'] {
+  const ratings = new Map<string, AnalyticsResponse['crossPlatformRatings'][number]>()
+
+  for (const movie of movies) {
+    if (movie.doubanRating == null || movie.tmdbVoteAverage == null) continue
+    const doubanRating = movie.doubanRating
+    const tmdbRating = Math.round((Number(movie.tmdbVoteAverage) / 2) * 10) / 10
+    const key = `${doubanRating}:${tmdbRating}`
+    const existing = ratings.get(key)
+    if (existing) {
+      existing.count++
+    } else {
+      ratings.set(key, { doubanRating, tmdbRating, count: 1 })
+    }
+  }
+
+  return [...ratings.values()].sort((a, b) =>
+    a.doubanRating - b.doubanRating || a.tmdbRating - b.tmdbRating
+  )
 }
 
 function buildTopRated(

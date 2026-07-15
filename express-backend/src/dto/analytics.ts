@@ -31,9 +31,9 @@ export interface AnalyticsResponse {
   }
 
   crossPlatformRatings: Array<{
-    title: string
     doubanRating: number
     tmdbRating: number
+    count: number
   }>
 
   topRated: Array<{

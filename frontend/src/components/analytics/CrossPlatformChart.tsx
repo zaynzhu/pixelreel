@@ -1,4 +1,4 @@
-import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts"
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts"
 import { useI18nStore } from "../../stores/i18nStore"
 import type { AnalyticsData } from "../../types/analytics"
 
@@ -47,6 +47,11 @@ export function CrossPlatformChart({ data }: Props) {
               tickLine={false}
               label={{ value: t("analytics.cross.tmdb"), angle: -90, position: "insideLeft", fill: "#888", fontSize: 10, fontFamily: "JetBrains Mono" }}
             />
+            <ZAxis
+              dataKey="count"
+              name={t("analytics.cross.count")}
+              range={[35, 180]}
+            />
             <Tooltip
               contentStyle={{
                 background: "var(--surface)",
@@ -56,7 +61,10 @@ export function CrossPlatformChart({ data }: Props) {
                 fontFamily: "JetBrains Mono",
                 color: "var(--ink)",
               }}
-              formatter={(value, name) => [Number(value).toFixed(1), String(name)]}
+              formatter={(value, name) => [
+                String(name) === t("analytics.cross.count") ? Number(value).toFixed(0) : Number(value).toFixed(1),
+                String(name),
+              ]}
               labelFormatter={() => ""}
             />
             <ReferenceLine
