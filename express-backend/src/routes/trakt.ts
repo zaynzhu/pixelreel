@@ -4,6 +4,7 @@ import { config } from '../config';
 import { getDb } from '../config/db';
 import { RecordStatus } from '../enums/RecordStatus';
 import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
+import { runExclusiveImport } from '../services/import-operation-lock';
 import {
   parseBoundedStringParameter,
   parseRecordStatusParameter,
@@ -11,6 +12,18 @@ import {
 } from './request-validation';
 
 const router = Router();
+
+type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
+
+function withTraktImportLock(handler: AsyncRouteHandler): AsyncRouteHandler {
+  return async (req, res, next) => {
+    try {
+      await runExclusiveImport('trakt', 'Trakt 导入', () => handler(req, res, next));
+    } catch (error) {
+      next(error);
+    }
+  };
+}
 
 export function parseTraktImportParameters(value: Record<string, unknown>) {
   const unknownKey = Object.keys(value).find(key => key !== 'status');
@@ -86,7 +99,7 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
 }
 
 // POST /api/trakt/import/movies?status=DONE
-router.post('/import/movies', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/import/movies', withTraktImportLock(async (req, res, next) => {
   const { status } = parseTraktImportParameters(req.query);
   const accessToken = config.trakt.accessToken;
   if (!accessToken) {
@@ -185,10 +198,10 @@ router.post('/import/movies', async (req: Request, res: Response, next: NextFunc
   } catch (err) {
     next(err);
   }
-});
+}));
 
 // POST /api/trakt/import/shows?status=DONE
-router.post('/import/shows', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/import/shows', withTraktImportLock(async (req, res, next) => {
   const { status } = parseTraktImportParameters(req.query);
   const accessToken = config.trakt.accessToken;
   if (!accessToken) {
@@ -289,6 +302,6 @@ router.post('/import/shows', async (req: Request, res: Response, next: NextFunct
   } catch (err) {
     next(err);
   }
-});
+}));
 
 export default router;

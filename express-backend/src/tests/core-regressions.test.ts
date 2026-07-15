@@ -26,8 +26,6 @@ import { getHealthStatus } from '../routes/health';
 import {
   DOUBAN_CSV_MAX_BYTES,
   getDoubanCsvUploadError,
-  ImportOperationConflictError,
-  runExclusiveImport,
 } from '../routes/import';
 import {
   parseLibraryListParameters,
@@ -74,6 +72,11 @@ import {
   RateLimiter,
   shouldRateLimitRequest,
 } from '../services/external-api-rate-limiter';
+import {
+  acquireImportOperation,
+  ImportOperationConflictError,
+  runExclusiveImport,
+} from '../services/import-operation-lock';
 import {
   buildDoubanRawData,
   buildMissingDoubanRawData,
@@ -218,6 +221,15 @@ test('同一同步导入拒绝并发执行且异常后释放锁', async () => {
     await runExclusiveImport('failed-import', '失败导入', async () => 'recovered'),
     'recovered',
   );
+
+  const release = acquireImportOperation('response-import', '响应导入');
+  assert.throws(
+    () => acquireImportOperation('response-import', '响应导入'),
+    ImportOperationConflictError,
+  );
+  release();
+  release();
+  assert.doesNotThrow(() => acquireImportOperation('response-import', '响应导入')());
 });
 
 test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {

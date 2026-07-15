@@ -12,6 +12,7 @@ import { startTmdbDetailBackfillTask } from '../services/import/TmdbDetailBackfi
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { config } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
+import { runExclusiveImport } from '../services/import-operation-lock';
 import {
   parsePositiveIntegerParameter,
   parseRecordStatusParameter,
@@ -24,30 +25,6 @@ const IMPORT_DEFAULT_LIMIT = 50;
 const IMPORT_MAX_LIMIT = 100;
 export const DOUBAN_CSV_MAX_BYTES = 5 * 1024 * 1024;
 const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
-const activeImportOperations = new Set<string>();
-
-export class ImportOperationConflictError extends Error {
-  readonly status = 409;
-
-  constructor(label: string) {
-    super(`${label} 正在执行，请稍后再试`);
-    this.name = 'ImportOperationConflictError';
-  }
-}
-
-export async function runExclusiveImport<T>(
-  key: string,
-  label: string,
-  operation: () => Promise<T>,
-): Promise<T> {
-  if (activeImportOperations.has(key)) throw new ImportOperationConflictError(label);
-  activeImportOperations.add(key);
-  try {
-    return await operation();
-  } finally {
-    activeImportOperations.delete(key);
-  }
-}
 
 // multer 内存存储，用于豆瓣 CSV 上传
 const upload = multer({
