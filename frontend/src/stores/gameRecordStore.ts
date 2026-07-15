@@ -4,9 +4,9 @@ import { apiFetch } from "../api";
 export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
 
 export type GameRecord = {
-  id: number;
-  rawgId?: number | null;
-  steamAppId?: number | null;
+  id: number | string;
+  rawgId?: number | string | null;
+  steamAppId?: number | string | null;
   xboxId?: string | null;
   psnId?: string | null;
   title: string;
@@ -29,9 +29,9 @@ type GameRecordState = {
   error: string | null;
   fetchRecords: () => Promise<void>;
   createRecord: (payload: GameRecordInput) => Promise<GameRecord | null>;
-  updateRecord: (id: number, payload: Partial<GameRecordInput>) => Promise<GameRecord | null>;
-  removeRecord: (id: number) => Promise<void>;
-  setStatus: (id: number, status: RecordStatus) => Promise<void>;
+  updateRecord: (id: number | string, payload: Partial<GameRecordInput>) => Promise<GameRecord | null>;
+  removeRecord: (id: number | string) => Promise<void>;
+  setStatus: (id: number | string, status: RecordStatus) => Promise<void>;
 };
 
 export const useGameRecordStore = create<GameRecordState>((set, get) => ({

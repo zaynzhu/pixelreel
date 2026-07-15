@@ -9,11 +9,10 @@ import cron from 'node-cron';
 import { runRadarSync, runNewReleaseRadarSync } from './services/radar/radarSyncService';
 import { registerExternalApiRateLimiter } from './services/external-api-rate-limiter';
 import { initializeTaskManager } from './services/task-manager';
+import { bigIntToJson } from './json';
 
 // JSON 序列化 BigInt 支持（Prisma 使用 BigInt 作为主键类型）
-(BigInt.prototype as any).toJSON = function () {
-  return Number(this);
-};
+(BigInt.prototype as any).toJSON = bigIntToJson;
 
 const authConfigurationError = validateAuthConfiguration({
   enabled: config.authEnabled,

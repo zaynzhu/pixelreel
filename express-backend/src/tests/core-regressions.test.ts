@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import multer from 'multer';
 import { config, validateAuthConfiguration } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
+import { bigIntToJson, serializeBigIntForJson } from '../json';
 import { authMiddleware } from '../middlewares/auth';
 import { errorHandler, getHttpErrorResponse } from '../middlewares/errorHandler';
 import {
@@ -199,6 +200,17 @@ test('导入参数拒绝无效 limit、status 和标识值', () => {
   assert.equal(parseStringParameter('  player-id  ', 'steamId'), 'player-id');
   assert.throws(() => parseStringParameter([], 'steamId'), RequestValidationError);
   assert.throws(() => parseStringParameter('  ', 'gamertag', true), RequestValidationError);
+});
+
+test('BigInt JSON 序列化只在安全范围内返回数字', () => {
+  assert.equal(serializeBigIntForJson(42n), 42);
+  assert.equal(serializeBigIntForJson(9_007_199_254_740_991n), 9_007_199_254_740_991);
+  assert.equal(serializeBigIntForJson(-9_007_199_254_740_991n), -9_007_199_254_740_991);
+  assert.equal(serializeBigIntForJson(9_007_199_254_740_992n), '9007199254740992');
+  assert.equal(serializeBigIntForJson(-9_007_199_254_740_992n), '-9007199254740992');
+  assert.equal(serializeBigIntForJson(9_223_372_036_854_775_807n), '9223372036854775807');
+  assert.equal(bigIntToJson.call(42n), 42);
+  assert.equal(bigIntToJson.call(9_223_372_036_854_775_807n), '9223372036854775807');
 });
 
 test('直接记录列表使用有界游标分页', () => {
