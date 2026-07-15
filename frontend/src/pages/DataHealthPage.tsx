@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
 import { confirmDialog } from "../components/Toast"
@@ -319,7 +320,7 @@ export default function DataHealthPage() {
             {items.map(item => {
               const poster = proxiedImageUrl(item.posterUrl)
               return (
-                <article key={`${item.category}-${item.id}`} className="grid grid-cols-[3rem_1fr_auto] items-center gap-4 px-5 py-3 hover:bg-[var(--surface-hover)]">
+                <article key={`${item.category}-${item.id}`} className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-4 px-5 py-3 hover:bg-[var(--surface-hover)] sm:grid-cols-[3rem_minmax(0,1fr)_auto_auto]">
                   <div className="h-12 w-9 overflow-hidden border border-[var(--line)] bg-black">
                     {poster ? (
                       <ImgWithFallback
@@ -341,6 +342,12 @@ export default function DataHealthPage() {
                   <time className="hidden font-mono text-[9px] text-[var(--muted)] sm:block">
                     {new Date(item.updatedAt).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US")}
                   </time>
+                  <Link
+                    to={`/library/${item.category}/${item.id}`}
+                    className="brutal-btn whitespace-nowrap px-3 text-[9px]"
+                  >
+                    {t("health.open_detail")} →
+                  </Link>
                 </article>
               )
             })}

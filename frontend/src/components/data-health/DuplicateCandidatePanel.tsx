@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { apiFetch } from "../../api"
 import { confirmDialog } from "../Toast"
 import { proxiedImageUrl } from "../../imageProxy"
@@ -268,16 +269,24 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                           </span>
                         ))}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => void openRescrape(record.id)}
-                        disabled={openingRecordId != null}
-                        className="brutal-btn whitespace-nowrap"
-                      >
-                        {openingRecordId === record.id
-                          ? t("health.duplicates.opening")
-                          : t("health.duplicates.rematch")}
-                      </button>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <Link
+                          to={`/library/${record.category}/${record.id}`}
+                          className="brutal-btn whitespace-nowrap"
+                        >
+                          {t("health.open_detail")} →
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => void openRescrape(record.id)}
+                          disabled={openingRecordId != null}
+                          className="brutal-btn whitespace-nowrap"
+                        >
+                          {openingRecordId === record.id
+                            ? t("health.duplicates.opening")
+                            : t("health.duplicates.rematch")}
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
