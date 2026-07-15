@@ -131,13 +131,16 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import {
+  buildMovieSourceCounts,
   buildMonthlyMemories,
   buildNextUpQueue,
+  buildTvShowSourceCounts,
   isImportedGame,
 } from '../services/ProfileSummaryService';
 import { buildGameStatusWhere, effectiveGameStatus } from '../services/GameStatusService';
 import {
   buildCrossPlatformRatings,
+  buildSourceBreakdown,
   collectAvailableAnalyticsYears,
 } from '../services/AnalyticsService';
 import { resolveCompletionDate } from '../services/RecordDateService';
@@ -1793,6 +1796,37 @@ test('已游玩的想玩游戏按进行中统计', () => {
       { status: RecordStatus.WANT, playtimeMinutes: { gt: 0 } },
     ],
   });
+});
+
+test('首页与年度分析统一按豆瓣优先判定媒体主来源', () => {
+  const records = [
+    { doubanId: '1', tmdbId: 1, imdbId: 'tt1', traktId: 1 },
+    { doubanId: null, tmdbId: 2, imdbId: 'tt2', traktId: 2 },
+    { doubanId: null, tmdbId: null, imdbId: 'tt3', traktId: 3 },
+    { doubanId: null, tmdbId: null, imdbId: null, traktId: 4 },
+    { doubanId: null, tmdbId: null, imdbId: null, traktId: null },
+  ];
+  assert.deepEqual(
+    Object.fromEntries(buildMovieSourceCounts(records).map(item => [item.key, item.count])),
+    { TMDB: 1, DOUBAN: 1, IMDB: 1, TRAKT: 1, MANUAL: 1 },
+  );
+  assert.deepEqual(
+    Object.fromEntries(buildTvShowSourceCounts(records).map(item => [item.key, item.count])),
+    { TMDB: 1, DOUBAN: 1, IMDB: 1, TRAKT: 1, MANUAL: 1 },
+  );
+
+  const createdAt = new Date('2026-07-15T00:00:00.000Z');
+  const breakdown = buildSourceBreakdown(
+    records.map(record => ({ ...record, createdAt })),
+    [],
+    [],
+    new Date('2026-01-01T00:00:00.000Z'),
+    new Date('2027-01-01T00:00:00.000Z'),
+  );
+  assert.deepEqual(
+    Object.fromEntries(breakdown.movies.map(item => [item.source, item.count])),
+    { DOUBAN: 1, TMDB: 1, IMDB: 1, TRAKT: 1, MANUAL: 1 },
+  );
 });
 
 test('首页行动队列覆盖继续游玩、等待最久和高分未回顾记录', () => {

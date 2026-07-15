@@ -1,6 +1,7 @@
 import { getDb } from '../config/db'
 import { AnalyticsResponse } from '../dto/analytics'
 import { RecordStatus } from '../enums/RecordStatus'
+import { detectGameSource, detectMovieSource, detectTvShowSource } from './LibraryService'
 import { resolveCompletionDate } from './RecordDateService'
 
 export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
@@ -195,7 +196,7 @@ function buildRatingDistribution(
   return { movies: dist(movies), games: dist(games), tvShows: dist(tvShows) }
 }
 
-function buildSourceBreakdown(
+export function buildSourceBreakdown(
   movies: any[], games: any[], tvShows: any[],
   yearStart: Date, yearEnd: Date
 ): AnalyticsResponse['sourceBreakdown'] {
@@ -212,19 +213,19 @@ function buildSourceBreakdown(
     return counts
   }
 
-  const movieSourceCounts = countBy(movies, inferMovieSource)
+  const movieSourceCounts = countBy(movies, movie => detectMovieSource(movie).toUpperCase())
   const movieLabels: Record<string, string> = { TMDB: 'TMDB', DOUBAN: '豆瓣', IMDB: 'IMDb', TRAKT: 'Trakt', MANUAL: '手动' }
   const movieSources = Object.entries(movieSourceCounts)
     .map(([source, count]) => ({ source, label: movieLabels[source] || source, count }))
     .sort((a, b) => b.count - a.count)
 
-  const gamePlatformCounts = countBy(games, inferGamePlatform)
+  const gamePlatformCounts = countBy(games, game => detectGameSource(game).toUpperCase())
   const gameLabels: Record<string, string> = { STEAM: 'Steam', RAWG: 'RAWG', XBOX: 'Xbox', PSN: 'PSN', MANUAL: '手动' }
   const gamePlatforms = Object.entries(gamePlatformCounts)
     .map(([platform, count]) => ({ platform, label: gameLabels[platform] || platform, count }))
     .sort((a, b) => b.count - a.count)
 
-  const tvSourceCounts = countBy(tvShows, inferTvShowSource)
+  const tvSourceCounts = countBy(tvShows, show => detectTvShowSource(show).toUpperCase())
   const tvLabels: Record<string, string> = { TMDB: 'TMDB', DOUBAN: '豆瓣', IMDB: 'IMDb', TRAKT: 'Trakt', MANUAL: '手动' }
   const tvSources = Object.entries(tvSourceCounts)
     .map(([source, count]) => ({ source, label: tvLabels[source] || source, count }))
@@ -273,7 +274,7 @@ function buildTopRated(
       posterUrl: m.posterUrl,
       rating: m.rating!,
       shortReview: m.shortReview,
-      source: inferMovieSource(m),
+      source: detectMovieSource(m).toUpperCase(),
     })),
     ...games.filter(g => g.rating != null && inYear(g.createdAt)).map(g => ({
       category: 'game' as const,
@@ -282,7 +283,7 @@ function buildTopRated(
       posterUrl: g.posterUrl,
       rating: g.rating!,
       shortReview: g.shortReview,
-      source: inferGamePlatform(g),
+      source: detectGameSource(g).toUpperCase(),
     })),
     ...tvShows.filter(s => s.rating != null && inYear(s.createdAt)).map(s => ({
       category: 'tv_show' as const,
@@ -291,35 +292,9 @@ function buildTopRated(
       posterUrl: s.posterUrl,
       rating: s.rating!,
       shortReview: s.shortReview,
-      source: inferTvShowSource(s),
+      source: detectTvShowSource(s).toUpperCase(),
     })),
   ]
 
   return items.sort((a, b) => b.rating - a.rating).slice(0, 10)
-}
-
-// 复用 ProfileSummaryService 的来源推断逻辑
-function inferMovieSource(movie: any): string {
-  if (movie.tmdbId) return 'TMDB'
-  if (movie.doubanId) return 'DOUBAN'
-  if (movie.imdbId) return 'IMDB'
-  if (movie.traktId) return 'TRAKT'
-  return 'MANUAL'
-}
-
-function inferGamePlatform(game: any): string {
-  if (game.platform?.trim()) return game.platform.trim().toUpperCase()
-  if (game.steamAppId) return 'STEAM'
-  if (game.xboxId) return 'XBOX'
-  if (game.psnId) return 'PSN'
-  if (game.rawgId) return 'RAWG'
-  return 'MANUAL'
-}
-
-function inferTvShowSource(show: any): string {
-  if (show.tmdbId) return 'TMDB'
-  if (show.doubanId) return 'DOUBAN'
-  if (show.imdbId) return 'IMDB'
-  if (show.traktId) return 'TRAKT'
-  return 'MANUAL'
 }

@@ -9,6 +9,14 @@ import {
 } from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
 import { effectiveGameStatus } from './GameStatusService';
+import {
+  detectGameSource,
+  detectMovieSource,
+  detectTvShowSource,
+  gameSourceLabel,
+  movieSourceLabel,
+  tvShowSourceLabel,
+} from './LibraryService';
 import { resolveCompletionDate } from './RecordDateService';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
@@ -209,10 +217,10 @@ function toRecentRecordItem(
   record: any,
 ): RecentRecordItem {
   const subtitle = category === 'game'
-    ? platformLabel(inferGamePlatform(record))
+    ? gameSourceLabel(detectGameSource(record))
     : category === 'movie'
-      ? sourceLabel(inferMovieSource(record))
-      : tvShowSourceLabel(inferTvShowSource(record));
+      ? movieSourceLabel(detectMovieSource(record))
+      : tvShowSourceLabel(detectTvShowSource(record));
   return {
     category,
     id: Number(record.id),
@@ -299,13 +307,13 @@ function buildTvShowStatusCounts(tvShows: any[]): CountItem[] {
   }));
 }
 
-function buildMovieSourceCounts(movies: any[]): CountItem[] {
+export function buildMovieSourceCounts(movies: any[]): CountItem[] {
   return [
-    countItem('TMDB', 'TMDB', movies.filter((m) => inferMovieSource(m) === 'TMDB').length),
-    countItem('DOUBAN', '豆瓣', movies.filter((m) => inferMovieSource(m) === 'DOUBAN').length),
-    countItem('IMDB', 'IMDb', movies.filter((m) => inferMovieSource(m) === 'IMDB').length),
-    countItem('TRAKT', 'Trakt', movies.filter((m) => inferMovieSource(m) === 'TRAKT').length),
-    countItem('MANUAL', '手动', movies.filter((m) => inferMovieSource(m) === 'MANUAL').length),
+    countItem('TMDB', 'TMDB', movies.filter((m) => detectMovieSource(m) === 'tmdb').length),
+    countItem('DOUBAN', '豆瓣', movies.filter((m) => detectMovieSource(m) === 'douban').length),
+    countItem('IMDB', 'IMDb', movies.filter((m) => detectMovieSource(m) === 'imdb').length),
+    countItem('TRAKT', 'Trakt', movies.filter((m) => detectMovieSource(m) === 'trakt').length),
+    countItem('MANUAL', '手动', movies.filter((m) => detectMovieSource(m) === 'manual').length),
   ];
 }
 
@@ -313,18 +321,18 @@ function buildGamePlatformCounts(games: any[]): CountItem[] {
   const orderedPlatforms = ['RAWG', 'STEAM', 'XBOX', 'PSN', 'MANUAL'];
   return orderedPlatforms.map((platform) => ({
     key: platform,
-    label: platformLabel(platform),
-    count: games.filter((g) => inferGamePlatform(g) === platform).length,
+    label: gameSourceLabel(platform.toLowerCase()),
+    count: games.filter((g) => detectGameSource(g) === platform.toLowerCase()).length,
   }));
 }
 
-function buildTvShowSourceCounts(tvShows: any[]): CountItem[] {
+export function buildTvShowSourceCounts(tvShows: any[]): CountItem[] {
   return [
-    countItem('TMDB', 'TMDB', tvShows.filter((s) => inferTvShowSource(s) === 'TMDB').length),
-    countItem('DOUBAN', '豆瓣', tvShows.filter((s) => inferTvShowSource(s) === 'DOUBAN').length),
-    countItem('IMDB', 'IMDb', tvShows.filter((s) => inferTvShowSource(s) === 'IMDB').length),
-    countItem('TRAKT', 'Trakt', tvShows.filter((s) => inferTvShowSource(s) === 'TRAKT').length),
-    countItem('MANUAL', '手动', tvShows.filter((s) => inferTvShowSource(s) === 'MANUAL').length),
+    countItem('TMDB', 'TMDB', tvShows.filter((s) => detectTvShowSource(s) === 'tmdb').length),
+    countItem('DOUBAN', '豆瓣', tvShows.filter((s) => detectTvShowSource(s) === 'douban').length),
+    countItem('IMDB', 'IMDb', tvShows.filter((s) => detectTvShowSource(s) === 'imdb').length),
+    countItem('TRAKT', 'Trakt', tvShows.filter((s) => detectTvShowSource(s) === 'trakt').length),
+    countItem('MANUAL', '手动', tvShows.filter((s) => detectTvShowSource(s) === 'manual').length),
   ];
 }
 
@@ -334,7 +342,7 @@ function buildRecentItems(movies: any[], games: any[], tvShows: any[]): RecentRe
       category: 'movie',
       id: Number(m.id),
       title: m.title,
-      subtitle: sourceLabel(inferMovieSource(m)),
+      subtitle: movieSourceLabel(detectMovieSource(m)),
       posterUrl: m.posterUrl,
       status: safeStatus(m.status),
       rating: m.rating,
@@ -344,7 +352,7 @@ function buildRecentItems(movies: any[], games: any[], tvShows: any[]): RecentRe
       category: 'game',
       id: Number(g.id),
       title: g.title,
-      subtitle: platformLabel(inferGamePlatform(g)),
+      subtitle: gameSourceLabel(detectGameSource(g)),
       posterUrl: g.posterUrl,
       status: effectiveGameStatus(g),
       rating: g.rating,
@@ -354,7 +362,7 @@ function buildRecentItems(movies: any[], games: any[], tvShows: any[]): RecentRe
       category: 'tv_show',
       id: Number(s.id),
       title: s.title,
-      subtitle: tvShowSourceLabel(inferTvShowSource(s)),
+      subtitle: tvShowSourceLabel(detectTvShowSource(s)),
       posterUrl: s.posterUrl,
       status: safeStatus(s.status),
       rating: s.rating,
@@ -381,31 +389,6 @@ function buildRecentItems(movies: any[], games: any[], tvShows: any[]): RecentRe
     }));
 }
 
-function inferMovieSource(movie: any): string {
-  if (movie.tmdbId) return 'TMDB';
-  if (movie.doubanId) return 'DOUBAN';
-  if (movie.imdbId) return 'IMDB';
-  if (movie.traktId) return 'TRAKT';
-  return 'MANUAL';
-}
-
-function inferGamePlatform(game: any): string {
-  if (game.platform?.trim()) return game.platform.trim().toUpperCase();
-  if (game.steamAppId) return 'STEAM';
-  if (game.xboxId) return 'XBOX';
-  if (game.psnId) return 'PSN';
-  if (game.rawgId) return 'RAWG';
-  return 'MANUAL';
-}
-
-function inferTvShowSource(show: any): string {
-  if (show.tmdbId) return 'TMDB';
-  if (show.doubanId) return 'DOUBAN';
-  if (show.imdbId) return 'IMDB';
-  if (show.traktId) return 'TRAKT';
-  return 'MANUAL';
-}
-
 function statusLabel(status: string): string {
   const map: Record<string, string> = {
     [RecordStatus.UNSET]: '未分类',
@@ -415,21 +398,6 @@ function statusLabel(status: string): string {
     [RecordStatus.DROPPED]: '已放弃',
   };
   return map[status] || status;
-}
-
-function sourceLabel(source: string): string {
-  const map: Record<string, string> = { TMDB: 'TMDB', DOUBAN: '豆瓣', IMDB: 'IMDb', TRAKT: 'Trakt' };
-  return map[source] || '手动录入';
-}
-
-function tvShowSourceLabel(source: string): string {
-  const map: Record<string, string> = { TMDB: 'TMDB', DOUBAN: '豆瓣', IMDB: 'IMDb', TRAKT: 'Trakt' };
-  return map[source] || '手动录入';
-}
-
-function platformLabel(platform: string): string {
-  const map: Record<string, string> = { RAWG: 'RAWG', STEAM: 'Steam', XBOX: 'Xbox', PSN: 'PSN' };
-  return map[platform] || '手动录入';
 }
 
 function safeStatus(status: string | null): string {
