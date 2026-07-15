@@ -13,7 +13,12 @@ import {
   assertRecordDeletionAllowed,
   ProtectedDoubanDataError,
 } from '../middlewares/activity-log';
-import { getAuthStatus } from '../routes/auth';
+import {
+  getAuthStatus,
+  LoginAttemptLimiter,
+  parseLoginBody,
+  secureCredentialEqual,
+} from '../routes/auth';
 import { parseActivityCursor } from '../routes/activity';
 import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
@@ -502,6 +507,52 @@ test('认证状态接口与后端配置保持一致', () => {
   } finally {
     mutableConfig.authEnabled = originalAuthEnabled;
   }
+});
+
+test('登录请求仅接受合法的用户名和密码', () => {
+  assert.deepEqual(parseLoginBody({ username: 'admin', password: 'secret' }), {
+    username: 'admin',
+    password: 'secret',
+  });
+  assert.throws(() => parseLoginBody(null), RequestValidationError);
+  assert.throws(() => parseLoginBody({ username: 'admin' }), RequestValidationError);
+  assert.throws(
+    () => parseLoginBody({ username: 'admin', password: 'secret', role: 'admin' }),
+    RequestValidationError,
+  );
+  assert.throws(() => parseLoginBody({ username: ' ', password: 'secret' }), RequestValidationError);
+  assert.throws(() => parseLoginBody({ username: 'admin', password: ' ' }), RequestValidationError);
+  assert.throws(
+    () => parseLoginBody({ username: 'a'.repeat(101), password: 'secret' }),
+    RequestValidationError,
+  );
+});
+
+test('登录凭据使用恒定时间哈希比较', () => {
+  assert.equal(secureCredentialEqual('admin', 'admin'), true);
+  assert.equal(secureCredentialEqual('admin', 'Admin'), false);
+  assert.equal(secureCredentialEqual('管理员', '管理员'), true);
+});
+
+test('登录失败达到上限后限流并支持到期和成功重置', () => {
+  let now = 0;
+  const limiter = new LoginAttemptLimiter(3, 10_000, () => now);
+
+  assert.deepEqual(limiter.check('client-a'), { allowed: true, retryAfterSeconds: 0 });
+  limiter.recordFailure('client-a');
+  limiter.recordFailure('client-a');
+  limiter.recordFailure('client-a');
+  assert.deepEqual(limiter.check('client-a'), { allowed: false, retryAfterSeconds: 10 });
+  assert.deepEqual(limiter.check('client-b'), { allowed: true, retryAfterSeconds: 0 });
+
+  now = 5_001;
+  assert.deepEqual(limiter.check('client-a'), { allowed: false, retryAfterSeconds: 5 });
+  limiter.reset('client-a');
+  assert.deepEqual(limiter.check('client-a'), { allowed: true, retryAfterSeconds: 0 });
+
+  limiter.recordFailure('client-a');
+  now = 15_001;
+  assert.deepEqual(limiter.check('client-a'), { allowed: true, retryAfterSeconds: 0 });
 });
 
 test('健康检查区分数据库正常和不可用', async () => {
