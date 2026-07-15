@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { apiFetch } from "../api";
 
-export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
+export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE" | "DROPPED";
 
 export type GameRecord = {
   id: number | string;

@@ -25,6 +25,7 @@ export default function LibraryPage() {
     { value: "WANT", label: t("global.status.want") },
     { value: "IN_PROGRESS", label: t("global.status.active") },
     { value: "DONE", label: t("global.status.done") },
+    { value: "DROPPED", label: t("global.status.dropped") },
   ];
 
   const SORT_OPTIONS = [
@@ -54,8 +55,9 @@ export default function LibraryPage() {
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   useEffect(() => {
-    void fetchRecords();
-  }, [fetchRecords]);
+    setSource("all");
+    void fetchRecords({ category, status });
+  }, [category, fetchRecords, status]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -149,6 +151,7 @@ export default function LibraryPage() {
 
     if (updated) {
       setSaveMessage(t("lib.edit.success"));
+      await fetchRecords();
     }
   };
 
@@ -686,6 +689,7 @@ function formatStatus(status: RecordStatus, t: any) {
     case "WANT": return t("global.status.want");
     case "IN_PROGRESS": return t("global.status.active");
     case "DONE": return t("global.status.done");
+    case "DROPPED": return t("global.status.dropped");
     default: return t("global.status.unset");
   }
 }

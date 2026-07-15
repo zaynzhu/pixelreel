@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { LibraryRecord, LibraryRecordUpdateInput } from "../types/library";
+import type {
+  LibraryCategory,
+  LibraryRecord,
+  LibraryRecordUpdateInput,
+  RecordStatus,
+} from "../types/library";
 import { apiFetch } from "../api";
 
 interface PaginatedResponse {
@@ -22,7 +27,13 @@ type LibraryState = {
   loadingMore: boolean;
   saving: boolean;
   error: string | null;
-  fetchRecords: (options?: { limit?: number }) => Promise<void>;
+  filterCategory: "all" | LibraryCategory;
+  filterStatus: "all" | RecordStatus;
+  fetchRecords: (options?: {
+    limit?: number;
+    category?: "all" | LibraryCategory;
+    status?: "all" | RecordStatus;
+  }) => Promise<void>;
   fetchMore: () => Promise<void>;
   updateRecord: (
     category: LibraryRecord["category"],
@@ -46,13 +57,27 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   loadingMore: false,
   saving: false,
   error: null,
+  filterCategory: "all",
+  filterStatus: "all",
 
   fetchRecords: async (options) => {
     const limit = Math.min(Math.max(options?.limit ?? get().pageSize, 1), 200);
+    const category = options?.category ?? get().filterCategory;
+    const status = options?.status ?? get().filterStatus;
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (category !== "all") query.set("category", category);
+    if (status !== "all") query.set("status", status);
     const requestId = ++latestFetchRequest;
-    set({ loading: true, error: null, pageSize: limit });
+    set({
+      loading: true,
+      error: null,
+      nextCursor: null,
+      pageSize: limit,
+      filterCategory: category,
+      filterStatus: status,
+    });
     try {
-      const payload = await apiFetch<PaginatedResponse>(`/library?limit=${limit}`);
+      const payload = await apiFetch<PaginatedResponse>(`/library?${query.toString()}`);
       if (requestId !== latestFetchRequest) return;
       set({
         records: payload.records,
@@ -70,14 +95,26 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   fetchMore: async () => {
-    const { nextCursor, loadingMore, loading, pageSize } = get();
+    const {
+      nextCursor,
+      loadingMore,
+      loading,
+      pageSize,
+      filterCategory,
+      filterStatus,
+    } = get();
     if (!nextCursor || loadingMore || loading) return;
     const cursor = nextCursor;
     set({ loadingMore: true, error: null });
     try {
-      const payload = await apiFetch<PaginatedResponse>(
-        `/library?cursor=${encodeURIComponent(cursor)}&limit=${pageSize}&includeTotals=false`
-      );
+      const query = new URLSearchParams({
+        cursor,
+        limit: String(pageSize),
+        includeTotals: "false",
+      });
+      if (filterCategory !== "all") query.set("category", filterCategory);
+      if (filterStatus !== "all") query.set("status", filterStatus);
+      const payload = await apiFetch<PaginatedResponse>(`/library?${query.toString()}`);
       if (get().nextCursor !== cursor) {
         set({ loadingMore: false });
         return;

@@ -156,7 +156,7 @@ export default function DashboardPage() {
           {summary?.movieStatuses.map((item) => (
             <DistributionBar
               key={item.key}
-              label={item.key}
+              label={formatStatus(item.key, t)}
               count={item.count}
               total={overview?.totalMovies ?? 0}
             />
@@ -176,7 +176,7 @@ export default function DashboardPage() {
           {summary?.gameStatuses.map((item) => (
             <DistributionBar
               key={item.key}
-              label={item.key}
+              label={formatStatus(item.key, t)}
               count={item.count}
               total={overview?.totalGames ?? 0}
             />
@@ -196,7 +196,7 @@ export default function DashboardPage() {
           {summary?.tvShowStatuses.map((item) => (
             <DistributionBar
               key={item.key}
-              label={item.key}
+              label={formatStatus(item.key, t)}
               count={item.count}
               total={overview?.totalTvShows ?? 0}
             />
@@ -403,6 +403,7 @@ function formatStatus(status: string, t: any) {
     case "WANT": return t("global.status.want");
     case "IN_PROGRESS": return t("global.status.active");
     case "DONE": return t("global.status.done");
+    case "DROPPED": return t("global.status.dropped");
     default: return t("global.status.unset");
   }
 }

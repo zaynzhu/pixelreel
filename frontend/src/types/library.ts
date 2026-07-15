@@ -1,4 +1,4 @@
-export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE";
+export type RecordStatus = "UNSET" | "WANT" | "IN_PROGRESS" | "DONE" | "DROPPED";
 
 export type LibraryCategory = "movie" | "game" | "tv_show";
 

@@ -52,6 +52,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
       case "WANT": return t("global.status.want");
       case "IN_PROGRESS": return t("global.status.active");
       case "DONE": return t("global.status.done");
+      case "DROPPED": return t("global.status.dropped");
       default: return t("global.status.unset");
     }
   };

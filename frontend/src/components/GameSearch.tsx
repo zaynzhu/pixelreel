@@ -262,6 +262,7 @@ export default function GameSearch() {
                 <option value="WANT">{t("global.status.want")}</option>
                 <option value="IN_PROGRESS">{t("global.status.active")}</option>
                 <option value="DONE">{t("global.status.done")}</option>
+                <option value="DROPPED">{t("global.status.dropped")}</option>
               </select>
             </label>
             <button

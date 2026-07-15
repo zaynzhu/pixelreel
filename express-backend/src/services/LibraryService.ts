@@ -63,6 +63,14 @@ function buildBaseWhere(options: ListRecordsOptions) {
   };
 }
 
+export function buildCompletedWhere(options?: ListRecordsOptions) {
+  if (options?.status && options.status !== RecordStatus.DONE) return null;
+  return {
+    ...buildBaseWhere(options ?? {}),
+    status: RecordStatus.DONE,
+  };
+}
+
 export async function listRecords(
   options?: ListRecordsOptions,
 ): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null; totals?: { total: number; rated: number; reviewed: number; completed: number } }> {
@@ -130,6 +138,7 @@ export async function listRecords(
 async function fetchTotals(options?: ListRecordsOptions) {
   const db = getDb();
   const baseWhere = buildBaseWhere(options ?? {});
+  const completedWhere = buildCompletedWhere(options);
   const category = options?.category ?? 'all';
   const includeMovies = category === 'all' || category === 'media' || category === 'movie';
   const includeTvShows = category === 'all' || category === 'media' || category === 'tv_show';
@@ -150,9 +159,9 @@ async function fetchTotals(options?: ListRecordsOptions) {
     includeMovies ? db.movie.count({ where: { ...baseWhere, AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
     includeTvShows ? db.tvShow.count({ where: { ...baseWhere, AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
     includeGames ? db.game.count({ where: { ...baseWhere, AND: [{ shortReview: { not: null } }, { shortReview: { not: '' } }] } }) : Promise.resolve(0),
-    includeMovies ? db.movie.count({ where: { ...baseWhere, status: 'DONE' } }) : Promise.resolve(0),
-    includeTvShows ? db.tvShow.count({ where: { ...baseWhere, status: 'DONE' } }) : Promise.resolve(0),
-    includeGames ? db.game.count({ where: { ...baseWhere, status: 'DONE' } }) : Promise.resolve(0),
+    includeMovies && completedWhere ? db.movie.count({ where: completedWhere }) : Promise.resolve(0),
+    includeTvShows && completedWhere ? db.tvShow.count({ where: completedWhere }) : Promise.resolve(0),
+    includeGames && completedWhere ? db.game.count({ where: completedWhere }) : Promise.resolve(0),
   ]);
   return {
     total: movieCount + tvCount + gameCount,

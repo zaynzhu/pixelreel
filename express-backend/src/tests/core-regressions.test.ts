@@ -107,6 +107,7 @@ import {
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { buildCrossPlatformRatings } from '../services/AnalyticsService';
+import { buildCompletedWhere } from '../services/LibraryService';
 import { SteamGameSearchProvider } from '../services/provider/SteamGameSearchProvider';
 import {
   parseSteamOwnedGamesResponse,
@@ -671,6 +672,10 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.equal(parseAnalyticsYear(undefined, 2026), 2026);
   assert.equal(parseAnalyticsYear('2025', 2026), 2025);
   assert.equal(parseAnalyticsParameters({ year: '2025' }, 2026), 2025);
+  assert.deepEqual(buildCompletedWhere({ status: RecordStatus.DONE }), {
+    status: RecordStatus.DONE,
+  });
+  assert.equal(buildCompletedWhere({ status: RecordStatus.DROPPED }), null);
 
   assert.throws(() => parseLibraryListParameters({ cursor: 'invalid' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ cursor: '2026-07-15T00:00:00.000Z__1.5' }), RequestValidationError);
