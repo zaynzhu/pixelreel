@@ -305,26 +305,41 @@ const ALLOWED_HOSTS = new Set([
   'tv.puui.qpic.cn',
 ]);
 
+export function assertAllowedImageProxyUrl(value: string): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('Invalid URL');
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Only http/https URLs allowed');
+  }
+  if (!ALLOWED_HOSTS.has(parsed.hostname)) {
+    throw new Error('Host not allowed');
+  }
+  return parsed;
+}
+
+export function validateImageProxyRedirect(
+  _options: Record<string, unknown>,
+  responseDetails: { headers: Record<string, string> },
+  requestDetails: { url: string },
+) {
+  const location = responseDetails.headers.location;
+  if (!location) throw new Error('Redirect location missing');
+  assertAllowedImageProxyUrl(new URL(location, requestDetails.url).toString());
+}
+
 // GET /api/proxy/image?url=xxx — 图片代理（解决豆瓣防盗链 + 缓存控制）
 router.get('/proxy/image', async (req: Request, res: Response) => {
   let url = parseBoundedStringParameter(req.query.url, 'url', 2000, true)!;
 
-  // Validate URL
-  let parsed: URL;
   try {
-    parsed = new URL(url);
-  } catch {
-    res.status(400).json({ error: 'Invalid URL' });
-    return;
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    res.status(400).json({ error: 'Only http/https URLs allowed' });
-    return;
-  }
-
-  if (!ALLOWED_HOSTS.has(parsed.hostname)) {
-    res.status(400).json({ error: 'Host not allowed' });
+    assertAllowedImageProxyUrl(url);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid URL' });
     return;
   }
 
@@ -339,6 +354,7 @@ router.get('/proxy/image', async (req: Request, res: Response) => {
         'Referer': 'https://movie.douban.com/',
       },
       timeout: 5000,
+      beforeRedirect: validateImageProxyRedirect,
     }).catch(() => null);
 
     if (headRes) {
@@ -357,6 +373,7 @@ router.get('/proxy/image', async (req: Request, res: Response) => {
       },
       timeout: 10000,
       maxContentLength: config.imageProxy.maxBytes,
+      beforeRedirect: validateImageProxyRedirect,
     });
 
     const contentType = String(response.headers['content-type'] ?? 'image/jpeg');

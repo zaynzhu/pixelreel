@@ -31,6 +31,7 @@ import {
   parseRadarListParameters,
   parseRadarSyncSource,
 } from '../routes/radar';
+import { assertAllowedImageProxyUrl, validateImageProxyRedirect } from '../routes/search';
 import {
   parseTimelineCategory,
   parseTimelineListParameters,
@@ -431,6 +432,36 @@ test('外部 API 按服务主域名限流并排除图片代理下载', () => {
   assert.equal(shouldRateLimitRequest({ url: 'https://api.rawg.io/api/games' }), true);
   assert.equal(shouldRateLimitRequest({ url: 'https://image.tmdb.org/poster.jpg', method: 'HEAD' }), false);
   assert.equal(shouldRateLimitRequest({ url: 'https://image.tmdb.org/poster.jpg', responseType: 'arraybuffer' }), false);
+});
+
+test('图片代理的初始请求和每次重定向都受域名允许列表约束', () => {
+  assert.equal(
+    assertAllowedImageProxyUrl('https://image.tmdb.org/t/p/w500/poster.jpg').hostname,
+    'image.tmdb.org',
+  );
+  assert.throws(
+    () => assertAllowedImageProxyUrl('https://127.0.0.1/private'),
+    /Host not allowed/,
+  );
+
+  assert.doesNotThrow(() => validateImageProxyRedirect(
+    {},
+    { headers: { location: '/t/p/original/poster.jpg' } },
+    { url: 'https://image.tmdb.org/t/p/w500/poster.jpg' },
+  ));
+  assert.doesNotThrow(() => validateImageProxyRedirect(
+    {},
+    { headers: { location: 'https://media.themoviedb.org/poster.jpg' } },
+    { url: 'https://image.tmdb.org/t/p/w500/poster.jpg' },
+  ));
+  assert.throws(
+    () => validateImageProxyRedirect(
+      {},
+      { headers: { location: 'http://127.0.0.1:18889/api/settings' } },
+      { url: 'https://image.tmdb.org/t/p/w500/poster.jpg' },
+    ),
+    /Host not allowed/,
+  );
 });
 
 test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () => {
