@@ -1,9 +1,34 @@
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTaskStore } from '../stores/taskStore';
+import { useI18nStore } from '../stores/i18nStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
+  const { t } = useI18nStore();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const running = tasks.filter((t) => t.status === 'running').length;
+
+  useLayoutEffect(() => {
+    if (panelRef.current) panelRef.current.inert = !open;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    closeButtonRef.current?.focus();
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [open, onClose]);
 
   return (
     <>
@@ -14,6 +39,12 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
 
       {/* 面板 */}
       <div
+        ref={panelRef}
+        id="task-panel"
+        role="dialog"
+        aria-modal={open ? 'true' : undefined}
+        aria-labelledby="task-panel-title"
+        aria-hidden={!open}
         className={`fixed top-0 right-0 z-50 h-full w-[380px] border-l border-[var(--line)] bg-[var(--surface)] shadow-[0_0_60px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-[cubic-bezier(.25,.46,.45,.94)] ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
@@ -25,7 +56,7 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
         <div className="flex items-center justify-between border-b border-[var(--line)] px-6 py-5">
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 ${running > 0 ? 'bg-[var(--accent-deep)]' : 'bg-[var(--accent)]'} animate-pulse`} />
-            <span className="section-kicker !mb-0">TASKS</span>
+            <span id="task-panel-title" className="section-kicker !mb-0">TASKS</span>
             {running > 0 && (
               <span className="ml-2 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-black">
                 {running}
@@ -33,7 +64,10 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
             )}
           </div>
           <button
+            ref={closeButtonRef}
+            type="button"
             onClick={onClose}
+            aria-label={t('task.panel.close')}
             className="text-[var(--muted)] hover:text-white transition-colors text-xs uppercase tracking-widest"
           >
             ESC

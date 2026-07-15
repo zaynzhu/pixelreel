@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useI18nStore } from "../stores/i18nStore";
@@ -14,6 +14,7 @@ export default function AppShell() {
   const authRequired = useAuthStore((s) => s.authRequired)
   const { lang, toggleLang, t } = useI18nStore();
   const runningTasks = useTaskStore((s) => s.tasks.filter((t) => t.status === 'running').length);
+  const closeTaskPanel = useCallback(() => setTaskPanelOpen(false), []);
 
   useEffect(() => {
     startPolling()
@@ -68,7 +69,11 @@ export default function AppShell() {
                   {lang === "en" ? "中文" : "EN"}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setTaskPanelOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={taskPanelOpen}
+                  aria-controls="task-panel"
                   className="brutal-btn relative"
                 >
                   TASKS
@@ -111,7 +116,7 @@ export default function AppShell() {
         </main>
 
         <RightActionDrawer />
-        <TaskPanel open={taskPanelOpen} onClose={() => setTaskPanelOpen(false)} />
+        <TaskPanel open={taskPanelOpen} onClose={closeTaskPanel} />
         <ToastContainer />
         <ConfirmDialog />
       </div>

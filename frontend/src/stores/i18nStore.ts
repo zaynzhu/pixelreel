@@ -206,6 +206,8 @@ const dictionaries = {
     "timeline.added": "Added",
     "timeline.close": "CLOSE",
 
+    "task.panel.close": "CLOSE TASKS",
+
     // Activity
     "activity.title": "ACTIVITY LOG",
     "activity.desc": "Operation records",
@@ -552,6 +554,8 @@ const dictionaries = {
     "timeline.all": "全部",
     "timeline.added": "添加于",
     "timeline.close": "关闭",
+
+    "task.panel.close": "关闭任务面板",
 
     // Activity
     "activity.title": "操作日志",
