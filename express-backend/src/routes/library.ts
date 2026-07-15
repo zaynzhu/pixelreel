@@ -85,6 +85,7 @@ router.get('/random', async (req: Request, res: Response, next: NextFunction) =>
 // GET /api/library/:category/:id — 获取单条完整记录
 router.get('/:category/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    assertNoQueryParameters(req.query);
     const category = parseLibraryRecordCategory(req.params.category);
     const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
     const result = await getRecord(category, id);

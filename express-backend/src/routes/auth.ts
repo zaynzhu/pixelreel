@@ -82,7 +82,8 @@ export function getAuthStatus() {
 }
 
 // 前端启动时据此决定是否展示登录页
-router.get('/status', (_req: Request, res: Response) => {
+router.get('/status', (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
   res.json(getAuthStatus());
 });
 
