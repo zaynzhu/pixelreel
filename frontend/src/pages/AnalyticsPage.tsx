@@ -21,7 +21,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-sm uppercase tracking-widest animate-pulse" style={{ color: "var(--accent)" }}>
-          LOADING...
+          {t("analytics.loading")}
         </div>
       </div>
     )
@@ -29,9 +29,18 @@ export default function AnalyticsPage() {
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-sm uppercase tracking-widest" style={{ color: "var(--accent-deep)" }}>
-          ERROR: {error || "No data"}
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div role="alert" className="w-full max-w-xl border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] p-6 sm:p-8">
+          <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-[var(--accent-deep)]">
+            {t("analytics.error.kicker")}
+          </span>
+          <h1 className="mt-2 font-display text-2xl text-white">{t("analytics.error.title")}</h1>
+          <p className="mt-3 break-all text-xs leading-6 text-[var(--muted)]">
+            {error || t("analytics.error.empty")}
+          </p>
+          <button type="button" onClick={() => void fetchAnalytics(year)} className="brutal-btn-accent mt-6">
+            {t("analytics.error.retry")}
+          </button>
         </div>
       </div>
     )

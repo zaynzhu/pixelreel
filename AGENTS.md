@@ -157,6 +157,7 @@ frontend/src/
 - **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据。
 - **年份筛选：** AnalyticsService 中「已完成」对豆瓣影视优先使用严格合法的 `doubanDate`，缺失或非法时回退 `updatedAt`；其他来源使用 `updatedAt`。评分、短评、Top 榜、来源分布和跨平台评分使用 `createdAt`。
 - **分析年份：** `GET /api/analytics?year=` 同时返回按降序排列的 `availableYears`，由记录创建年份和完成年份并集生成，并保留当前选择。前端只能在该列表内跳转，过期年份请求不能覆盖最新结果。
+- **分析读取：** 年度分析的加载、失败和重试文案必须使用 i18n；读取失败时必须持续显示具体原因和原地重试入口，不能留下无法恢复的错误页。
 - **首页行动队列：** `GET /api/profile/summary` 的 `nextUp.resume` 按有效 IN_PROGRESS 游戏的游玩时长降序排列，`nextUp.backlog` 按有效 WANT 记录的 `createdAt` 升序排列，`nextUp.reflect` 选取评分至少 4 分、已完成且无短评的记录并按评分和入库时间降序排列；三组各取 4 条，只读推导且不写数据库。
 - **本月回声：** `GET /api/profile/summary` 的 `monthlyMemories` 沿用年度分析的完成日期口径，从每个往年的当前月份选择评分最高的一条已完成记录，最近年份优先，最多 5 条；只读推导且不写数据库。
 - **tmdbGenreIds 格式：** 逗号分隔字符串（如 `"28,12,878"`），不是数组。Prisma schema 为 String 类型。
