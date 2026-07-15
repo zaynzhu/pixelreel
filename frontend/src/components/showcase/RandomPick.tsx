@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react"
-import type { LibraryRecord } from "../../types/library"
+import { useState, useEffect, useCallback, useRef } from "react"
+import type { LibraryCategory, LibraryRecord, RecordStatus } from "../../types/library"
 import type { TimelineRecord } from "../../types/timeline"
 import { useI18nStore } from "../../stores/i18nStore"
 import { useTimelineDetailStore } from "../../stores/timelineDetailStore"
@@ -8,6 +8,8 @@ import TimelinePopup from "../TimelinePopup"
 import { apiFetch } from "../../api"
 
 const RANDOM_PICK_LIMIT = 10
+type RandomCategory = "all" | LibraryCategory
+type RandomStatus = "all" | Extract<RecordStatus, "WANT" | "IN_PROGRESS">
 
 /** Extract lightweight TimelineRecord fields from a full LibraryRecord */
 function toLightweight(r: LibraryRecord): TimelineRecord {
@@ -35,19 +37,30 @@ export function RandomPick({ compact }: RandomPickProps) {
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [category, setCategory] = useState<RandomCategory>("all")
+  const [status, setStatus] = useState<RandomStatus>("all")
+  const requestIdRef = useRef(0)
 
   const fetchRandom = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     try {
+      const params = new URLSearchParams({
+        limit: String(RANDOM_PICK_LIMIT),
+        t: String(Date.now()),
+      })
+      if (category !== "all") params.set("category", category)
+      if (status !== "all") params.set("status", status)
       const data = await apiFetch<LibraryRecord[] | LibraryRecord>(
-        `/library/random?limit=${RANDOM_PICK_LIMIT}&t=${Date.now()}`,
+        `/library/random?${params.toString()}`,
         { cache: "no-store" },
       )
+      if (requestId !== requestIdRef.current) return
       setRecords(Array.isArray(data) ? data : [data])
       setRefreshKey((k) => k + 1)
     } catch {
-      setRecords([])
+      if (requestId === requestIdRef.current) setRecords([])
     }
-  }, [])
+  }, [category, status])
 
   useEffect(() => {
     void fetchRandom()
@@ -65,7 +78,7 @@ export function RandomPick({ compact }: RandomPickProps) {
   return (
     <>
       <div className="showcase-panel flex h-full min-h-0 flex-col overflow-hidden p-5">
-        <div className="mb-3 flex shrink-0 items-center justify-between">
+        <div className="mb-2 flex shrink-0 items-center justify-between">
           <div className="section-kicker">{t("showcase.random.kicker")}</div>
           <button
             className="text-[10px] uppercase tracking-wider cursor-pointer px-2 py-0.5"
@@ -87,6 +100,36 @@ export function RandomPick({ compact }: RandomPickProps) {
           >
             {t("showcase.random.btn")}
           </button>
+        </div>
+
+        <div className="mb-3 grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-y border-[var(--line)] bg-black/20 px-2 py-1.5">
+          <span className="font-mono text-[8px] uppercase tracking-widest text-[var(--muted)]">
+            {t("showcase.random.from")}
+          </span>
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value as RandomCategory)}
+            aria-label={t("showcase.random.category")}
+            className="min-w-0 border-0 bg-transparent py-0.5 font-mono text-[9px] font-bold uppercase text-[var(--accent)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+          >
+            <option value="all">{t("showcase.random.category.all")}</option>
+            <option value="movie">{t("showcase.random.category.movie")}</option>
+            <option value="tv_show">{t("showcase.random.category.tv")}</option>
+            <option value="game">{t("showcase.random.category.game")}</option>
+          </select>
+          <span className="font-mono text-[8px] uppercase tracking-widest text-[var(--muted)]">
+            {t("showcase.random.with")}
+          </span>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value as RandomStatus)}
+            aria-label={t("showcase.random.status")}
+            className="min-w-0 border-0 bg-transparent py-0.5 font-mono text-[9px] font-bold uppercase text-[var(--accent)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+          >
+            <option value="all">{t("showcase.random.status.all")}</option>
+            <option value="WANT">{t("global.status.want")}</option>
+            <option value="IN_PROGRESS">{t("global.status.active")}</option>
+          </select>
         </div>
 
         {records.length > 0 ? (
@@ -135,7 +178,9 @@ export function RandomPick({ compact }: RandomPickProps) {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-sm uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-              {t("showcase.random.empty")}
+              {category === "all" && status === "all"
+                ? t("showcase.random.empty")
+                : t("showcase.random.empty_filtered")}
             </div>
           </div>
         )}

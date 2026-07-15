@@ -44,6 +44,11 @@ export interface ListRecordsOptions {
   sort?: LibrarySort;
 }
 
+export interface RandomRecordsOptions {
+  category?: Extract<LibraryCategoryFilter, 'all' | 'movie' | 'tv_show' | 'game'>;
+  status?: RecordStatus;
+}
+
 export function normalizeCategory(value?: string): LibraryCategoryFilter {
   if (value === 'movie' || value === 'tv_show' || value === 'game' || value === 'media') {
     return value;
@@ -430,18 +435,28 @@ async function fetchTotals(options?: ListRecordsOptions) {
   };
 }
 
-export async function getRandomRecord(): Promise<LibraryRecordResponse | null> {
-  const results = await getRandomRecords(1);
+export async function getRandomRecord(
+  options?: RandomRecordsOptions,
+): Promise<LibraryRecordResponse | null> {
+  const results = await getRandomRecords(1, options);
   return results[0] ?? null;
 }
 
-export async function getRandomRecords(count: number): Promise<LibraryRecordResponse[]> {
+export async function getRandomRecords(
+  count: number,
+  options: RandomRecordsOptions = {},
+): Promise<LibraryRecordResponse[]> {
   const db = getDb();
+  const category = options.category ?? 'all';
+  const where = options.status ? { status: options.status } : {};
+  const includeMovies = category === 'all' || category === 'movie';
+  const includeGames = category === 'all' || category === 'game';
+  const includeTvShows = category === 'all' || category === 'tv_show';
 
   const [movieCount, gameCount, tvCount] = await Promise.all([
-    db.movie.count(),
-    db.game.count(),
-    db.tvShow.count(),
+    includeMovies ? db.movie.count({ where }) : Promise.resolve(0),
+    includeGames ? db.game.count({ where }) : Promise.resolve(0),
+    includeTvShows ? db.tvShow.count({ where }) : Promise.resolve(0),
   ]);
 
   const total = movieCount + gameCount + tvCount;
@@ -458,13 +473,17 @@ export async function getRandomRecords(count: number): Promise<LibraryRecordResp
 
     let record: LibraryRecordResponse | null = null;
     if (offset < movieCount) {
-      const movie = (await db.movie.findMany({ skip: offset, take: 1 }))[0];
+      const movie = (await db.movie.findMany({ where, skip: offset, take: 1 }))[0];
       record = movie ? toMovieRecord(movie) : null;
     } else if (offset < movieCount + gameCount) {
-      const game = (await db.game.findMany({ skip: offset - movieCount, take: 1 }))[0];
+      const game = (await db.game.findMany({ where, skip: offset - movieCount, take: 1 }))[0];
       record = game ? toGameRecord(game) : null;
     } else {
-      const show = (await db.tvShow.findMany({ skip: offset - movieCount - gameCount, take: 1 }))[0];
+      const show = (await db.tvShow.findMany({
+        where,
+        skip: offset - movieCount - gameCount,
+        take: 1,
+      }))[0];
       record = show ? toTvShowRecord(show) : null;
     }
 

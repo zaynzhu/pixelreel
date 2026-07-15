@@ -40,7 +40,8 @@ const LIBRARY_LIST_PARAMETER_KEYS = new Set([
   'cursor', 'limit', 'includeTotals', 'category', 'year', 'status',
   'query', 'source', 'review', 'importReview', 'sort',
 ]);
-const LIBRARY_RANDOM_PARAMETER_KEYS = new Set(['limit', 't']);
+const LIBRARY_RANDOM_PARAMETER_KEYS = new Set(['limit', 't', 'category', 'status']);
+const LIBRARY_RANDOM_CATEGORIES = ['all', 'movie', 'tv_show', 'game'] as const;
 
 function assertKnownLibraryParameters(query: Record<string, unknown>, allowedKeys: ReadonlySet<string>) {
   const unknownKey = Object.keys(query).find(key => !allowedKeys.has(key));
@@ -74,7 +75,11 @@ export function parseLibraryListParameters(query: Record<string, unknown>) {
 export function parseLibraryRandomParameters(query: Record<string, unknown>) {
   assertKnownLibraryParameters(query, LIBRARY_RANDOM_PARAMETER_KEYS);
   if (query.t != null) parseRequiredPositiveIntegerParameter(query.t, 't');
-  return parsePositiveIntegerParameter(query.limit, 'limit', 1, 20);
+  return {
+    limit: parsePositiveIntegerParameter(query.limit, 'limit', 1, 20),
+    category: parseEnumParameter(query.category, 'category', LIBRARY_RANDOM_CATEGORIES) ?? 'all',
+    status: parseRecordStatusParameter(query.status, null) ?? undefined,
+  };
 }
 
 export function parseLibraryRecordCategory(value: unknown) {
@@ -139,16 +144,16 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/random', async (req: Request, res: Response, next: NextFunction) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    const limit = parseLibraryRandomParameters(req.query);
+    const { limit, category, status } = parseLibraryRandomParameters(req.query);
     if (limit === 1) {
-      const record = await getRandomRecord();
+      const record = await getRandomRecord({ category, status });
       if (!record) {
         res.status(404).json({ error: 'No records found' });
         return;
       }
       res.json(record);
     } else {
-      const records = await getRandomRecords(limit);
+      const records = await getRandomRecords(limit, { category, status });
       if (records.length === 0) {
         res.status(404).json({ error: 'No records found' });
         return;

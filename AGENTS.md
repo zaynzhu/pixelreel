@@ -88,7 +88,7 @@ frontend/src/
 | `/library` 记录库；`/library/:category/:id` 统一详情页 | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&importReview=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | `GET /api/timeline?cursor=&limit=96&category=&year=`, `GET /api/timeline/years?category=` |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
-| `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
+| `/showcase` | `GET /api/library/random?limit=N&category=&status=`（随机记录，N 最大 20；类别支持 movie/tv_show/game，状态使用 RecordStatus） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
 | `/sync` | `GET /api/import/sources/status`，并复用各来源导入接口与任务接口 |
 | `/sync/review` | `GET /api/library?importReview=pending|ignored`, `POST /api/library/import-review` |
@@ -120,6 +120,7 @@ frontend/src/
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **数据健康：** `/data-health` 只读审计显示字段缺口，不自动修改记录；电影/剧集检查封面、简介、日期和外部 ID，游戏只检查封面和外部 ID，问题列表按 BigInt ID 游标分页。
 - **统一记录详情：** `/library/:category/:id` 展示个人状态、评分、短评、来源身份与原始字段、游戏指标和记录级操作历史，并可保存个人记录、重新匹配元数据或进入数据健康页。记录库、时间线、活动日志和 Showcase 均提供详情入口。
+- **随机推荐：** Showcase 的随机推荐可按类别和 WANT/IN_PROGRESS 状态筛选；筛选直接下推到 `/api/library/random`，不能先随机全库再由前端过滤。
 - **数据健康修复：** `POST /api/data-health/repair` 每次最多处理 50 条并创建唯一后台任务，只填充所选空字段及对应空 TMDB 原始字段；电影/剧集使用 TMDB，游戏仅支持 RAWG 封面，游戏外部 ID 必须人工核对，不能按标题自动绑定。
 - **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份、游戏仅按规范化标题+平台匹配。候选可逐条纠正辅助元数据，或整组标记为“确认不同”并恢复；裁决指纹随成员和共享标识变化而失效。不能自动合并或删除，豆瓣来源身份和原始字段必须保留。
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。

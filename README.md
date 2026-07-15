@@ -191,7 +191,7 @@ GET   /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&revie
 GET   /api/library/:category/:id
 PATCH /api/library/:category/:id
 POST  /api/library/import-review
-GET   /api/library/random?limit=N
+GET   /api/library/random?limit=N&category=game&status=WANT
 
 GET   /api/timeline?cursor=&limit=96&category=&year=
 GET   /api/timeline/years?category=

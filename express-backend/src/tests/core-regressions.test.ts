@@ -1150,8 +1150,21 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     status: RecordStatus.IN_PROGRESS,
   });
   assert.equal(parseLibraryRecordCategory('TVSHOW'), 'tvshow');
-  assert.equal(parseLibraryRandomParameters({}), 1);
-  assert.equal(parseLibraryRandomParameters({ limit: '15', t: '1784040000000' }), 15);
+  assert.deepEqual(parseLibraryRandomParameters({}), {
+    limit: 1,
+    category: 'all',
+    status: undefined,
+  });
+  assert.deepEqual(parseLibraryRandomParameters({
+    limit: '15',
+    t: '1784040000000',
+    category: 'game',
+    status: 'WANT',
+  }), {
+    limit: 15,
+    category: 'game',
+    status: RecordStatus.WANT,
+  });
   assert.equal(parseTimelineCategory(undefined), 'all');
   assert.equal(parseTimelineYearsParameters({ category: 'tv_show' }), 'tv_show');
   assert.equal(parseAnalyticsYear(undefined, 2026), 2026);
@@ -1189,6 +1202,8 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseLibraryListParameters({ cursor, sort: 'rating' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ t: 'invalid' }), RequestValidationError);
+  assert.throws(() => parseLibraryRandomParameters({ category: 'media' }), RequestValidationError);
+  assert.throws(() => parseLibraryRandomParameters({ status: 'all' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseTimelineCategory(['all']), RequestValidationError);
   assert.throws(() => parseTimelineListParameters({ verbose: 'true' }), RequestValidationError);
