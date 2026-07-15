@@ -32,9 +32,10 @@ export default function SyncPage() {
   const cancelTask = useTaskStore(state => state.cancelTask)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const [status, setStatus] = useState<SyncSourceStatus | null>(null)
-  const [history, setHistory] = useState<SyncHistoryResponse | null>(null)
+  const [history, setHistory] = useState<SyncHistoryResponse>()
   const [loading, setLoading] = useState(true)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const [directStatuses, setDirectStatuses] = useState<Record<DirectSource, RecordStatus>>({
     steam: 'WANT',
@@ -45,16 +46,20 @@ export default function SyncPage() {
     setLoading(true)
     setStatusError(null)
     try {
-      const [nextStatus, nextHistory] = await Promise.all([
-        apiFetch<SyncSourceStatus>('/import/sources/status'),
-        apiFetch<SyncHistoryResponse>('/import/sources/history'),
-      ])
-      setStatus(nextStatus)
-      setHistory(nextHistory)
+      setStatus(await apiFetch<SyncSourceStatus>('/import/sources/status'))
     } catch (reason) {
       setStatusError(reason instanceof Error ? reason.message : t('sync.status_error'))
     } finally {
       setLoading(false)
+    }
+  }, [t])
+
+  const loadHistory = useCallback(async () => {
+    setHistoryError(null)
+    try {
+      setHistory(await apiFetch<SyncHistoryResponse>('/import/sources/history'))
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : t('sync.history.error'))
     }
   }, [t])
 
@@ -65,6 +70,14 @@ export default function SyncPage() {
   const sourceTasks = useMemo(() => tasks.filter(task =>
     Object.values(TASK_TYPES).includes(task.type)
   ), [tasks])
+  const syncTaskVersion = useMemo(() => sourceTasks
+    .map(task => `${task.taskId}:${task.status}:${task.completedAt ?? ''}`)
+    .join('|'), [sourceTasks])
+
+  useEffect(() => {
+    void loadHistory()
+  }, [loadHistory, syncTaskVersion])
+
   const runningCount = sourceTasks.filter(task => task.status === 'running').length
   const availableCount = status
     ? SOURCE_ORDER.filter(source => status[source].available).length
@@ -139,13 +152,20 @@ export default function SyncPage() {
         </div>
       )}
 
+      {historyError && (
+        <div className="flex items-center justify-between gap-4 border border-yellow-500/40 bg-yellow-500/10 p-4 text-xs text-yellow-300">
+          <span>{historyError}</span>
+          <button type="button" onClick={() => void loadHistory()} className="brutal-btn">{t('sync.retry')}</button>
+        </div>
+      )}
+
       {status && (
         <div className="grid gap-5 xl:grid-cols-2">
           <SourceCard
             source="douban"
             availability={status.douban}
             task={latestTask('douban')}
-            history={history?.douban ?? null}
+            history={history?.douban}
             settingsCategory="douban"
           >
             <div className="grid gap-2 sm:grid-cols-3">
@@ -166,7 +186,7 @@ export default function SyncPage() {
             source="trakt"
             availability={status.trakt}
             task={latestTask('trakt')}
-            history={history?.trakt ?? null}
+            history={history?.trakt}
             settingsCategory="trakt"
           >
             <StatusSelect
@@ -193,7 +213,7 @@ export default function SyncPage() {
             source="steam"
             availability={status.steam}
             task={latestTask('steam')}
-            history={history?.steam ?? null}
+            history={history?.steam}
             settingsCategory="steam"
           >
             <StatusSelect
@@ -269,7 +289,7 @@ function SourceCard({
   source: SyncSourceKey
   availability: SyncAvailability
   task: Task | null
-  history: SyncHistoryEntry | null
+  history: SyncHistoryEntry | null | undefined
   settingsCategory: string
   children: React.ReactNode
 }) {
@@ -302,7 +322,7 @@ function SourceCard({
         {children}
         {task && <TaskSummary task={task} />}
         {history && history.taskId !== task?.taskId && <SyncHistorySummary entry={history} />}
-        {!history && <p className="mt-4 border-t border-dashed border-[var(--line)] pt-4 text-[10px] text-[var(--muted)]">{t('sync.history.empty')}</p>}
+        {history === null && <p className="mt-4 border-t border-dashed border-[var(--line)] pt-4 text-[10px] text-[var(--muted)]">{t('sync.history.empty')}</p>}
       </div>
     </section>
   )
