@@ -16,6 +16,7 @@ import timelineRoutes from '../routes/timeline';
 import radarRoutes from '../routes/radar';
 import toolsRoutes from '../routes/tools';
 import healthRoutes from '../routes/health';
+import dataHealthRoutes from '../routes/dataHealth';
 import { authMiddleware } from '../middlewares/auth';
 
 const router = Router();
@@ -43,6 +44,7 @@ router.use('/library', libraryRoutes);
 router.use('/profile', profileRoutes);
 router.use('/activity', activityRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/data-health', dataHealthRoutes);
 
 // 系统设置路由
 router.use('/settings', settingsRoutes);

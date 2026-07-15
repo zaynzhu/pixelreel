@@ -19,6 +19,7 @@ const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"))
 const RadarPage = lazy(() => import("./pages/RadarPage"))
 const PopularPage = lazy(() => import("./pages/PopularPage"))
 const ToolsPage = lazy(() => import("./pages/ToolsPage"))
+const DataHealthPage = lazy(() => import("./pages/DataHealthPage"))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const initialized = useAuthStore((s) => s.initialized)
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="radar" element={<RadarPage />} />
             <Route path="popular" element={<PopularPage />} />
             <Route path="tools" element={<ToolsPage />} />
+            <Route path="data-health" element={<DataHealthPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

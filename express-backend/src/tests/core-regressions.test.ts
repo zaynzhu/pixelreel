@@ -29,6 +29,7 @@ import {
   serializeLog,
 } from '../routes/activity';
 import { parseAnalyticsParameters, parseAnalyticsYear } from '../routes/analytics';
+import { parseDataHealthIssueParameters } from '../routes/dataHealth';
 import { getHealthStatus } from '../routes/health';
 import {
   assertEmptyImportRequestBody,
@@ -116,6 +117,10 @@ import {
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { buildCrossPlatformRatings } from '../services/AnalyticsService';
+import {
+  buildDataHealthWhere,
+  isDataHealthIssueApplicable,
+} from '../services/DataHealthService';
 import {
   buildCompletedWhere,
   encodeLibraryCursor,
@@ -335,6 +340,38 @@ test('主机平台导入状态不暴露密钥并准确标记配置缺失', () =>
   }), {
     xbox: { available: true, reason: null },
     psn: { available: true, reason: null },
+  });
+});
+
+test('数据健康查询只接受适用的问题类型和有界分页参数', () => {
+  assert.deepEqual(parseDataHealthIssueParameters({
+    category: 'movie',
+    issue: 'missing_poster',
+    cursor: '12',
+    limit: '25',
+  }), {
+    category: 'movie',
+    issue: 'missing_poster',
+    cursor: 12n,
+    limit: 25,
+  });
+  assert.throws(
+    () => parseDataHealthIssueParameters({ category: 'game', issue: 'missing_date' }),
+    /不适用于 game/,
+  );
+  assert.throws(
+    () => parseDataHealthIssueParameters({ category: 'movie', issue: 'missing_poster', extra: '1' }),
+    /未知参数/,
+  );
+  assert.equal(isDataHealthIssueApplicable('game', 'missing_overview'), false);
+  assert.deepEqual(buildDataHealthWhere('movie', 'missing_date'), {
+    OR: [{ releaseDate: null }, { releaseDate: '' }],
+  });
+  assert.deepEqual(buildDataHealthWhere('game', 'missing_external_id'), {
+    rawgId: null,
+    steamAppId: null,
+    OR: [{ xboxId: null }, { xboxId: '' }],
+    AND: [{ OR: [{ psnId: null }, { psnId: '' }] }],
   });
 });
 

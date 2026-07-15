@@ -85,6 +85,13 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/import/covers/fill` | RAWG 封面补全 |
 | POST | `/api/import/tmdb-covers/fill` | TMDB 封面补全 |
 
+### 数据健康
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/data-health/summary` | 按电影、剧集、游戏汇总显示字段缺口 |
+| GET | `/api/data-health/issues?category=&issue=&cursor=&limit=` | 按问题类型游标分页列出记录 |
+
 ### 雷达
 
 | 方法 | 路径 | 说明 |
