@@ -32,6 +32,14 @@ export function assertKnownImportParameters(value: Record<string, unknown>, allo
   if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
 }
 
+export function assertEmptyImportRequestBody(value: unknown) {
+  if (value === undefined) return;
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value as Record<string, unknown>).length > 0) {
+    throw new RequestValidationError('请求体必须为空');
+  }
+}
+
 function parseExternalAccountIdentifier(value: unknown, name: string): string {
   const parsed = parseBoundedStringParameter(value, name, 100, true)!;
   if (EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN.test(parsed)) {
@@ -129,6 +137,7 @@ function uploadDoubanCsv(req: Request, res: Response, next: NextFunction) {
 
 // POST /api/import/steam/owned?steamId=xxx&status=WANT
 router.post('/steam/owned', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const { steamId, status } = parseSteamOwnedImportParameters(req.query);
   const result = await runExclusiveImport(
     'steam',
@@ -140,6 +149,7 @@ router.post('/steam/owned', async (req: Request, res: Response) => {
 
 // POST /api/import/steam/backfill — 回填已有 Steam 游戏的海报和游玩时间
 router.post('/steam/backfill', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   assertKnownImportParameters(req.query, []);
   const result = await runExclusiveImport('steam', 'Steam 导入或回填', backfillSteamData);
   res.json(result);
@@ -147,6 +157,7 @@ router.post('/steam/backfill', async (req: Request, res: Response) => {
 
 // POST /api/import/xbox/owned?gamertag=xxx&status=UNSET
 router.post('/xbox/owned', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const { gamertag, status } = parseXboxOwnedImportParameters(req.query);
   const result = await runExclusiveImport(
     'xbox-owned',
@@ -158,6 +169,7 @@ router.post('/xbox/owned', async (req: Request, res: Response) => {
 
 // POST /api/import/psn/owned?psnId=xxx&status=UNSET
 router.post('/psn/owned', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const { psnId, status } = parsePsnOwnedImportParameters(req.query);
   const result = await runExclusiveImport(
     'psn-owned',
@@ -185,6 +197,7 @@ router.post('/douban', uploadDoubanCsv, async (req: Request, res: Response) => {
 
 // POST /api/import/covers/fill?limit=50
 router.post('/covers/fill', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const limit = parseImportLimitParameters(req.query);
   const result = await runExclusiveImport(
     'rawg-covers',
@@ -196,6 +209,7 @@ router.post('/covers/fill', async (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-covers/fill?limit=50
 router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const limit = parseImportLimitParameters(req.query);
   const result = await runExclusiveImport(
     'tmdb-covers',
@@ -207,6 +221,7 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-enrich/backfill?limit=50 — 为已有记录补充 TMDB 数据
 router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const limit = parseImportLimitParameters(req.query);
   const task = startEnrichBackfillTask(limit);
   res.json({
@@ -219,6 +234,7 @@ router.post('/tmdb-enrich/backfill', (req: Request, res: Response) => {
 
 // POST /api/import/tmdb-detail/backfill?limit=50
 router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const limit = parseImportLimitParameters(req.query);
   const task = startTmdbDetailBackfillTask(limit);
   res.json({
@@ -231,6 +247,7 @@ router.post('/tmdb-detail/backfill', (req: Request, res: Response) => {
 
 // POST /api/import/douban-harvest?mode=json|full|incremental
 router.post('/douban-harvest', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   const mode = parseDoubanHarvestParameters(req.query);
 
   let task;
@@ -279,6 +296,7 @@ router.get('/tasks', (req: Request, res: Response) => {
 
 // DELETE /api/import/tasks/:taskId — 取消任务
 router.delete('/tasks/:taskId', (req: Request<{ taskId: string }>, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
   assertKnownImportParameters(req.query, []);
   const taskId = parseBoundedStringParameter(req.params.taskId, 'taskId', 100, true)!;
   const result = cancelTask(taskId);

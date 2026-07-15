@@ -29,6 +29,7 @@ import {
 import { parseAnalyticsParameters, parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
 import {
+  assertEmptyImportRequestBody,
   assertKnownImportParameters,
   DOUBAN_CSV_MAX_BYTES,
   getDoubanCsvUploadError,
@@ -213,6 +214,11 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
 });
 
 test('同步导入和任务查询拒绝未知或超长参数', () => {
+  assert.doesNotThrow(() => assertEmptyImportRequestBody(undefined));
+  assert.doesNotThrow(() => assertEmptyImportRequestBody({}));
+  assert.throws(() => assertEmptyImportRequestBody({ limit: 10 }), RequestValidationError);
+  assert.throws(() => assertEmptyImportRequestBody([]), RequestValidationError);
+
   assert.equal(parseImportLimitParameters({ limit: '100' }), 100);
   assert.throws(() => parseImportLimitParameters({ limit: '10', force: 'true' }), RequestValidationError);
 
