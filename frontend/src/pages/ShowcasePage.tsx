@@ -46,7 +46,7 @@ export default function ShowcasePage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-sm uppercase tracking-widest animate-pulse" style={{ color: "var(--accent)" }}>
-          LOADING...
+          {t("showcase.loading")}
         </div>
       </div>
     )
@@ -54,9 +54,18 @@ export default function ShowcasePage() {
 
   if (error || !summary) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-sm uppercase tracking-widest" style={{ color: "var(--accent-deep)" }}>
-          ERROR: {error || "No data"}
+      <div className="showcase-bg flex min-h-[60vh] items-center justify-center">
+        <div role="alert" className="showcase-panel w-full max-w-xl border-[var(--accent-deep)] p-6 sm:p-8">
+          <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-[var(--accent-deep)]">
+            {t("showcase.error.kicker")}
+          </span>
+          <h1 className="mt-2 font-display text-2xl text-white">{t("showcase.error.title")}</h1>
+          <p className="mt-3 break-all text-xs leading-6 text-[var(--muted)]">
+            {error || t("showcase.error.empty")}
+          </p>
+          <button type="button" onClick={() => void fetchSummary()} className="brutal-btn-accent mt-6">
+            {t("showcase.error.retry")}
+          </button>
         </div>
       </div>
     )
