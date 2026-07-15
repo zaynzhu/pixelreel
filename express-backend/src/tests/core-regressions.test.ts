@@ -26,6 +26,9 @@ import { getHealthStatus } from '../routes/health';
 import {
   DOUBAN_CSV_MAX_BYTES,
   getDoubanCsvUploadError,
+  parsePsnOwnedImportParameters,
+  parseSteamOwnedImportParameters,
+  parseXboxOwnedImportParameters,
 } from '../routes/import';
 import {
   parseLibraryListParameters,
@@ -147,6 +150,30 @@ test('导入参数拒绝无效 limit、status 和标识值', () => {
   assert.equal(parseStringParameter('  player-id  ', 'steamId'), 'player-id');
   assert.throws(() => parseStringParameter([], 'steamId'), RequestValidationError);
   assert.throws(() => parseStringParameter('  ', 'gamertag', true), RequestValidationError);
+});
+
+test('平台游戏导入在调用外部服务前校验账号参数', () => {
+  assert.deepEqual(parseSteamOwnedImportParameters({ steamId: '76561198369299195', status: 'DONE' }), {
+    steamId: '76561198369299195',
+    status: RecordStatus.DONE,
+  });
+  assert.throws(() => parseSteamOwnedImportParameters({ steamId: 'not-a-steam-id' }), RequestValidationError);
+  assert.throws(() => parseSteamOwnedImportParameters({ steamId: '1'.repeat(21) }), RequestValidationError);
+  assert.throws(() => parseSteamOwnedImportParameters({ steamId: '1', accessToken: 'secret' }), RequestValidationError);
+
+  assert.deepEqual(parseXboxOwnedImportParameters({ gamertag: ' 玩家 One ', status: 'UNSET' }), {
+    gamertag: '玩家 One',
+    status: RecordStatus.UNSET,
+  });
+  assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'player/name' }), RequestValidationError);
+  assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'a'.repeat(101) }), RequestValidationError);
+
+  assert.deepEqual(parsePsnOwnedImportParameters({ psnId: 'player_name-1' }), {
+    psnId: 'player_name-1',
+    status: null,
+  });
+  assert.throws(() => parsePsnOwnedImportParameters({ psnId: 'player?name' }), RequestValidationError);
+  assert.throws(() => parsePsnOwnedImportParameters({ psnId: [] }), RequestValidationError);
 });
 
 test('豆瓣 CSV 上传在解析和写库前限制资源占用', async () => {

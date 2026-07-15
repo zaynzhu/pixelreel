@@ -14,6 +14,7 @@ import { config } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
 import { runExclusiveImport } from '../services/import-operation-lock';
 import {
+  parseBoundedStringParameter,
   parsePositiveIntegerParameter,
   parseRecordStatusParameter,
   parseStringParameter,
@@ -25,6 +26,48 @@ const IMPORT_DEFAULT_LIMIT = 50;
 const IMPORT_MAX_LIMIT = 100;
 export const DOUBAN_CSV_MAX_BYTES = 5 * 1024 * 1024;
 const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
+const EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
+
+function assertKnownImportParameters(value: Record<string, unknown>, allowedKeys: string[]) {
+  const unknownKey = Object.keys(value).find(key => !allowedKeys.includes(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+}
+
+function parseExternalAccountIdentifier(value: unknown, name: string): string {
+  const parsed = parseBoundedStringParameter(value, name, 100, true)!;
+  if (EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN.test(parsed)) {
+    throw new RequestValidationError(`${name} 格式无效`);
+  }
+  return parsed;
+}
+
+export function parseSteamOwnedImportParameters(value: Record<string, unknown>) {
+  assertKnownImportParameters(value, ['steamId', 'status']);
+  const steamId = parseBoundedStringParameter(value.steamId, 'steamId', 20);
+  if (steamId && !/^[1-9]\d*$/.test(steamId)) {
+    throw new RequestValidationError('steamId 必须是正整数');
+  }
+  return {
+    steamId,
+    status: parseRecordStatusParameter(value.status, null),
+  };
+}
+
+export function parseXboxOwnedImportParameters(value: Record<string, unknown>) {
+  assertKnownImportParameters(value, ['gamertag', 'status']);
+  return {
+    gamertag: parseExternalAccountIdentifier(value.gamertag, 'gamertag'),
+    status: parseRecordStatusParameter(value.status, null),
+  };
+}
+
+export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
+  assertKnownImportParameters(value, ['psnId', 'status']);
+  return {
+    psnId: parseExternalAccountIdentifier(value.psnId, 'psnId'),
+    status: parseRecordStatusParameter(value.status, null),
+  };
+}
 
 // multer 内存存储，用于豆瓣 CSV 上传
 const upload = multer({
@@ -61,8 +104,7 @@ function uploadDoubanCsv(req: Request, res: Response, next: NextFunction) {
 
 // POST /api/import/steam/owned?steamId=xxx&status=WANT
 router.post('/steam/owned', async (req: Request, res: Response) => {
-  const steamId = parseStringParameter(req.query.steamId, 'steamId');
-  const status = parseRecordStatusParameter(req.query.status, null);
+  const { steamId, status } = parseSteamOwnedImportParameters(req.query);
   const result = await runExclusiveImport(
     'steam',
     'Steam 导入或回填',
@@ -79,8 +121,7 @@ router.post('/steam/backfill', async (_req: Request, res: Response) => {
 
 // POST /api/import/xbox/owned?gamertag=xxx&status=UNSET
 router.post('/xbox/owned', async (req: Request, res: Response) => {
-  const gamertag = parseStringParameter(req.query.gamertag, 'gamertag', true)!;
-  const status = parseRecordStatusParameter(req.query.status, null);
+  const { gamertag, status } = parseXboxOwnedImportParameters(req.query);
   const result = await runExclusiveImport(
     'xbox-owned',
     'Xbox 导入',
@@ -91,8 +132,7 @@ router.post('/xbox/owned', async (req: Request, res: Response) => {
 
 // POST /api/import/psn/owned?psnId=xxx&status=UNSET
 router.post('/psn/owned', async (req: Request, res: Response) => {
-  const psnId = parseStringParameter(req.query.psnId, 'psnId', true)!;
-  const status = parseRecordStatusParameter(req.query.status, null);
+  const { psnId, status } = parsePsnOwnedImportParameters(req.query);
   const result = await runExclusiveImport(
     'psn-owned',
     'PSN 导入',

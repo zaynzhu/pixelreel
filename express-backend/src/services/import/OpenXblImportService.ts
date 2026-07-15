@@ -24,7 +24,7 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
   // 1. 通过 gamertag 查 XUID
   let xuid: string | null = null;
   try {
-    const searchRes = await axios.get(`${config.openxbl.baseUrl}/search/${gamertag.trim()}`, {
+    const searchRes = await axios.get(`${config.openxbl.baseUrl}/search/${encodeURIComponent(gamertag.trim())}`, {
       headers: { 'X-Authorization': config.openxbl.apiKey },
     });
     // 尝试从返回数据中提取 xuid

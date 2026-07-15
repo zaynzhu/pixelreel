@@ -20,7 +20,7 @@ export async function importPsnOwnedGames(psnId: string, status?: string | null)
 
   let html: string | null = null;
   try {
-    const response = await axios.get(`${config.psnProfiles.baseUrl}/${psnId.trim()}`, {
+    const response = await axios.get(`${config.psnProfiles.baseUrl}/${encodeURIComponent(psnId.trim())}`, {
       headers: {
         'User-Agent': config.psnProfiles.userAgent,
         ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
