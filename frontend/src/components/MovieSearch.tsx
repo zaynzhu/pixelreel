@@ -91,7 +91,7 @@ export default function MovieSearch() {
     if (movie.imdbId) {
       detailUrl = `/search/imdb/${movie.imdbId}`;
     } else if (movie.tmdbId) {
-      detailUrl = `/search/tmdb/${movie.tmdbId}`;
+      detailUrl = `/search/tmdb/${movie.tmdbId}?mediaType=movie`;
     } else if (movie.doubanId) {
       detailUrl = `/search/douban/${movie.doubanId}`;
     }

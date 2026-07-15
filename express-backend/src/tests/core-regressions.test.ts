@@ -71,7 +71,9 @@ import {
 import {
   assertAllowedImageProxyUrl,
   assertKnownSearchQueryParameters,
+  mapTmdbIdentityMetadata,
   parseImageProxyParameters,
+  parseTmdbDetailParameters,
   validateImageProxyRedirect,
 } from '../routes/search';
 import {
@@ -491,6 +493,30 @@ test('疑似重复检测只合并强标识或带年份和平台的同名候选',
     () => parseDuplicateListParameters({ category: 'movie', cursor: '0' }),
     /正整数/,
   );
+});
+
+test('TMDB 详情返回可用于纠正重复候选的身份和原始字段', () => {
+  assert.equal(parseTmdbDetailParameters({ mediaType: 'movie' }), 'movie');
+  assert.equal(parseTmdbDetailParameters({ mediaType: 'tv_show' }), 'tv_show');
+  assert.throws(() => parseTmdbDetailParameters({ mediaType: 'game' }), /mediaType/);
+  assert.throws(() => parseTmdbDetailParameters({ category: 'movie' }), /未知参数/);
+  assert.deepEqual(mapTmdbIdentityMetadata({
+    imdb_id: 'tt1234567',
+    popularity: 42.5,
+    genres: [{ id: 28 }, { id: 12 }],
+  }, false), {
+    imdbId: 'tt1234567',
+    tmdbPopularity: 42.5,
+    tmdbGenreIds: '28,12',
+  });
+  assert.deepEqual(mapTmdbIdentityMetadata({
+    external_ids: { imdb_id: 'tt7654321' },
+    genres: [],
+  }, true), {
+    imdbId: 'tt7654321',
+    tmdbPopularity: null,
+    tmdbGenreIds: '',
+  });
 });
 
 test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async () => {

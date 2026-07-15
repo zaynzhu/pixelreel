@@ -68,6 +68,8 @@ export type ImdbDetail = {
   awards: string;
   posterUrl: string | null;
   imdbRating: string;
+  tmdbPopularity?: number | null;
+  tmdbGenreIds?: string | null;
   imdbVotes: string;
   boxOffice: string;
 };

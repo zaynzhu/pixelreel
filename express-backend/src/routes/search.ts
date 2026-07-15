@@ -4,6 +4,7 @@ import { config } from '../config';
 import { searchMovies, searchGames } from '../services/ExternalSearchService';
 import {
   parseBoundedStringParameter,
+  parseEnumParameter,
   parseExternalSearchParameters,
   parsePatternParameter,
   parsePositiveBigIntParameter,
@@ -22,6 +23,7 @@ const MOVIE_SEARCH_PROVIDERS = ['tmdb', 'omdb', 'trakt', 'douban', 'imdb'] as co
 const GAME_SEARCH_PROVIDERS = ['rawg', 'steam', 'psn', 'xbox', 'switch'] as const;
 const EMPTY_SEARCH_QUERY_PARAMETER_KEYS = new Set<string>();
 const IMAGE_PROXY_PARAMETER_KEYS = new Set(['url']);
+const TMDB_DETAIL_PARAMETER_KEYS = new Set(['mediaType']);
 
 export function assertKnownSearchQueryParameters(
   value: Record<string, unknown>,
@@ -34,6 +36,19 @@ export function assertKnownSearchQueryParameters(
 export function parseImageProxyParameters(value: Record<string, unknown>) {
   assertKnownSearchQueryParameters(value, IMAGE_PROXY_PARAMETER_KEYS);
   return parseBoundedStringParameter(value.url, 'url', 2000, true)!;
+}
+
+export function parseTmdbDetailParameters(value: Record<string, unknown>) {
+  assertKnownSearchQueryParameters(value, TMDB_DETAIL_PARAMETER_KEYS);
+  return parseEnumParameter(value.mediaType, 'mediaType', ['movie', 'tv_show'] as const);
+}
+
+export function mapTmdbIdentityMetadata(detail: any, isTv: boolean) {
+  return {
+    imdbId: isTv ? detail.external_ids?.imdb_id ?? null : detail.imdb_id ?? null,
+    tmdbPopularity: detail.popularity ?? null,
+    tmdbGenreIds: (detail.genres ?? []).map((genre: any) => genre.id).join(','),
+  };
 }
 
 // GET /api/search/movies?query=xxx&page=1&providers=tmdb,omdb
@@ -137,7 +152,7 @@ router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFuncti
 
 // GET /api/search/tmdb/:tmdbId — 通过 TMDB ID 获取详情
 router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFunction) => {
-  assertKnownSearchQueryParameters(req.query);
+  const mediaType = parseTmdbDetailParameters(req.query as Record<string, unknown>);
   const tmdbId = parsePositiveBigIntParameter(req.params.tmdbId, 'tmdbId', true)!.toString();
   if (!config.tmdb.apiKey) {
     res.status(400).json({ error: 'TMDB not configured' });
@@ -145,45 +160,44 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFuncti
   }
 
   try {
-    // 并行请求电影和电视剧端点，使用先返回的结果
-    const moviePromise = axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}`, {
-      params: { language: 'zh-CN' },
-      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-      ...axiosProxyOpts,
-    }).then(res => ({ type: 'movie' as const, data: res }))
-    .catch(err => ({ type: 'movie' as const, error: err }));
-
-    const tvPromise = axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {
-      params: { language: 'zh-CN' },
-      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-      ...axiosProxyOpts,
-    }).then(res => ({ type: 'tv' as const, data: res }))
-    .catch(err => ({ type: 'tv' as const, error: err }));
-
-    const [movieResult, tvResult] = await Promise.all([moviePromise, tvPromise]);
-
-    let isTv = false;
+    let isTv = mediaType === 'tv_show';
     let detailRes: any;
     let creditsRes: any;
 
-    // 优先使用电视剧结果（电视剧 ID 更可能是正确的）
-    if ('data' in tvResult) {
-      isTv = true;
-      detailRes = tvResult.data;
-      creditsRes = await axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/credits`, {
-        headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
-        ...axiosProxyOpts,
-      });
-    } else if ('data' in movieResult) {
-      isTv = false;
-      detailRes = movieResult.data;
-      creditsRes = await axios.get(`${config.tmdb.baseUrl}/movie/${tmdbId}/credits`, {
+    if (mediaType) {
+      const endpoint = isTv ? 'tv' : 'movie';
+      detailRes = await axios.get(`${config.tmdb.baseUrl}/${endpoint}/${tmdbId}`, {
+        params: { language: 'zh-CN', append_to_response: 'external_ids' },
         headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
         ...axiosProxyOpts,
       });
     } else {
-      throw movieResult.error || tvResult.error;
+      // 兼容旧调用；未指定类别时才探测两个端点
+      const loadDetail = (endpoint: 'movie' | 'tv') => axios.get(
+        `${config.tmdb.baseUrl}/${endpoint}/${tmdbId}`,
+        {
+          params: { language: 'zh-CN', append_to_response: 'external_ids' },
+          headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+          ...axiosProxyOpts,
+        },
+      ).then(response => ({ endpoint, response })).catch(error => ({ endpoint, error }));
+      const [movieResult, tvResult] = await Promise.all([loadDetail('movie'), loadDetail('tv')]);
+      if ('response' in tvResult) {
+        isTv = true;
+        detailRes = tvResult.response;
+      } else if ('response' in movieResult) {
+        isTv = false;
+        detailRes = movieResult.response;
+      } else {
+        throw movieResult.error || tvResult.error;
+      }
     }
+
+    const endpoint = isTv ? 'tv' : 'movie';
+    creditsRes = await axios.get(`${config.tmdb.baseUrl}/${endpoint}/${tmdbId}/credits`, {
+      headers: { Authorization: `Bearer ${config.tmdb.apiKey}` },
+      ...axiosProxyOpts,
+    });
 
     const d = detailRes.data;
     const credits = creditsRes.data;
@@ -199,6 +213,7 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFuncti
 
     res.json({
       tmdbId: d.id,
+      ...mapTmdbIdentityMetadata(d, isTv),
       title: isTv ? d.name : d.title,
       year: (isTv ? d.first_air_date : d.release_date)?.slice(0, 4) ?? '',
       rated: '',

@@ -34,6 +34,7 @@ interface RescrapeModalProps {
   record: LibraryRecord
   onClose: () => void
   onUpdated: () => void
+  contextNote?: string
 }
 
 // ── 来源配置 ──
@@ -58,7 +59,7 @@ const PROVIDERS_BY_CATEGORY: Record<LibraryCategory, { id: string; label: string
 
 // ── 主组件 ──
 
-export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeModalProps) {
+export default function RescrapeModal({ record, onClose, onUpdated, contextNote }: RescrapeModalProps) {
   const { t } = useI18nStore()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -68,6 +69,7 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
     providers.map((p) => p.id)
   )
   const [results, setResults] = useState<SearchResult[]>([])
+  const [hasSearched, setHasSearched] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -105,6 +107,7 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
     if (!trimmed || selectedProviders.length === 0) return
 
     setSearching(true)
+    setHasSearched(true)
     setError(null)
     setResults([])
 
@@ -193,7 +196,7 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
         if (result.rawgId) detailUrl = `/search/rawg/${result.rawgId}`
         else if (result.steamAppId) detailUrl = `/search/steam/${result.steamAppId}`
       } else {
-        if (result.tmdbId) detailUrl = `/search/tmdb/${result.tmdbId}`
+        if (result.tmdbId) detailUrl = `/search/tmdb/${result.tmdbId}?mediaType=${record.category}`
         else if (result.imdbId) detailUrl = `/search/imdb/${result.imdbId}`
         else if (result.doubanId) detailUrl = `/search/douban/${result.doubanId}`
       }
@@ -256,25 +259,29 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
     const isTv = rec.category === "tv_show"
     const dateField = isTv ? "firstAirDate" : "releaseDate"
 
+    const preservesDoubanIdentity = rec.sourceKey === "douban"
+
     return {
       ...base,
       title: movieDetail?.title || result.title,
       posterUrl: movieDetail?.posterUrl || result.posterUrl || null,
       [dateField]: result.releaseDate || null,
       overview: movieDetail?.plot || result.overview || null,
-      // 外部 ID
-      ...(result.tmdbId != null ? { tmdbId: result.tmdbId } : {}),
-      ...(result.imdbId != null ? { imdbId: result.imdbId } : {}),
-      ...(result.doubanId != null ? { doubanId: result.doubanId } : {}),
-      ...(result.traktId != null ? { traktId: result.traktId } : {}),
+      // 重新匹配会替换辅助身份；豆瓣来源的原始身份保持不变
+      tmdbId: result.tmdbId ?? null,
+      imdbId: result.imdbId ?? movieDetail?.imdbId ?? null,
+      traktId: result.traktId ?? null,
+      ...(preservesDoubanIdentity ? {} : { doubanId: result.doubanId ?? null }),
       // TMDB 原始字段
-      tmdbTitle: result.tmdbId ? (movieDetail?.title || result.title) : rec.tmdbTitle,
-      tmdbPosterUrl: result.tmdbId ? (movieDetail?.posterUrl || result.posterUrl || null) : rec.tmdbPosterUrl,
-      tmdbReleaseDate: result.tmdbId ? result.releaseDate : rec.tmdbReleaseDate,
-      tmdbOverview: result.tmdbId ? (movieDetail?.plot || result.overview || null) : rec.tmdbOverview,
+      tmdbTitle: result.tmdbId ? (movieDetail?.title || result.title) : null,
+      tmdbPosterUrl: result.tmdbId ? (movieDetail?.posterUrl || result.posterUrl || null) : null,
+      tmdbReleaseDate: result.tmdbId ? result.releaseDate : null,
+      tmdbOverview: result.tmdbId ? (movieDetail?.plot || result.overview || null) : null,
       tmdbVoteAverage: result.tmdbId && movieDetail?.imdbRating
         ? parseFloat(movieDetail.imdbRating) || null
-        : rec.tmdbVoteAverage,
+        : null,
+      tmdbPopularity: result.tmdbId ? movieDetail?.tmdbPopularity ?? null : null,
+      tmdbGenreIds: result.tmdbId ? movieDetail?.tmdbGenreIds ?? null : null,
     }
   }
 
@@ -322,6 +329,12 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
             &#x2715;
           </button>
         </div>
+
+        {contextNote && (
+          <div className="border-b border-[var(--line)] bg-[rgba(212,255,0,0.04)] px-5 py-3 text-[10px] leading-5 text-[var(--muted)]">
+            {contextNote}
+          </div>
+        )}
 
         {/* 搜索区域 */}
         <div className="px-5 py-4 border-b border-[var(--line)] space-y-3">
@@ -383,7 +396,7 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
           )}
 
           {/* 无结果 */}
-          {!searching && !updating && results.length === 0 && query.trim() && !error && (
+          {hasSearched && !searching && !updating && results.length === 0 && !error && (
             <div className="px-5 py-12 text-center">
               <p className="text-[10px] text-[var(--muted)] uppercase tracking-widest">
                 {t("lib.rescrape.no_results")}

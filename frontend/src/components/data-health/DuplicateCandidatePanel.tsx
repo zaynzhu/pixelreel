@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from "react"
 import { apiFetch } from "../../api"
 import { proxiedImageUrl } from "../../imageProxy"
 import { useI18nStore } from "../../stores/i18nStore"
+import { toast } from "../../stores/toastStore"
 import type {
   DataHealthCategory,
   DuplicateGroup,
   DuplicateGroupResponse,
   DuplicateReason,
 } from "../../types/dataHealth"
+import type { LibraryRecord } from "../../types/library"
 import { ImgWithFallback } from "../ImgWithFallback"
+import RescrapeModal from "../RescrapeModal"
 
 export function DuplicateCandidatePanel({ category }: { category: DataHealthCategory }) {
   const { t } = useI18nStore()
@@ -19,6 +22,8 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null)
+  const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
 
   const fetchGroups = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ category, limit: "20" })
@@ -60,6 +65,35 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
     } finally {
       setLoadingMore(false)
+    }
+  }
+
+  const refreshGroups = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await fetchGroups()
+      setGroups(data.groups)
+      setTotalGroups(data.totalGroups)
+      setTotalRecords(data.totalRecords)
+      setNextCursor(data.nextCursor)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openRescrape = async (recordId: number) => {
+    setOpeningRecordId(recordId)
+    setError(null)
+    try {
+      const record = await apiFetch<LibraryRecord>(`/library/${category}/${recordId}`)
+      setRescrapeRecord(record)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("health.duplicates.open_error"))
+    } finally {
+      setOpeningRecordId(null)
     }
   }
 
@@ -122,7 +156,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                 {group.records.map(record => {
                   const poster = proxiedImageUrl(record.posterUrl)
                   return (
-                    <div key={`${record.category}-${record.id}`} className="grid gap-4 px-4 py-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_minmax(10rem,auto)] sm:items-center">
+                    <div key={`${record.category}-${record.id}`} className="grid gap-4 px-4 py-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_minmax(10rem,auto)_auto] sm:items-center">
                       <div className="hidden h-12 w-9 overflow-hidden border border-[var(--line)] bg-black sm:block">
                         {poster ? (
                           <ImgWithFallback
@@ -157,6 +191,16 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                           </span>
                         ))}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => void openRescrape(record.id)}
+                        disabled={openingRecordId != null}
+                        className="brutal-btn whitespace-nowrap"
+                      >
+                        {openingRecordId === record.id
+                          ? t("health.duplicates.opening")
+                          : t("health.duplicates.rematch")}
+                      </button>
                     </div>
                   )
                 })}
@@ -174,6 +218,19 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
           </button>
         )}
       </footer>
+
+      {rescrapeRecord && (
+        <RescrapeModal
+          record={rescrapeRecord}
+          contextNote={t("health.duplicates.rematch_note")}
+          onClose={() => setRescrapeRecord(null)}
+          onUpdated={() => {
+            setRescrapeRecord(null)
+            toast(t("health.duplicates.rematch_success"))
+            void refreshGroups()
+          }}
+        />
+      )}
     </section>
   )
 }
