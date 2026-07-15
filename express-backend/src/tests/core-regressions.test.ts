@@ -29,7 +29,7 @@ import {
   serializeLog,
 } from '../routes/activity';
 import { parseAnalyticsParameters, parseAnalyticsYear } from '../routes/analytics';
-import { parseDataHealthIssueParameters } from '../routes/dataHealth';
+import { parseDataHealthIssueParameters, parseDataHealthRepairBody } from '../routes/dataHealth';
 import { getHealthStatus } from '../routes/health';
 import {
   assertEmptyImportRequestBody,
@@ -121,6 +121,10 @@ import {
   buildDataHealthWhere,
   isDataHealthIssueApplicable,
 } from '../services/DataHealthService';
+import {
+  buildMediaRepairUpdate,
+  isDataHealthRepairSupported,
+} from '../services/DataHealthRepairService';
 import {
   buildCompletedWhere,
   encodeLibraryCursor,
@@ -372,6 +376,47 @@ test('数据健康查询只接受适用的问题类型和有界分页参数', ()
     steamAppId: null,
     OR: [{ xboxId: null }, { xboxId: '' }],
     AND: [{ OR: [{ psnId: null }, { psnId: '' }] }],
+  });
+});
+
+test('数据健康自动修复限制批量大小并拒绝不安全的游戏标识匹配', () => {
+  assert.equal(isDataHealthRepairSupported('movie', 'missing_overview'), true);
+  assert.equal(isDataHealthRepairSupported('game', 'missing_poster'), true);
+  assert.equal(isDataHealthRepairSupported('game', 'missing_external_id'), false);
+  assert.deepEqual(parseDataHealthRepairBody({
+    category: 'movie',
+    issue: 'missing_poster',
+    limit: 20,
+  }), { category: 'movie', issue: 'missing_poster', limit: 20 });
+  assert.throws(
+    () => parseDataHealthRepairBody({ category: 'game', issue: 'missing_external_id' }),
+    /需要人工核对/,
+  );
+  assert.throws(
+    () => parseDataHealthRepairBody({ category: 'movie', issue: 'missing_poster', limit: 51 }),
+    /1 到 50/,
+  );
+  assert.throws(
+    () => parseDataHealthRepairBody({ category: 'movie', issue: 'missing_poster', extra: true }),
+    /未知字段/,
+  );
+  assert.deepEqual(buildMediaRepairUpdate('movie', 'missing_poster', {
+    tmdbId: 42n,
+    tmdbPosterUrl: 'https://existing.example/poster.jpg',
+    tmdbOverview: null,
+    tmdbReleaseDate: null,
+  }, 42, 'https://new.example/poster.jpg'), {
+    posterUrl: 'https://new.example/poster.jpg',
+  });
+  assert.deepEqual(buildMediaRepairUpdate('tv_show', 'missing_date', {
+    tmdbId: null,
+    tmdbPosterUrl: null,
+    tmdbOverview: null,
+    tmdbReleaseDate: null,
+  }, 99, '2026-07-15'), {
+    tmdbId: 99,
+    firstAirDate: '2026-07-15',
+    tmdbReleaseDate: '2026-07-15',
   });
 });
 

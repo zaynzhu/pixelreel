@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
+import { confirmDialog } from "../components/Toast"
 import { proxiedImageUrl } from "../imageProxy"
 import { useI18nStore } from "../stores/i18nStore"
+import { useTaskStore } from "../stores/taskStore"
+import { toast } from "../stores/toastStore"
 import type {
   DataHealthCategory,
   DataHealthIssue,
@@ -19,8 +22,17 @@ const ISSUES: Array<{ key: DataHealthIssue; field: keyof DataHealthSummary["cate
   { key: "missing_external_id", field: "missingExternalId" },
 ]
 
+interface RepairTaskResponse {
+  taskId: string
+  status: string
+  type: string
+  label: string
+}
+
 export default function DataHealthPage() {
   const { lang, t } = useI18nStore()
+  const tasks = useTaskStore(state => state.tasks)
+  const pollTasks = useTaskStore(state => state.pollTasks)
   const [summary, setSummary] = useState<DataHealthSummary | null>(null)
   const [category, setCategory] = useState<DataHealthCategory>("movie")
   const [issue, setIssue] = useState<DataHealthIssue>("missing_poster")
@@ -31,6 +43,9 @@ export default function DataHealthPage() {
   const [loadingIssues, setLoadingIssues] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [startingRepair, setStartingRepair] = useState(false)
+  const [repairTaskId, setRepairTaskId] = useState<string | null>(null)
+  const [refreshVersion, setRefreshVersion] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -48,7 +63,7 @@ export default function DataHealthPage() {
     return () => {
       active = false
     }
-  }, [t])
+  }, [refreshVersion, t])
 
   const loadIssues = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ category, issue, limit: "50" })
@@ -76,7 +91,22 @@ export default function DataHealthPage() {
     return () => {
       active = false
     }
-  }, [loadIssues, t])
+  }, [loadIssues, refreshVersion, t])
+
+  useEffect(() => {
+    if (!repairTaskId) return
+    const task = tasks.find(item => item.taskId === repairTaskId)
+    if (!task || task.status === "running") return
+    if (task.status === "completed") {
+      toast(t("health.repair.completed"))
+      setRefreshVersion(version => version + 1)
+    } else if (task.status === "cancelled") {
+      toast(t("health.repair.cancelled"), "error")
+    } else {
+      toast(`${t("health.repair.failed")}: ${task.error || t("health.error")}`, "error")
+    }
+    setRepairTaskId(null)
+  }, [repairTaskId, tasks, t])
 
   const selectedSummary = summary?.categories[category]
   const applicableIssues = useMemo(() => ISSUES.filter(item => (
@@ -90,6 +120,10 @@ export default function DataHealthPage() {
     const slots = selectedSummary.total * applicableIssues.length
     return Math.max(0, Math.round((1 - issueSignals / slots) * 100))
   }, [applicableIssues, selectedSummary])
+  const repairSupported = category !== "game" || issue === "missing_poster"
+  const repairing = startingRepair || tasks.some(task => (
+    task.type === "data-health-repair" && task.status === "running"
+  ))
 
   const selectCategory = (nextCategory: DataHealthCategory) => {
     setCategory(nextCategory)
@@ -109,6 +143,26 @@ export default function DataHealthPage() {
       setError(reason instanceof Error ? reason.message : t("health.error"))
     } finally {
       setLoadingMore(false)
+    }
+  }
+
+  const handleRepair = async () => {
+    if (!repairSupported || total === 0 || repairing) return
+    const limit = Math.min(50, total)
+    if (!(await confirmDialog(t("health.repair.confirm", String(limit))))) return
+    setStartingRepair(true)
+    try {
+      const task = await apiFetch<RepairTaskResponse>("/data-health/repair", {
+        method: "POST",
+        body: JSON.stringify({ category, issue, limit }),
+      })
+      setRepairTaskId(task.taskId)
+      await pollTasks()
+      toast(t("health.repair.started"))
+    } catch (reason) {
+      toast(`${t("health.repair.failed")}: ${reason instanceof Error ? reason.message : t("health.error")}`, "error")
+    } finally {
+      setStartingRepair(false)
     }
   }
 
@@ -199,14 +253,31 @@ export default function DataHealthPage() {
       </section>
 
       <section className="border border-[var(--line)] bg-[var(--surface)]">
-        <div className="flex flex-col gap-2 border-b border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <span className="section-kicker">{t("health.queue")}</span>
             <h2 className="text-lg text-white">{t(`health.issue.${issue}`)}</h2>
+            {total > 0 && !repairSupported && (
+              <p className="mt-1 text-[10px] text-[var(--muted)]">{t("health.repair.manual")}</p>
+            )}
           </div>
-          <span className="font-mono text-xs text-[var(--muted)]">
-            {t("health.matches", String(total))}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs text-[var(--muted)]">
+              {t("health.matches", String(total))}
+            </span>
+            {total > 0 && repairSupported && (
+              <button
+                type="button"
+                onClick={handleRepair}
+                disabled={repairing}
+                className="brutal-btn-accent px-4 text-[10px] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {repairing
+                  ? t("health.repair.running")
+                  : t("health.repair.action", String(Math.min(50, total)))}
+              </button>
+            )}
+          </div>
         </div>
 
         {error && (

@@ -6,7 +6,7 @@ import { createTask, updateProgress, completeTask, failTask } from '../task-mana
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-interface TmdbDetail {
+export interface TmdbDetail {
   tmdbId: number
   title: string
   overview: string | null
@@ -18,7 +18,7 @@ interface TmdbDetail {
   imdbId: string | null
 }
 
-async function fetchMovieDetail(tmdbId: number): Promise<TmdbDetail | null> {
+export async function fetchMovieDetail(tmdbId: number): Promise<TmdbDetail | null> {
   try {
     const url = `${config.tmdb.baseUrl}/movie/${tmdbId}`
     const { data } = await axios.get(url, {
@@ -49,7 +49,7 @@ async function fetchMovieDetail(tmdbId: number): Promise<TmdbDetail | null> {
   }
 }
 
-async function fetchTvDetail(tmdbId: number): Promise<TmdbDetail | null> {
+export async function fetchTvDetail(tmdbId: number): Promise<TmdbDetail | null> {
   try {
     const [detailRes, extIdsRes] = await Promise.all([
       axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {

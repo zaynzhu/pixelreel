@@ -221,6 +221,7 @@ POST   /api/radar/add-to-library
 GET    /api/profile/summary
 GET    /api/data-health/summary
 GET    /api/data-health/issues?category=&issue=&cursor=&limit=
+POST   /api/data-health/repair
 GET    /api/analytics?year=
 GET    /api/activity
 POST   /api/activity/:id/undo
