@@ -17,7 +17,7 @@ const dictionaries = {
     "nav.live": "Live",
     "nav.system": "System // Command Deck",
     "nav.title": "PIXELREEL DATABANK",
-    "nav.desc": "/// ESTABLISHED CONNECTION.\nMonitoring all media metrics, gaming telemetry, and entertainment records.\nData synchronized across nodes.",
+    "nav.desc": "/// ESTABLISHED CONNECTION.\nMonitoring local media metrics, gaming telemetry, and entertainment records.\nCurrent database state is available on demand.",
 
     // Login
     "login.sys_auth": "SYSTEM.AUTH",
@@ -33,9 +33,9 @@ const dictionaries = {
     // Dashboard
     "dash.telemetry": "PROFILE // TELEMETRY",
     "dash.overview": "SYSTEM OVERVIEW",
-    "dash.overview_desc": "/// Aggregating multi-domain data sources. Current sync status: Online.",
-    "dash.syncing": "SYNCING...",
-    "dash.force_sync": "FORCE SYNC",
+    "dash.overview_desc": "/// Aggregated view of the local library. Refresh to read the current database state.",
+    "dash.refreshing": "REFRESHING...",
+    "dash.refresh_stats": "REFRESH STATS",
     
     "dash.metrics.total": "TOTAL.ENTRIES",
     "dash.metrics.total_cap": "Sum of all media",
@@ -44,7 +44,7 @@ const dictionaries = {
     "dash.metrics.games": "GAMES",
     "dash.metrics.tv": "TV_SHOWS",
     "dash.metrics.imported": "IMPORTED",
-    "dash.metrics.imported_cap": "External syncs",
+    "dash.metrics.imported_cap": "External imports",
 
     "dash.avg.global": "GLOBAL.AVG",
     "dash.avg.global_note": "All platforms",
@@ -64,7 +64,7 @@ const dictionaries = {
     "dash.nodes.tv_title": "TV.SEARCH",
     "dash.nodes.tv_desc": "Locate television series records.",
     "dash.nodes.lib_title": "LIBRARY.DB",
-    "dash.nodes.lib_desc": "Access local synchronized database.",
+    "dash.nodes.lib_desc": "Browse the local media library.",
     "dash.btn.exec": "EXEC",
 
     "dash.status.movie": "MOVIE.STATUS",
@@ -77,13 +77,6 @@ const dictionaries = {
     "dash.origin.tv": "TV.SOURCES",
     "dash.platforms": "METRICS // PLATFORMS",
     "dash.platforms.game": "GAME.PLATFORMS",
-
-    "dash.sync.trakt": "SYNC // TRAKT",
-    "dash.sync.trakt_movies": "PULL TRAKT MOVIES",
-    "dash.sync.trakt_shows": "PULL TRAKT TV",
-    "dash.sync.fix_posters": "FILL MISSING POSTERS",
-    "dash.sync.success": "SYNC SUCCESS. SKIPPED: {0}",
-    "dash.sync.failed": "SYNC FAILED",
 
     "dash.log": "LOG // RECENT_ACTIVITY",
     "dash.recent": "LATEST ACQUISITIONS",
@@ -625,7 +618,7 @@ const dictionaries = {
     "nav.live": "实时",
     "nav.system": "系统 // 指令终端",
     "nav.title": "PIXELREEL 数据库",
-    "nav.desc": "/// 连接已建立。\n正在监控所有媒体指标、游戏遥测和娱乐记录。\n数据已跨节点同步。",
+    "nav.desc": "/// 连接已建立。\n正在监控本地媒体指标、游戏遥测和娱乐记录。\n可随时读取数据库当前状态。",
 
     // Login
     "login.sys_auth": "系统.授权",
@@ -641,9 +634,9 @@ const dictionaries = {
     // Dashboard
     "dash.telemetry": "档案 // 遥测",
     "dash.overview": "系统总览",
-    "dash.overview_desc": "/// 聚合多域数据源。当前同步状态：在线。",
-    "dash.syncing": "同步中...",
-    "dash.force_sync": "强制同步",
+    "dash.overview_desc": "/// 本地资料库聚合视图。刷新即可读取数据库当前状态。",
+    "dash.refreshing": "刷新中...",
+    "dash.refresh_stats": "刷新统计",
     
     "dash.metrics.total": "总计条目",
     "dash.metrics.total_cap": "所有媒体总和",
@@ -652,7 +645,7 @@ const dictionaries = {
     "dash.metrics.games": "游戏",
     "dash.metrics.tv": "电视剧",
     "dash.metrics.imported": "已导入",
-    "dash.metrics.imported_cap": "外部同步",
+    "dash.metrics.imported_cap": "外部导入",
 
     "dash.avg.global": "全局均分",
     "dash.avg.global_note": "跨全平台",
@@ -672,7 +665,7 @@ const dictionaries = {
     "dash.nodes.tv_title": "剧集检索",
     "dash.nodes.tv_desc": "定位电视剧记录。",
     "dash.nodes.lib_title": "记录数据库",
-    "dash.nodes.lib_desc": "访问本地同步的数据库。",
+    "dash.nodes.lib_desc": "浏览本地媒体资料库。",
     "dash.btn.exec": "执行",
 
     "dash.status.movie": "电影状态分布",
@@ -685,13 +678,6 @@ const dictionaries = {
     "dash.origin.tv": "剧集数据源",
     "dash.platforms": "指标 // 平台",
     "dash.platforms.game": "游戏平台分布",
-
-    "dash.sync.trakt": "同步 // TRAKT",
-    "dash.sync.trakt_movies": "拉取 Trakt 电影",
-    "dash.sync.trakt_shows": "拉取 Trakt 剧集",
-    "dash.sync.fix_posters": "修复缺失海报",
-    "dash.sync.success": "同步成功。跳过已有：{0}",
-    "dash.sync.failed": "同步失败",
 
     "dash.log": "日志 // 最近活动",
     "dash.recent": "最新入库记录",

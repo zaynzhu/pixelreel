@@ -56,7 +56,7 @@ export default function DashboardPage() {
             onClick={() => void fetchSummary()}
             className="brutal-btn"
           >
-            {loading ? t("dash.syncing") : t("dash.force_sync")}
+            {loading ? t("dash.refreshing") : t("dash.refresh_stats")}
           </button>
         </div>
 
@@ -260,9 +260,10 @@ export default function DashboardPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {summary?.recentItems.length ? (
             summary.recentItems.map((item) => (
-              <article
+              <Link
                 key={`${item.category}-${item.id}`}
-                className="group relative overflow-hidden border border-[var(--line)] bg-[var(--surface-hover)] transition-all hover:border-white"
+                to={`/library/${item.category}/${item.id}`}
+                className="group relative overflow-hidden border border-[var(--line)] bg-[var(--surface-hover)] transition-all hover:border-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               >
                 <div className="aspect-[4/5] bg-[#111] relative overflow-hidden">
                   {item.posterUrl ? (
@@ -297,7 +298,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </div>
-              </article>
+              </Link>
             ))
           ) : (
             <LoadingHint loading={loading} t={t} />
