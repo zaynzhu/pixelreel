@@ -93,6 +93,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     const requestId = ++latestFetchRequest;
     set({
       loading: true,
+      loadingMore: false,
       error: null,
       nextCursor: null,
       pageSize: limit,
@@ -136,6 +137,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     } = get();
     if (!nextCursor || loadingMore || loading) return;
     const cursor = nextCursor;
+    const requestId = latestFetchRequest;
     set({ loadingMore: true, error: null });
     try {
       const query = new URLSearchParams({
@@ -150,10 +152,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (filterReview !== "all") query.set("review", filterReview);
       if (filterSort !== "recent") query.set("sort", filterSort);
       const payload = await apiFetch<PaginatedResponse>(`/library?${query.toString()}`);
-      if (get().nextCursor !== cursor) {
-        set({ loadingMore: false });
-        return;
-      }
+      if (requestId !== latestFetchRequest || get().nextCursor !== cursor) return;
       const seen = new Set(get().records.map(recordKey));
       const newRecords = payload.records.filter((record) => !seen.has(recordKey(record)));
       set({
@@ -162,6 +161,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         loadingMore: false,
       });
     } catch (err) {
+      if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "加载更多记录失败",
         loadingMore: false,
