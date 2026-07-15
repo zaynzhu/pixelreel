@@ -44,6 +44,9 @@ const dictionaries = {
     "dash.overview_desc": "/// Aggregated view of the local library. Refresh to read the current database state.",
     "dash.refreshing": "REFRESHING...",
     "dash.refresh_stats": "REFRESH STATS",
+    "dash.error.kicker": "PROFILE // READ FAILURE",
+    "dash.error.title": "UNABLE TO LOAD LIBRARY OVERVIEW",
+    "dash.error.retry": "RETRY OVERVIEW",
     
     "dash.metrics.total": "TOTAL.ENTRIES",
     "dash.metrics.total_cap": "Sum of all media",
@@ -729,6 +732,9 @@ const dictionaries = {
     "dash.overview_desc": "/// 本地资料库聚合视图。刷新即可读取数据库当前状态。",
     "dash.refreshing": "刷新中...",
     "dash.refresh_stats": "刷新统计",
+    "dash.error.kicker": "档案 // 读取失败",
+    "dash.error.title": "无法读取资料库总览",
+    "dash.error.retry": "重新读取",
     
     "dash.metrics.total": "总计条目",
     "dash.metrics.total_cap": "所有媒体总和",

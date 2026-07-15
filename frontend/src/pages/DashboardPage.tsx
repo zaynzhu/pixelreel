@@ -14,6 +14,29 @@ export default function DashboardPage() {
     void fetchSummary();
   }, [fetchSummary]);
 
+  if (!summary) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        {error ? (
+          <div role="alert" className="dash-card w-full max-w-xl border-[var(--accent-deep)] p-6 sm:p-8">
+            <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-[var(--accent-deep)]">
+              {t("dash.error.kicker")}
+            </span>
+            <h1 className="mt-2 font-display text-2xl text-white">{t("dash.error.title")}</h1>
+            <p className="mt-3 break-all text-xs leading-6 text-[var(--muted)]">{error}</p>
+            <button type="button" onClick={() => void fetchSummary()} className="brutal-btn-accent mt-6">
+              {t("dash.error.retry")}
+            </button>
+          </div>
+        ) : (
+          <div className="font-mono text-xs uppercase tracking-[0.24em] text-[var(--accent)] animate-pulse">
+            {t("dash.awaiting")}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const overview = summary?.overview;
 
   const QUICK_LINKS = [
