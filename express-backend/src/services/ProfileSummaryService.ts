@@ -7,9 +7,60 @@ import { RecordStatus } from '../enums/RecordStatus';
 const RECENT_LIMIT = 15;
 
 export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
-  const movies = await getDb().movie.findMany({ orderBy: { createdAt: 'desc' } });
-  const games = await getDb().game.findMany({ orderBy: { createdAt: 'desc' } });
-  const tvShows = await getDb().tvShow.findMany({ orderBy: { createdAt: 'desc' } });
+  const db = getDb();
+  const [movies, games, tvShows] = await Promise.all([
+    db.movie.findMany({
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        status: true,
+        rating: true,
+        shortReview: true,
+        createdAt: true,
+        tmdbId: true,
+        doubanId: true,
+        imdbId: true,
+        traktId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    db.game.findMany({
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        status: true,
+        rating: true,
+        shortReview: true,
+        createdAt: true,
+        platform: true,
+        playtimeMinutes: true,
+        importedAt: true,
+        steamAppId: true,
+        xboxId: true,
+        psnId: true,
+        rawgId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    db.tvShow.findMany({
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        status: true,
+        rating: true,
+        shortReview: true,
+        createdAt: true,
+        tmdbId: true,
+        doubanId: true,
+        imdbId: true,
+        traktId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
 
   return {
     overview: buildOverview(movies, games, tvShows),
