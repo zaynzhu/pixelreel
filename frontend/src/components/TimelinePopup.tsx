@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { LibraryRecord, RecordStatus } from "../types/library";
 import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
@@ -17,6 +17,7 @@ interface TimelinePopupProps {
 
 export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onClose, onRescrape }: TimelinePopupProps) {
   const { t } = useI18nStore();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!lightweightRecord) return;
@@ -26,6 +27,17 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [lightweightRecord, onClose]);
+
+  useEffect(() => {
+    if (!lightweightRecord) return;
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [lightweightRecord]);
 
   if (!lightweightRecord) return null;
 
@@ -103,12 +115,18 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="timeline-popup-title"
         className="relative w-full max-w-[720px] overflow-hidden border border-[var(--line)] bg-[var(--surface)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
+          ref={closeButtonRef}
+          type="button"
           onClick={onClose}
+          aria-label={t("timeline.close")}
           className="absolute top-3 right-3 z-10 text-[var(--muted)] hover:text-white text-lg font-bold leading-none"
         >
           ✕
@@ -152,7 +170,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
 
           {/* Title + meta */}
           <div className="flex flex-1 flex-col gap-3 p-5">
-            <h3 className="font-display text-lg font-bold uppercase text-white leading-tight">
+            <h3 id="timeline-popup-title" className="font-display text-lg font-bold uppercase text-white leading-tight">
               {title}
             </h3>
 
@@ -270,6 +288,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
               )}
               {fullRecord && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onRescrape?.(fullRecord);

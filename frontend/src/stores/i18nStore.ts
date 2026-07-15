@@ -204,6 +204,7 @@ const dictionaries = {
     "timeline.items": "items",
     "timeline.all": "ALL",
     "timeline.added": "Added",
+    "timeline.close": "CLOSE",
 
     // Activity
     "activity.title": "ACTIVITY LOG",
@@ -550,6 +551,7 @@ const dictionaries = {
     "timeline.items": "条",
     "timeline.all": "全部",
     "timeline.added": "添加于",
+    "timeline.close": "关闭",
 
     // Activity
     "activity.title": "操作日志",
