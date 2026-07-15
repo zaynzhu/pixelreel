@@ -118,6 +118,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
 
   return {
     year,
+    availableYears: collectAvailableAnalyticsYears([...movies, ...games, ...tvShows], year),
     overview: {
       completedThisYear,
       completedLastYear,
@@ -132,6 +133,29 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     crossPlatformRatings: buildCrossPlatformRatings(movies),
     topRated: buildTopRated(movies, games, tvShows, yearStart, yearEnd),
   }
+}
+
+export function collectAvailableAnalyticsYears(
+  records: Array<{
+    createdAt: Date | null
+    updatedAt: Date | null
+    doubanDate?: string | null
+    status: string | null
+  }>,
+  selectedYear: number,
+) {
+  const years = new Set<number>([selectedYear])
+  const addYear = (date: Date | null) => {
+    const year = date?.getUTCFullYear()
+    if (year != null && year >= 1900 && year <= 3000) years.add(year)
+  }
+
+  for (const record of records) {
+    addYear(record.createdAt)
+    if (record.status === RecordStatus.DONE) addYear(resolveCompletionDate(record))
+  }
+
+  return [...years].sort((left, right) => right - left)
 }
 
 function buildMonthlyCompletion(

@@ -131,7 +131,11 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
-import { buildCrossPlatformRatings, resolveCompletionDate } from '../services/AnalyticsService';
+import {
+  buildCrossPlatformRatings,
+  collectAvailableAnalyticsYears,
+  resolveCompletionDate,
+} from '../services/AnalyticsService';
 import {
   buildDataHealthWhere,
   isDataHealthIssueApplicable,
@@ -1797,6 +1801,22 @@ test('年度分析优先使用严格合法的豆瓣标记日期', () => {
   assert.equal(resolveCompletionDate({ doubanDate: null, updatedAt }), updatedAt);
   assert.equal(resolveCompletionDate({ doubanDate: '2024-02-31', updatedAt }), updatedAt);
   assert.equal(resolveCompletionDate({ doubanDate: 'not-a-date', updatedAt }), updatedAt);
+});
+
+test('年度分析只列出实际数据年份并保留当前选择', () => {
+  assert.deepEqual(collectAvailableAnalyticsYears([
+    {
+      createdAt: new Date('2026-05-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-05-22T00:00:00.000Z'),
+      doubanDate: '2019-03-08',
+      status: RecordStatus.DONE,
+    },
+    {
+      createdAt: new Date('2025-06-01T00:00:00.000Z'),
+      updatedAt: new Date('2025-06-01T00:00:00.000Z'),
+      status: RecordStatus.WANT,
+    },
+  ], 2027), [2027, 2026, 2025, 2019]);
 });
 
 test('Steam 搜索失败返回明确提示而不是伪装成空结果', async () => {

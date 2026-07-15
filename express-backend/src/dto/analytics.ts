@@ -1,6 +1,7 @@
 // 分析接口响应类型
 export interface AnalyticsResponse {
   year: number
+  availableYears: number[]
 
   overview: {
     completedThisYear: number

@@ -9,17 +9,12 @@ import { CrossPlatformChart } from "../components/analytics/CrossPlatformChart"
 import { TopRatedList } from "../components/analytics/TopRatedList"
 
 export default function AnalyticsPage() {
-  const { data, year, loading, error, setYear, fetchAnalytics } = useAnalyticsStore()
+  const { data, year, loading, error, fetchAnalytics } = useAnalyticsStore()
   const { t } = useI18nStore()
 
   useEffect(() => {
     void fetchAnalytics()
   }, [fetchAnalytics])
-
-  const handleYearChange = (delta: number) => {
-    const newYear = year + delta
-    void fetchAnalytics(newYear)
-  }
 
   if (loading) {
     return (
@@ -40,6 +35,10 @@ export default function AnalyticsPage() {
       </div>
     )
   }
+
+  const yearIndex = data.availableYears.indexOf(year)
+  const olderYear = data.availableYears[yearIndex + 1]
+  const newerYear = yearIndex > 0 ? data.availableYears[yearIndex - 1] : undefined
 
   return (
     <div className="analytics-bg flex flex-col gap-4">
@@ -64,25 +63,40 @@ export default function AnalyticsPage() {
 
         <div className="flex items-center gap-3">
           <button
-            className="text-[10px] uppercase tracking-wider cursor-pointer px-2 py-0.5"
+            className="cursor-pointer px-2 py-0.5 text-[10px] uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
             style={{
               color: "var(--accent)",
               border: "1px solid rgba(212,255,0,0.3)",
               background: "rgba(212,255,0,0.05)",
             }}
-            onClick={() => handleYearChange(-1)}
+            onClick={() => olderYear != null && void fetchAnalytics(olderYear)}
+            disabled={olderYear == null}
+            aria-label={t("analytics.year.older")}
           >
             ←
           </button>
-          <span className="showcase-number text-2xl">{year}</span>
+          <select
+            value={year}
+            onChange={(event) => void fetchAnalytics(Number(event.target.value))}
+            aria-label={t("analytics.year.select")}
+            className="showcase-number w-24 appearance-none border-0 bg-transparent text-center text-2xl outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+          >
+            {data.availableYears.map((availableYear) => (
+              <option key={availableYear} value={availableYear} className="bg-[var(--surface)] text-white">
+                {availableYear}
+              </option>
+            ))}
+          </select>
           <button
-            className="text-[10px] uppercase tracking-wider cursor-pointer px-2 py-0.5"
+            className="cursor-pointer px-2 py-0.5 text-[10px] uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
             style={{
               color: "var(--accent)",
               border: "1px solid rgba(212,255,0,0.3)",
               background: "rgba(212,255,0,0.05)",
             }}
-            onClick={() => handleYearChange(1)}
+            onClick={() => newerYear != null && void fetchAnalytics(newerYear)}
+            disabled={newerYear == null}
+            aria-label={t("analytics.year.newer")}
           >
             →
           </button>

@@ -1,5 +1,6 @@
 export interface AnalyticsData {
   year: number
+  availableYears: number[]
   overview: {
     completedThisYear: number
     completedLastYear: number
