@@ -41,7 +41,11 @@ import {
   parseTimelineCategory,
   parseTimelineListParameters,
 } from '../routes/timeline';
-import { parseTraktImportParameters } from '../routes/trakt';
+import {
+  parseTraktImportParameters,
+  parseTraktPageCount,
+  parseTraktPageData,
+} from '../routes/trakt';
 import { parseConvertCategoryBody, parseToolSearchParameters } from '../routes/tools';
 import {
   parsePositiveIntegerParameter,
@@ -737,6 +741,25 @@ test('Trakt 导入仅接受状态参数且拒绝通过 URL 传递凭据', () => 
   assert.throws(
     () => parseTraktImportParameters({ status: 'INVALID' }),
     RequestValidationError,
+  );
+});
+
+test('Trakt 导入拒绝异常分页响应以避免失控请求', () => {
+  assert.equal(parseTraktPageCount(undefined), 1);
+  assert.equal(parseTraktPageCount('0'), 0);
+  assert.equal(parseTraktPageCount(' 12 '), 12);
+  assert.throws(
+    () => parseTraktPageCount('not-a-number'),
+    (error: any) => error.status === 502 && error.message === 'Trakt 返回了无效的分页信息',
+  );
+  assert.throws(
+    () => parseTraktPageCount('1001'),
+    (error: any) => error.status === 502 && error.message === 'Trakt 返回的分页数量超出安全范围',
+  );
+  assert.deepEqual(parseTraktPageData([{ movie: { title: '测试' } }]), [{ movie: { title: '测试' } }]);
+  assert.throws(
+    () => parseTraktPageData({ error: 'upstream failure' }),
+    (error: any) => error.status === 502 && error.message === 'Trakt 返回了无效的数据格式',
   );
 });
 

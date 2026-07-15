@@ -12,6 +12,11 @@ import {
 } from './request-validation';
 
 const router = Router();
+const MAX_TRAKT_PAGE_COUNT = 1000;
+
+class TraktApiResponseError extends Error {
+  status = 502;
+}
 
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
@@ -31,6 +36,31 @@ export function parseTraktImportParameters(value: Record<string, unknown>) {
   return {
     status: parseRecordStatusParameter(value.status, RecordStatus.WANT),
   };
+}
+
+export function parseTraktPageCount(value: unknown): number {
+  if (value === undefined || value === null) return 1;
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    throw new TraktApiResponseError('Trakt 返回了无效的分页信息');
+  }
+
+  const normalized = String(value).trim();
+  if (!/^(0|[1-9]\d*)$/.test(normalized)) {
+    throw new TraktApiResponseError('Trakt 返回了无效的分页信息');
+  }
+
+  const pageCount = Number(normalized);
+  if (!Number.isSafeInteger(pageCount) || pageCount > MAX_TRAKT_PAGE_COUNT) {
+    throw new TraktApiResponseError('Trakt 返回的分页数量超出安全范围');
+  }
+  return pageCount;
+}
+
+export function parseTraktPageData(value: unknown): any[] {
+  if (!Array.isArray(value)) {
+    throw new TraktApiResponseError('Trakt 返回了无效的数据格式');
+  }
+  return value;
 }
 
 // GET /api/trakt/auth — 重定向到 Trakt 授权页
@@ -84,11 +114,11 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
   
   while (true) {
     const res = await axios.get(`${config.trakt.baseUrl}${endpoint}?page=${page}&limit=${limit}`, { headers });
-    const data = res.data || [];
+    const data = parseTraktPageData(res.data);
     allData = allData.concat(data);
     
     // 解析 Trakt 返回的分页 Headers
-    const pageCount = parseInt(res.headers['x-pagination-page-count'] || '1', 10);
+    const pageCount = parseTraktPageCount(res.headers['x-pagination-page-count']);
     if (page >= pageCount) {
       break;
     }
