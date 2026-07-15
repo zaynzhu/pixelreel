@@ -46,7 +46,7 @@ export default function App() {
   }, [initializeAuth])
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Suspense fallback={<div className="p-6 text-xs text-[var(--muted)]">LOADING...</div>}>
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
