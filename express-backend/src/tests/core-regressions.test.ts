@@ -46,6 +46,7 @@ import {
   parseLibraryRecordCategory,
 } from '../routes/library';
 import {
+  assertRadarSyncRequest,
   parseRadarItemIdBody,
   parseRadarListParameters,
   parseRadarSyncSource,
@@ -488,12 +489,18 @@ test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {
   assert.equal(parseRadarSyncSource('tencent'), 'tencent');
   assert.equal(parseRadarItemIdBody({ radarItemId: '9007199254740993' }), 9007199254740993n);
   assert.equal(parseRadarItemIdBody({ radarItemId: 42 }), 42n);
+  assert.doesNotThrow(() => assertRadarSyncRequest({}, undefined));
+  assert.doesNotThrow(() => assertRadarSyncRequest({}, {}));
 
   assert.throws(() => parseRadarListParameters({ category: 'invalid' }), RequestValidationError);
+  assert.throws(() => parseRadarListParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseRadarListParameters({ page: '1.5' }), RequestValidationError);
   assert.throws(() => parseRadarListParameters({ limit: '101' }), RequestValidationError);
   assert.throws(() => parseRadarListParameters({ source: ['tmdb'] }), RequestValidationError);
   assert.throws(() => parseRadarSyncSource('douban'), RequestValidationError);
+  assert.throws(() => assertRadarSyncRequest({ source: 'tmdb' }, undefined), RequestValidationError);
+  assert.throws(() => assertRadarSyncRequest({}, { source: 'tmdb' }), RequestValidationError);
+  assert.throws(() => assertRadarSyncRequest({}, []), RequestValidationError);
   assert.throws(() => parseRadarItemIdBody({ radarItemId: 0 }), RequestValidationError);
   assert.throws(() => parseRadarItemIdBody({ radarItemId: 1, extra: true }), RequestValidationError);
 });

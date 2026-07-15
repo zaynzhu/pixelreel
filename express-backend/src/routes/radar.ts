@@ -17,8 +17,14 @@ const VALID_PLATFORMS = ['Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '�
 const VALID_SOURCES = ['tmdb', 'youku', 'tencent', 'douban'] as const;
 const SYNC_SOURCES = ['tmdb', 'youku', 'tencent'] as const;
 const VALID_SYNC_TYPES = ['new_release', 'popular'] as const;
+const RADAR_LIST_PARAMETER_KEYS = new Set([
+  'category', 'type', 'platform', 'source', 'syncType', 'page', 'limit',
+]);
 
 export function parseRadarListParameters(query: Record<string, unknown>) {
+  const unknownKey = Object.keys(query).find(key => !RADAR_LIST_PARAMETER_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+
   return {
     category: parseEnumParameter(query.category, 'category', VALID_CATEGORIES),
     type: parseEnumParameter(query.type, 'type', VALID_TYPES),
@@ -32,6 +38,16 @@ export function parseRadarListParameters(query: Record<string, unknown>) {
 
 export function parseRadarSyncSource(value: unknown) {
   return parseEnumParameter(value, 'source', SYNC_SOURCES, true)!;
+}
+
+export function assertRadarSyncRequest(query: Record<string, unknown>, body: unknown) {
+  const unknownKey = Object.keys(query)[0];
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+  if (body === undefined) return;
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+    || Object.keys(body as Record<string, unknown>).length > 0) {
+    throw new RequestValidationError('请求体必须为空');
+  }
 }
 
 export function parseRadarItemIdBody(value: unknown): bigint {
@@ -117,7 +133,8 @@ router.get('/status', (_req: Request, res: Response) => {
 });
 
 // POST /api/radar/sync — trigger full sync
-router.post('/sync', async (_req: Request, res: Response, next: NextFunction) => {
+router.post('/sync', async (req: Request, res: Response, next: NextFunction) => {
+  assertRadarSyncRequest(req.query, req.body);
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -136,6 +153,7 @@ router.post('/sync', async (_req: Request, res: Response, next: NextFunction) =>
 
 // POST /api/radar/sync/:source — trigger single-source sync
 router.post('/sync/:source', async (req: Request, res: Response, next: NextFunction) => {
+  assertRadarSyncRequest(req.query, req.body);
   const source = parseRadarSyncSource(req.params.source);
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
@@ -160,7 +178,8 @@ router.get('/new-releases/status', (_req: Request, res: Response) => {
 });
 
 // POST /api/radar/sync-new-releases — trigger new release sync
-router.post('/sync-new-releases', async (_req: Request, res: Response, next: NextFunction) => {
+router.post('/sync-new-releases', async (req: Request, res: Response, next: NextFunction) => {
+  assertRadarSyncRequest(req.query, req.body);
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
     return;
@@ -179,6 +198,7 @@ router.post('/sync-new-releases', async (_req: Request, res: Response, next: Nex
 
 // POST /api/radar/sync-new-releases/:source — trigger single-source new release sync
 router.post('/sync-new-releases/:source', async (req: Request, res: Response, next: NextFunction) => {
+  assertRadarSyncRequest(req.query, req.body);
   const source = parseRadarSyncSource(req.params.source);
   if (!config.radar.enabled) {
     res.status(403).json({ error: '雷达模块未启用' });
