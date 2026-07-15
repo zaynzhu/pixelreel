@@ -130,7 +130,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     monthlyCompletion: buildMonthlyCompletion(doneMoviesThisYear, doneGamesThisYear, doneTvShowsThisYear),
     ratingDistribution: buildRatingDistribution(ratedMoviesThisYear, ratedGamesThisYear, ratedTvShowsThisYear),
     sourceBreakdown: buildSourceBreakdown(movies, games, tvShows, yearStart, yearEnd),
-    crossPlatformRatings: buildCrossPlatformRatings(movies),
+    crossPlatformRatings: buildCrossPlatformRatings(movies, yearStart, yearEnd),
     topRated: buildTopRated(movies, games, tvShows, yearStart, yearEnd),
   }
 }
@@ -246,10 +246,15 @@ function buildSourceBreakdown(
   return { movies: movieSources, games: gamePlatforms, tvShows: tvSources }
 }
 
-export function buildCrossPlatformRatings(movies: any[]): AnalyticsResponse['crossPlatformRatings'] {
+export function buildCrossPlatformRatings(
+  movies: any[],
+  yearStart: Date,
+  yearEnd: Date,
+): AnalyticsResponse['crossPlatformRatings'] {
   const ratings = new Map<string, AnalyticsResponse['crossPlatformRatings'][number]>()
 
   for (const movie of movies) {
+    if (movie.createdAt == null || movie.createdAt < yearStart || movie.createdAt >= yearEnd) continue
     if (movie.doubanRating == null || movie.tmdbVoteAverage == null) continue
     const doubanRating = movie.doubanRating
     const tmdbRating = Math.round((Number(movie.tmdbVoteAverage) / 2) * 10) / 10

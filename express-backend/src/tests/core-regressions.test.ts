@@ -1780,13 +1780,16 @@ test('已游玩的想玩游戏按进行中统计', () => {
   assert.equal(effectiveGameStatus({ status: 'DONE', playtimeMinutes: 30 }), 'DONE');
 });
 
-test('跨平台评分按相同分数组合聚合', () => {
+test('跨平台评分只聚合本年入库记录并按相同分数组合', () => {
+  const yearStart = new Date('2026-01-01T00:00:00.000Z');
+  const yearEnd = new Date('2027-01-01T00:00:00.000Z');
   assert.deepEqual(buildCrossPlatformRatings([
-    { doubanRating: 5, tmdbVoteAverage: 8.0 },
-    { doubanRating: 5, tmdbVoteAverage: 8.0 },
-    { doubanRating: 4, tmdbVoteAverage: 7.5 },
-    { doubanRating: null, tmdbVoteAverage: 9.0 },
-  ]), [
+    { doubanRating: 5, tmdbVoteAverage: 8.0, createdAt: new Date('2026-02-01T00:00:00.000Z') },
+    { doubanRating: 5, tmdbVoteAverage: 8.0, createdAt: new Date('2026-03-01T00:00:00.000Z') },
+    { doubanRating: 4, tmdbVoteAverage: 7.5, createdAt: new Date('2026-04-01T00:00:00.000Z') },
+    { doubanRating: null, tmdbVoteAverage: 9.0, createdAt: new Date('2026-05-01T00:00:00.000Z') },
+    { doubanRating: 1, tmdbVoteAverage: 2.0, createdAt: new Date('2025-12-31T23:59:59.000Z') },
+  ], yearStart, yearEnd), [
     { doubanRating: 4, tmdbRating: 3.8, count: 1 },
     { doubanRating: 5, tmdbRating: 4, count: 2 },
   ]);
