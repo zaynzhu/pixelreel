@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   ExternalMovieSearchResult,
   ExternalSearchResponse,
@@ -31,6 +31,8 @@ export default function MovieSearch() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<ImdbDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const latestSearchRequest = useRef(0);
+  const latestDetailRequest = useRef(0);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
 
@@ -41,20 +43,27 @@ export default function MovieSearch() {
       return;
     }
 
+    const requestId = ++latestSearchRequest.current;
+    latestDetailRequest.current++;
     setLoading(true);
     setError(null);
+    setExpandedKey(null);
+    setDetail(null);
+    setDetailLoading(false);
 
     try {
       const payload = await apiFetch<ExternalSearchResponse<ExternalMovieSearchResult>>(
         `/search/movies?query=${encodeURIComponent(trimmed)}&page=${nextPage}&providers=${activeProvider}`
       );
+      if (requestId !== latestSearchRequest.current) return;
       const providerResult = payload.providers?.[0] ?? null;
       setData(providerResult);
       setPage(providerResult?.page ?? nextPage);
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return;
       setError(err instanceof Error ? err.message : t("search.failed"));
     } finally {
-      setLoading(false);
+      if (requestId === latestSearchRequest.current) setLoading(false);
     }
   };
 
@@ -77,14 +86,17 @@ export default function MovieSearch() {
 
   const toggleDetail = async (movie: ExternalMovieSearchResult) => {
     const key = buildMovieKey(movie);
+    const requestId = ++latestDetailRequest.current;
     if (expandedKey === key) {
       setExpandedKey(null);
       setDetail(null);
+      setDetailLoading(false);
       return;
     }
 
     setExpandedKey(key);
     setDetail(null);
+    setDetailLoading(false);
 
     // 根据可用的 ID 选择详情接口
     let detailUrl: string | null = null;
@@ -100,11 +112,12 @@ export default function MovieSearch() {
     setDetailLoading(true);
     try {
       const result = await apiFetch<ImdbDetail>(detailUrl);
+      if (requestId !== latestDetailRequest.current) return;
       setDetail(result);
     } catch {
       // 静默失败，详情不可用
     } finally {
-      setDetailLoading(false);
+      if (requestId === latestDetailRequest.current) setDetailLoading(false);
     }
   };
 
@@ -121,11 +134,15 @@ export default function MovieSearch() {
           <button
             key={provider.id}
             onClick={() => {
+              latestSearchRequest.current++;
+              latestDetailRequest.current++;
               setActiveProvider(provider.id);
               setData(null);
               setPage(1);
               setExpandedKey(null);
               setDetail(null);
+              setLoading(false);
+              setDetailLoading(false);
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >

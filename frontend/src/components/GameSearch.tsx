@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   ExternalGameSearchResult,
   ExternalSearchResponse,
@@ -39,6 +39,8 @@ export default function GameSearch() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<GameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const latestSearchRequest = useRef(0);
+  const latestDetailRequest = useRef(0);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
   const activeProviderConfig =
@@ -51,33 +53,43 @@ export default function GameSearch() {
       return;
     }
 
+    const requestId = ++latestSearchRequest.current;
+    latestDetailRequest.current++;
     setLoading(true);
     setError(null);
+    setExpandedKey(null);
+    setDetail(null);
+    setDetailLoading(false);
 
     try {
       const payload = await apiFetch<ExternalSearchResponse<ExternalGameSearchResult>>(
         `/search/games?query=${encodeURIComponent(trimmed)}&page=${nextPage}&providers=${activeProvider}`
       );
+      if (requestId !== latestSearchRequest.current) return;
       const providerResult = payload.providers?.[0] ?? null;
       setData(providerResult);
       setPage(providerResult?.page ?? nextPage);
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return;
       setError(err instanceof Error ? err.message : t("search.failed"));
     } finally {
-      setLoading(false);
+      if (requestId === latestSearchRequest.current) setLoading(false);
     }
   };
 
   const toggleDetail = async (game: ExternalGameSearchResult) => {
     const key = buildGameKey(game);
+    const requestId = ++latestDetailRequest.current;
     if (expandedKey === key) {
       setExpandedKey(null);
       setDetail(null);
+      setDetailLoading(false);
       return;
     }
 
     setExpandedKey(key);
     setDetail(null);
+    setDetailLoading(false);
 
     // 根据可用的 ID 选择详情接口
     let detailUrl: string | null = null;
@@ -91,11 +103,12 @@ export default function GameSearch() {
     setDetailLoading(true);
     try {
       const result = await apiFetch<GameDetail>(detailUrl);
+      if (requestId !== latestDetailRequest.current) return;
       setDetail(result);
     } catch {
       // 静默失败
     } finally {
-      setDetailLoading(false);
+      if (requestId === latestDetailRequest.current) setDetailLoading(false);
     }
   };
 
@@ -126,10 +139,16 @@ export default function GameSearch() {
             key={provider.id}
             type="button"
             onClick={() => {
+              latestSearchRequest.current++;
+              latestDetailRequest.current++;
               setActiveProvider(provider.id);
               setData(null);
               setPage(1);
               setError(null);
+              setExpandedKey(null);
+              setDetail(null);
+              setLoading(false);
+              setDetailLoading(false);
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >

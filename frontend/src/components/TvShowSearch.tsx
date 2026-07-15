@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   ExternalTvShowSearchResult,
   ExternalSearchResponse,
@@ -24,6 +24,7 @@ export default function TvShowSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
+  const latestSearchRequest = useRef(0);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
 
@@ -34,6 +35,7 @@ export default function TvShowSearch() {
       return;
     }
 
+    const requestId = ++latestSearchRequest.current;
     setLoading(true);
     setError(null);
 
@@ -41,13 +43,15 @@ export default function TvShowSearch() {
       const payload = await apiFetch<ExternalSearchResponse<ExternalTvShowSearchResult>>(
         `/search/tv-shows?query=${encodeURIComponent(trimmed)}&page=${nextPage}&providers=${activeProvider}`
       );
+      if (requestId !== latestSearchRequest.current) return;
       const providerResult = payload.providers?.[0] ?? null;
       setData(providerResult);
       setPage(providerResult?.page ?? nextPage);
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return;
       setError(err instanceof Error ? err.message : t("search.failed"));
     } finally {
-      setLoading(false);
+      if (requestId === latestSearchRequest.current) setLoading(false);
     }
   };
 
@@ -81,9 +85,11 @@ export default function TvShowSearch() {
           <button
             key={provider.id}
             onClick={() => {
+              latestSearchRequest.current++;
               setActiveProvider(provider.id);
               setData(null);
               setPage(1);
+              setLoading(false);
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >
