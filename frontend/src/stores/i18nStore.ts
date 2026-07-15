@@ -29,6 +29,14 @@ const dictionaries = {
     "login.btn_verify": "VERIFYING...",
     "login.btn_login": "INITIALIZE LOGIN",
     "login.err_auth": "AUTHENTICATION FAILED",
+    "auth.loading_kicker": "SYSTEM // AUTH CHECK",
+    "auth.loading_title": "VERIFYING ACCESS MODE",
+    "auth.loading_desc": "Reading the server authentication policy before opening the databank.",
+    "auth.unavailable_kicker": "SYSTEM // CONNECTION FAULT",
+    "auth.unavailable_title": "AUTH STATUS UNAVAILABLE",
+    "auth.unavailable_desc": "The server authentication policy could not be read. Retry after the backend connection is restored.",
+    "auth.retry": "RETRY CONNECTION",
+    "auth.retrying": "RETRYING...",
 
     // Dashboard
     "dash.telemetry": "PROFILE // TELEMETRY",
@@ -686,6 +694,14 @@ const dictionaries = {
     "login.btn_verify": "验证中...",
     "login.btn_login": "初始化登录",
     "login.err_auth": "身份验证失败",
+    "auth.loading_kicker": "系统 // 认证检查",
+    "auth.loading_title": "正在确认访问模式",
+    "auth.loading_desc": "进入数据库前，正在读取服务端认证策略。",
+    "auth.unavailable_kicker": "系统 // 连接故障",
+    "auth.unavailable_title": "无法读取认证状态",
+    "auth.unavailable_desc": "当前无法确认服务端认证策略。后端连接恢复后请重试，不需要反复输入账号密码。",
+    "auth.retry": "重试连接",
+    "auth.retrying": "正在重试...",
 
     // Dashboard
     "dash.telemetry": "档案 // 遥测",

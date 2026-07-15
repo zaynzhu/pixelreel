@@ -122,6 +122,7 @@ frontend/src/
 - **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。启用前必须设置至少 32 个字符的 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`，否则配置接口拒绝保存且服务拒绝启动。设为 `true` 后，除 `/api/auth/login`、`/api/auth/status`、`/api/health` 和带一次性 `state` 校验的 `/api/trakt/callback` 外，API 都必须携带有效 Bearer Token。
 - **健康检查：** `GET /api/health` 无需鉴权；数据库正常返回 200，数据库不可用时返回 503，响应不包含底层错误或连接信息。
 - **前端鉴权门禁：** 应用启动时先读取 `GET /api/auth/status`；关闭认证时直接进入系统且隐藏退出按钮，开启认证时才要求本地 Token。
+- **认证状态失败：** `GET /api/auth/status` 读取失败时必须显示连接错误与重试，不能静默当作“认证已开启”并把用户误导到登录页；并发初始化请求必须采用最新请求获胜。
 - **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
 - **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
