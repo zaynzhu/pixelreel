@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { apiFetch } from "../api"
 import ActivityTimeline from "../components/ActivityTimeline"
@@ -21,6 +21,7 @@ export default function LibraryDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [rescraping, setRescraping] = useState(false)
+  const latestLoadRequest = useRef(0)
   const [form, setForm] = useState<LibraryRecordUpdateInput>({
     status: "UNSET",
     rating: null,
@@ -33,15 +34,19 @@ export default function LibraryDetailPage() {
   const validId = id && /^\d+$/.test(id) && Number(id) > 0 ? id : null
 
   const loadRecord = useCallback(async () => {
+    const requestId = ++latestLoadRequest.current
     if (!validCategory || !validId) {
+      setRecord(null)
       setError(t("detail.invalid"))
       setLoading(false)
       return
     }
     setLoading(true)
     setError(null)
+    setRecord(null)
     try {
       const data = await apiFetch<LibraryRecord>(`/library/${validCategory}/${validId}`)
+      if (requestId !== latestLoadRequest.current) return
       setRecord(data)
       setForm({
         status: data.status,
@@ -49,14 +54,18 @@ export default function LibraryDetailPage() {
         shortReview: data.shortReview ?? "",
       })
     } catch (reason) {
+      if (requestId !== latestLoadRequest.current) return
       setError(reason instanceof Error ? reason.message : t("detail.error"))
     } finally {
-      setLoading(false)
+      if (requestId === latestLoadRequest.current) setLoading(false)
     }
   }, [t, validCategory, validId])
 
   useEffect(() => {
     void loadRecord()
+    return () => {
+      latestLoadRequest.current += 1
+    }
   }, [loadRecord])
 
   const saveRecord = async () => {

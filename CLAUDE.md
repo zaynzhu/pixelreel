@@ -154,7 +154,7 @@ frontend/src/
 - **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣/优酷/腾讯），未知域名返回 400。代理先发 HEAD 请求检查 Content-Type 再下载 body（避免浪费带宽下载非图片响应）。响应带 `Cache-Control: public, max-age=7d, immutable`。前端统一用 `proxiedImageUrl()` 路由代理，搜索组件（MovieSearch/TvShowSearch）和 TimelinePopup 都必须使用此函数。
 - **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录，前端用 `timelineDetailStore` 缓存（key 格式 `category:id`）。`/api/timeline/years?category=` 用 `SELECT DISTINCT YEAR(createdAt)` 高效返回年份列表。
 - **记录库服务端过滤与排序：** `GET /api/library` 支持 `category`、`year`、`status`、`query`、`source`、`review` 和 `sort`，列表、后续分页与 totals 使用同一条件。`category=media` 等于 `movie + tv_show`；`query` 最长 200 字符；`review` 为 `reviewed|unreviewed`；`sort` 为 `recent|rating`。
-- **统一记录详情：** `/library/:category/:id` 展示个人状态、评分、短评、来源身份与原始字段、游戏指标和记录级操作历史，并可保存个人记录、重新匹配元数据或进入数据健康页。记录库、时间线、活动日志和 Showcase 均提供详情入口。
+- **统一记录详情：** `/library/:category/:id` 展示个人状态、评分、短评、来源身份与原始字段、游戏指标和记录级操作历史，并可保存个人记录、重新匹配元数据或进入数据健康页。记录库、时间线、活动日志和 Showcase 均提供详情入口；路由变化或页面卸载时必须使旧详情读取失效，旧成功或旧错误不能覆盖当前记录。
 - **记录库读取：** 记录库首屏、筛选与分页必须绑定当前列表请求；切换筛选或刷新时立即结束旧分页状态，旧分页的成功或失败不能追加或污染新列表。
 - **仪表盘语义：** 首页统计按钮只重新读取 `/api/profile/summary`，必须标为“刷新统计”，不能伪装成同步操作；共享 `profileStore` 的并发读取必须采用最新请求获胜。真实同步统一进入 `/sync`。最新入库记录直接链接统一详情页。
 - **随机推荐：** Showcase 的随机推荐可按类别和 WANT/IN_PROGRESS 状态筛选；筛选直接下推到 `/api/library/random`，不能先随机全库再由前端过滤。
