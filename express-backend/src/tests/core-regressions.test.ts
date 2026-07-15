@@ -89,6 +89,11 @@ import {
   RequestValidationError,
 } from '../routes/request-validation';
 import {
+  buildRecordListCursorWhere,
+  createRecordListResponse,
+  parseRecordListParameters,
+} from '../routes/record-list';
+import {
   formatEnvLine,
   parseSettingsUpdateBody,
   serializeSettingValue,
@@ -190,6 +195,37 @@ test('导入参数拒绝无效 limit、status 和标识值', () => {
   assert.equal(parseStringParameter('  player-id  ', 'steamId'), 'player-id');
   assert.throws(() => parseStringParameter([], 'steamId'), RequestValidationError);
   assert.throws(() => parseStringParameter('  ', 'gamertag', true), RequestValidationError);
+});
+
+test('直接记录列表使用有界游标分页', () => {
+  assert.deepEqual(parseRecordListParameters({}), { cursor: null, limit: 50 });
+  assert.deepEqual(parseRecordListParameters({ limit: '200' }), { cursor: null, limit: 200 });
+
+  const parameters = parseRecordListParameters({
+    cursor: '2026-07-15T00:00:00.000Z__42',
+    limit: '10',
+  });
+  assert.deepEqual(parameters, {
+    cursor: { createdAt: new Date('2026-07-15T00:00:00.000Z'), id: 42n },
+    limit: 10,
+  });
+  assert.deepEqual(buildRecordListCursorWhere(parameters.cursor), {
+    OR: [
+      { createdAt: { lt: new Date('2026-07-15T00:00:00.000Z') } },
+      { createdAt: { equals: new Date('2026-07-15T00:00:00.000Z') }, id: { lt: 42n } },
+    ],
+  });
+
+  const rows = [
+    { id: 3, createdAt: new Date('2026-07-15T00:00:00.000Z') },
+    { id: 2, createdAt: new Date('2026-07-14T00:00:00.000Z') },
+  ];
+  assert.deepEqual(createRecordListResponse(rows, 1), {
+    records: [rows[0]],
+    nextCursor: '2026-07-15T00:00:00.000Z__3',
+  });
+  assert.throws(() => parseRecordListParameters({ limit: '201' }), RequestValidationError);
+  assert.throws(() => parseRecordListParameters({ page: '1' }), RequestValidationError);
 });
 
 test('平台游戏导入在调用外部服务前校验账号参数', () => {

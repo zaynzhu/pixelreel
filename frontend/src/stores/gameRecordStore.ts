@@ -18,6 +18,11 @@ export type GameRecord = {
 
 export type GameRecordInput = Omit<GameRecord, "id">;
 
+type GameRecordPage = {
+  records: GameRecord[];
+  nextCursor: string | null;
+};
+
 type GameRecordState = {
   records: GameRecord[];
   loading: boolean;
@@ -37,8 +42,8 @@ export const useGameRecordStore = create<GameRecordState>((set, get) => ({
   fetchRecords: async () => {
     set({ loading: true, error: null });
     try {
-      const payload = await apiFetch<GameRecord[]>("/games");
-      set({ records: payload, loading: false });
+      const payload = await apiFetch<GameRecordPage>("/games?limit=200");
+      set({ records: payload.records, loading: false });
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "获取失败",

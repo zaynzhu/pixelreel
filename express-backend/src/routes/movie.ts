@@ -7,18 +7,28 @@ import {
   parseMovieRecordWriteBody,
   parseRequiredPositiveIntegerParameter,
 } from './request-validation';
+import {
+  buildRecordListCursorWhere,
+  createRecordListResponse,
+  parseRecordListParameters,
+} from './record-list';
 
 const router = Router();
+
+// GET /api/movies - 游标分页列出电影
+router.get('/', async (req: Request, res: Response) => {
+  const { cursor, limit } = parseRecordListParameters(req.query as Record<string, unknown>);
+  const movies = await getDb().movie.findMany({
+    where: buildRecordListCursorWhere(cursor),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+  });
+  res.json(createRecordListResponse(movies, limit));
+});
 
 router.use((req, _res, next) => {
   assertNoQueryParameters(req.query);
   next();
-});
-
-// GET /api/movies - 列出所有电影
-router.get('/', async (_req: Request, res: Response) => {
-  const movies = await getDb().movie.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json(movies);
 });
 
 // GET /api/movies/:id - 获取单部电影

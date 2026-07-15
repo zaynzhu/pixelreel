@@ -7,18 +7,28 @@ import {
   parseGameRecordWriteBody,
   parseRequiredPositiveIntegerParameter,
 } from './request-validation';
+import {
+  buildRecordListCursorWhere,
+  createRecordListResponse,
+  parseRecordListParameters,
+} from './record-list';
 
 const router = Router();
+
+// GET /api/games - 游标分页列出游戏
+router.get('/', async (req: Request, res: Response) => {
+  const { cursor, limit } = parseRecordListParameters(req.query as Record<string, unknown>);
+  const games = await getDb().game.findMany({
+    where: buildRecordListCursorWhere(cursor),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+  });
+  res.json(createRecordListResponse(games, limit));
+});
 
 router.use((req, _res, next) => {
   assertNoQueryParameters(req.query);
   next();
-});
-
-// GET /api/games - 列出所有游戏
-router.get('/', async (_req: Request, res: Response) => {
-  const games = await getDb().game.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json(games);
 });
 
 // GET /api/games/:id - 获取单个游戏
