@@ -24,6 +24,7 @@ import {
 } from '../routes/auth';
 import {
   getUndoneLogId,
+  isProtectedDoubanCreate,
   parseActivityCursor,
   parseActivityListParameters,
   serializeLog,
@@ -1008,6 +1009,17 @@ test('已撤销的活动日志不再标记为可撤销', () => {
   assert.equal(getUndoneLogId(null), null);
   assert.equal(serializeLog(entry).undoable, true);
   assert.equal(serializeLog(entry, new Set(['42'])).undoable, false);
+  const protectedCreate = {
+    ...entry,
+    action: 'CREATE',
+    entityType: 'MOVIE',
+    newValues: { doubanId: '1292052', status: 'DONE' },
+  };
+  assert.equal(isProtectedDoubanCreate(protectedCreate), true);
+  assert.equal(serializeLog(protectedCreate).undoable, false);
+  assert.equal(serializeLog({ ...protectedCreate, entityType: 'TV_SHOW' }).undoable, false);
+  assert.equal(serializeLog({ ...protectedCreate, entityType: 'GAME' }).undoable, true);
+  assert.equal(serializeLog({ ...protectedCreate, newValues: { status: 'DONE' } }).undoable, true);
 });
 
 test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {

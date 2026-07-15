@@ -58,6 +58,17 @@ export function getUndoneLogId(metadata: unknown): string | null {
   return typeof undoneLogId === 'string' && /^\d+$/.test(undoneLogId) ? undoneLogId : null
 }
 
+export function isProtectedDoubanCreate(entry: {
+  action: string
+  entityType: string
+  newValues: unknown
+}): boolean {
+  if (entry.action !== 'CREATE' || !['MOVIE', 'TV_SHOW'].includes(entry.entityType)) return false
+  if (!entry.newValues || typeof entry.newValues !== 'object' || Array.isArray(entry.newValues)) return false
+  const doubanId = (entry.newValues as Record<string, unknown>).doubanId
+  return typeof doubanId === 'string' ? doubanId.trim().length > 0 : doubanId != null
+}
+
 export function serializeLog(entry: any, undoneLogIds = new Set<string>()) {
   return {
     id: entry.id.toString(),
@@ -71,6 +82,7 @@ export function serializeLog(entry: any, undoneLogIds = new Set<string>()) {
     createdAt: entry.createdAt,
     undoable: UNDOABLE_ACTIONS.has(entry.action)
       && entry.entityId != null
+      && !isProtectedDoubanCreate(entry)
       && !undoneLogIds.has(entry.id.toString()),
   }
 }
@@ -118,7 +130,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const hasMore = rows.length > limit
     const items = rows.slice(0, limit)
     const undoableLogIds = items
-      .filter(entry => UNDOABLE_ACTIONS.has(entry.action) && entry.entityId != null)
+      .filter(entry => UNDOABLE_ACTIONS.has(entry.action)
+        && entry.entityId != null
+        && !isProtectedDoubanCreate(entry))
       .map(entry => entry.id.toString())
     const undoneLogIds = new Set<string>()
     if (undoableLogIds.length > 0) {
@@ -174,6 +188,11 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
 
     if (!UNDOABLE_ACTIONS.has(entry.action)) {
       res.status(400).json({ error: `操作 ${entry.action} 不支持撤销` })
+      return
+    }
+
+    if (isProtectedDoubanCreate(entry)) {
+      res.status(403).json({ error: '豆瓣来源影视记录受保护，不能通过撤销创建删除' })
       return
     }
 
