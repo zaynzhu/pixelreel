@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { config, validateAuthConfiguration } from './config';
-import { registerExtensions } from './config/db';
+import { getDb, registerExtensions } from './config/db';
 import { createActivityLogExtension } from './middlewares/activity-log';
 import apiRoutes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
@@ -61,22 +61,26 @@ app.use('/api', apiRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+const startupTimers: NodeJS.Timeout[] = [];
+let shutdownStarted = false;
+
 // 启动服务
-app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, () => {
+  if (shutdownStarted) return;
   console.log(`[PixelReel Express] 服务已启动，监听 ${config.host}:${config.port}`);
   console.log(`[PixelReel Express] 数据库: ${config.database.url.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
 
   // Radar cron + startup sync
   if (config.radar.enabled) {
     if (config.radar.syncOnStart) {
-      setTimeout(() => {
+      startupTimers.push(setTimeout(() => {
         console.log('[Radar] 启动热门同步...');
         runRadarSync().catch(err => console.error('[Radar] 热门启动同步失败:', err.message));
-      }, 5000);
-      setTimeout(() => {
+      }, 5000));
+      startupTimers.push(setTimeout(() => {
         console.log('[Radar] 启动新片同步...');
         runNewReleaseRadarSync().catch(err => console.error('[Radar] 新片启动同步失败:', err.message));
-      }, 15000);
+      }, 15000));
     }
     if (config.radar.cronEnabled) {
       cron.schedule(config.radar.syncCoreCron, () => {
@@ -100,5 +104,43 @@ app.listen(config.port, config.host, () => {
     }
   }
 });
+
+function shutdown(signal: NodeJS.Signals) {
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+  console.log(`[PixelReel Express] 收到 ${signal}，正在关闭服务...`);
+
+  for (const timer of startupTimers) clearTimeout(timer);
+  const scheduledTasksStopped = Promise.all(
+    [...cron.getTasks().values()].map(task => task.destroy()),
+  ).catch(error => {
+    console.error('[PixelReel Express] 停止定时任务失败:', error);
+  });
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('[PixelReel Express] 关闭超时，强制退出');
+    server.closeAllConnections();
+    process.exit(1);
+  }, 10_000);
+  forceExitTimer.unref();
+
+  server.close(async error => {
+    await scheduledTasksStopped;
+    let exitCode = error ? 1 : 0;
+    if (error) console.error('[PixelReel Express] 关闭 HTTP 服务失败:', error);
+    try {
+      await getDb().$disconnect();
+    } catch (disconnectError) {
+      exitCode = 1;
+      console.error('[PixelReel Express] 断开数据库失败:', disconnectError);
+    }
+    clearTimeout(forceExitTimer);
+    console.log('[PixelReel Express] 服务已关闭');
+    process.exit(exitCode);
+  });
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 export default app;
