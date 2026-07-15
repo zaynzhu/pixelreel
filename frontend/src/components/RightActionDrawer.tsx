@@ -155,20 +155,30 @@ export default function RightActionDrawer() {
               disabled={!!syncing}
               active={syncing === 'posters'}
             />
-            <button className="border border-[var(--line)] bg-transparent text-[var(--muted)] hover:text-white hover:border-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all text-left flex justify-between">
+            <button
+              type="button"
+              disabled
+              title={t('drawer.unavailable')}
+              className="border border-[var(--line)] bg-transparent text-[var(--muted)] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-left flex justify-between opacity-40 cursor-not-allowed"
+            >
               <span>{t('drawer.action.batch_edit')}</span>
-              <span>_ALT</span>
+              <span>_N/A</span>
             </button>
           </div>
 
           {/* 底部：危险操作 */}
           <div className="mt-auto pt-6 border-t border-[var(--line)] flex flex-col gap-2">
-            <button className="border border-red-900/50 bg-red-950/20 text-red-500 hover:bg-red-500 hover:text-black px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex justify-between items-center group">
+            <button
+              type="button"
+              disabled
+              title={t('drawer.unavailable')}
+              className="border border-red-900/50 bg-red-950/20 text-red-500 px-4 py-2 text-[10px] font-bold uppercase tracking-widest flex justify-between items-center opacity-40 cursor-not-allowed"
+            >
               <span className="flex items-center gap-2">
-                <svg className="w-3 h-3 group-hover:animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 {t('drawer.action.clear_cache')}
               </span>
-              <span className="opacity-0 transition-opacity group-hover:opacity-100">_DANGER</span>
+              <span>_N/A</span>
             </button>
           </div>
         </div>
