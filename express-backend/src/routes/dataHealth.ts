@@ -11,6 +11,7 @@ import {
   isDataHealthRepairSupported,
   startDataHealthRepairTask,
 } from '../services/DataHealthRepairService';
+import { listDuplicateGroups } from '../services/DuplicateDetectionService';
 import {
   assertNoQueryParameters,
   parseEnumParameter,
@@ -22,6 +23,7 @@ import {
 const router = Router();
 const ISSUE_PARAMETER_KEYS = new Set(['category', 'issue', 'cursor', 'limit']);
 const REPAIR_BODY_KEYS = new Set(['category', 'issue', 'limit']);
+const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit']);
 
 export function parseDataHealthIssueParameters(query: Record<string, unknown>) {
   const unknownKey = Object.keys(query).find(key => !ISSUE_PARAMETER_KEYS.has(key));
@@ -59,6 +61,16 @@ export function parseDataHealthRepairBody(value: unknown) {
   return { category, issue, limit };
 }
 
+export function parseDuplicateListParameters(query: Record<string, unknown>) {
+  const unknownKey = Object.keys(query).find(key => !DUPLICATE_PARAMETER_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+  return {
+    category: parseEnumParameter(query.category, 'category', DATA_HEALTH_CATEGORIES, true)!,
+    cursor: parsePositiveIntegerParameter(query.cursor, 'cursor', 0, 1_000_000),
+    limit: parsePositiveIntegerParameter(query.limit, 'limit', 20, 50),
+  };
+}
+
 router.get('/summary', async (req: Request, res: Response) => {
   assertNoQueryParameters(req.query);
   res.json(await getDataHealthSummary());
@@ -72,6 +84,11 @@ router.get('/issues', async (req: Request, res: Response) => {
     parameters.limit,
     parameters.cursor,
   ));
+});
+
+router.get('/duplicates', async (req: Request, res: Response) => {
+  const parameters = parseDuplicateListParameters(req.query);
+  res.json(await listDuplicateGroups(parameters.category, parameters.limit, parameters.cursor));
 });
 
 router.post('/repair', (req: Request, res: Response) => {

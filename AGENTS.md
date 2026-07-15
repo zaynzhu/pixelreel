@@ -90,7 +90,7 @@ frontend/src/
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
-| `/data-health` | `GET /api/data-health/summary`, `GET /api/data-health/issues?category=&issue=&cursor=&limit=`, `POST /api/data-health/repair`（数据完整性审计和定向修复） |
+| `/data-health` | `GET /api/data-health/summary`, `GET /api/data-health/issues`, `GET /api/data-health/duplicates`, `POST /api/data-health/repair`（数据完整性审计、重复候选和定向修复） |
 | `/tools` | `GET /api/tools/search?query=`, `POST /api/tools/convert-category` |
 | `/radar` | `GET /api/radar?...&syncType=new_release`, `POST /api/radar/sync-new-releases` |
 | `/popular` | `GET /api/radar?...&syncType=popular`, `POST /api/radar/sync` |
@@ -118,6 +118,7 @@ frontend/src/
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销。`/activity` 页面带筛选和无限滚动。
 - **数据健康：** `/data-health` 只读审计显示字段缺口，不自动修改记录；电影/剧集检查封面、简介、日期和外部 ID，游戏只检查封面和外部 ID，问题列表按 BigInt ID 游标分页。
 - **数据健康修复：** `POST /api/data-health/repair` 每次最多处理 50 条并创建唯一后台任务，只填充所选空字段及对应空 TMDB 原始字段；电影/剧集使用 TMDB，游戏仅支持 RAWG 封面，游戏外部 ID 必须人工核对，不能按标题自动绑定。
+- **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份、游戏仅按规范化标题+平台匹配。相同 ID 也可能是错误元数据或剧集分季，不能自动合并或删除。
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。

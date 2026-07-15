@@ -1,0 +1,188 @@
+import { useCallback, useEffect, useState } from "react"
+import { apiFetch } from "../../api"
+import { proxiedImageUrl } from "../../imageProxy"
+import { useI18nStore } from "../../stores/i18nStore"
+import type {
+  DataHealthCategory,
+  DuplicateGroup,
+  DuplicateGroupResponse,
+  DuplicateReason,
+} from "../../types/dataHealth"
+import { ImgWithFallback } from "../ImgWithFallback"
+
+export function DuplicateCandidatePanel({ category }: { category: DataHealthCategory }) {
+  const { t } = useI18nStore()
+  const [groups, setGroups] = useState<DuplicateGroup[]>([])
+  const [totalGroups, setTotalGroups] = useState(0)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchGroups = useCallback(async (cursor?: string) => {
+    const params = new URLSearchParams({ category, limit: "20" })
+    if (cursor) params.set("cursor", cursor)
+    return apiFetch<DuplicateGroupResponse>(`/data-health/duplicates?${params}`)
+  }, [category])
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+    fetchGroups()
+      .then(data => {
+        if (!active) return
+        setGroups(data.groups)
+        setTotalGroups(data.totalGroups)
+        setTotalRecords(data.totalRecords)
+        setNextCursor(data.nextCursor)
+      })
+      .catch(reason => {
+        if (active) setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [fetchGroups, t])
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const data = await fetchGroups(nextCursor)
+      setGroups(current => [...current, ...data.groups])
+      setNextCursor(data.nextCursor)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  return (
+    <section className="border border-[var(--line)] bg-[var(--surface)]">
+      <header className="grid gap-4 border-b border-[var(--line)] px-5 py-5 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div>
+          <span className="section-kicker">{t("health.duplicates.kicker")}</span>
+          <h2 className="text-lg text-white">{t("health.duplicates.title")}</h2>
+          <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--muted)]">
+            {t("health.duplicates.desc")}
+          </p>
+        </div>
+        <div className="flex gap-6 font-mono text-xs">
+          <div>
+            <div className="text-2xl text-[var(--accent-deep)]">{loading ? "--" : totalGroups}</div>
+            <div className="mt-1 text-[9px] uppercase tracking-widest text-[var(--muted)]">{t("health.duplicates.groups")}</div>
+          </div>
+          <div>
+            <div className="text-2xl text-white">{loading ? "--" : totalRecords}</div>
+            <div className="mt-1 text-[9px] uppercase tracking-widest text-[var(--muted)]">{t("health.duplicates.records")}</div>
+          </div>
+        </div>
+      </header>
+
+      {error && (
+        <div className="border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4 text-xs text-[var(--accent-deep)]">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="px-5 py-16 text-center text-xs uppercase tracking-widest text-[var(--muted)]">
+          {t("health.loading")}
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="px-5 py-16 text-center">
+          <div className="text-2xl text-[var(--accent)]">✓</div>
+          <p className="mt-3 text-sm text-white">{t("health.duplicates.clean")}</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">{t("health.duplicates.clean_desc")}</p>
+        </div>
+      ) : (
+        <div className="space-y-4 p-4 sm:p-5">
+          {groups.map((group, groupIndex) => (
+            <article key={group.key} className="border border-[var(--line)] bg-[var(--surface-hover)]">
+              <div className="flex flex-col gap-3 border-b border-[var(--line)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[10px] text-[var(--muted)]">
+                    {String(groupIndex + 1).padStart(2, "0")}
+                  </span>
+                  {group.reasons.map(reason => (
+                    <ReasonTag key={reason} reason={reason} />
+                  ))}
+                </div>
+                <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">
+                  {t("health.duplicates.group_size", String(group.records.length))}
+                </span>
+              </div>
+              <div className="divide-y divide-[var(--line)]">
+                {group.records.map(record => {
+                  const poster = proxiedImageUrl(record.posterUrl)
+                  return (
+                    <div key={`${record.category}-${record.id}`} className="grid gap-4 px-4 py-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_minmax(10rem,auto)] sm:items-center">
+                      <div className="hidden h-12 w-9 overflow-hidden border border-[var(--line)] bg-black sm:block">
+                        {poster ? (
+                          <ImgWithFallback
+                            src={poster}
+                            alt={record.title}
+                            className="h-full w-full object-cover"
+                            fallback={<div className="flex h-full items-center justify-center text-[8px] text-[var(--muted)]">N/A</div>}
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-[8px] text-[var(--muted)]">N/A</div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-sm text-white">{record.title}</h3>
+                          {record.protected && (
+                            <span className="border border-[var(--accent-deep)] px-1.5 py-0.5 text-[8px] text-[var(--accent-deep)]">
+                              {t("health.duplicates.protected")}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
+                          ID {record.id}
+                          {record.year ? ` // ${record.year}` : ""}
+                          {record.platform ? ` // ${record.platform}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                        {Object.entries(record.sourceIds).map(([reason, value]) => (
+                          <span key={reason} className="border border-[var(--line)] px-2 py-1 font-mono text-[8px] text-[var(--muted)]">
+                            {t(`health.duplicates.reason.${reason as DuplicateReason}`)} {value}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <footer className="flex flex-col gap-3 border-t border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-[10px] leading-5 text-[var(--muted)]">{t("health.duplicates.review_note")}</p>
+        {nextCursor && (
+          <button type="button" onClick={loadMore} disabled={loadingMore} className="brutal-btn shrink-0">
+            {loadingMore ? t("health.loading") : t("health.more")}
+          </button>
+        )}
+      </footer>
+    </section>
+  )
+}
+
+function ReasonTag({ reason }: { reason: DuplicateReason }) {
+  const { t } = useI18nStore()
+  return (
+    <span className="border border-[var(--accent)] px-2 py-1 text-[8px] uppercase tracking-wider text-[var(--accent)]">
+      {t(`health.duplicates.reason.${reason}`)}
+    </span>
+  )
+}

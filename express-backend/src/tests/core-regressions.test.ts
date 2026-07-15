@@ -29,7 +29,11 @@ import {
   serializeLog,
 } from '../routes/activity';
 import { parseAnalyticsParameters, parseAnalyticsYear } from '../routes/analytics';
-import { parseDataHealthIssueParameters, parseDataHealthRepairBody } from '../routes/dataHealth';
+import {
+  parseDataHealthIssueParameters,
+  parseDataHealthRepairBody,
+  parseDuplicateListParameters,
+} from '../routes/dataHealth';
 import { getHealthStatus } from '../routes/health';
 import {
   assertEmptyImportRequestBody,
@@ -125,6 +129,10 @@ import {
   buildMediaRepairUpdate,
   isDataHealthRepairSupported,
 } from '../services/DataHealthRepairService';
+import {
+  findDuplicateGroups,
+  normalizeDuplicateTitle,
+} from '../services/DuplicateDetectionService';
 import {
   buildCompletedWhere,
   encodeLibraryCursor,
@@ -418,6 +426,71 @@ test('数据健康自动修复限制批量大小并拒绝不安全的游戏标�
     firstAirDate: '2026-07-15',
     tmdbReleaseDate: '2026-07-15',
   });
+});
+
+test('疑似重复检测只合并强标识或带年份和平台的同名候选', () => {
+  assert.equal(normalizeDuplicateTitle(' Spider-Man：Homecoming '), 'spidermanhomecoming');
+  const movieGroups = findDuplicateGroups([
+    {
+      id: 1n,
+      category: 'movie',
+      title: 'Alpha',
+      posterUrl: null,
+      year: '2020',
+      platform: null,
+      protected: true,
+      identityValues: { tmdb_id: '10' },
+    },
+    {
+      id: 2n,
+      category: 'movie',
+      title: 'Beta / 贝塔',
+      posterUrl: null,
+      year: '2021',
+      platform: null,
+      protected: false,
+      identityValues: { tmdb_id: '10' },
+    },
+    {
+      id: 3n,
+      category: 'movie',
+      title: '贝塔',
+      posterUrl: null,
+      year: '2021',
+      platform: null,
+      protected: false,
+      identityValues: {},
+    },
+    {
+      id: 4n,
+      category: 'movie',
+      title: '贝塔',
+      posterUrl: null,
+      year: null,
+      platform: null,
+      protected: false,
+      identityValues: {},
+    },
+  ]);
+  assert.equal(movieGroups.length, 1);
+  assert.deepEqual(movieGroups[0].reasons, ['tmdb_id', 'title_year']);
+  assert.deepEqual(movieGroups[0].records.map(record => record.id), [1, 2, 3]);
+
+  const gameGroups = findDuplicateGroups([
+    { id: 5n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
+    { id: 6n, category: 'game', title: 'Portal II', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
+    { id: 7n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PSN', protected: false, identityValues: {} },
+    { id: 8n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
+  ]);
+  assert.equal(gameGroups.length, 1);
+  assert.deepEqual(gameGroups[0].records.map(record => record.id), [5, 8]);
+  assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
+    category: 'game', cursor: 0, limit: 10,
+  });
+  assert.throws(
+    () => parseDuplicateListParameters({ category: 'movie', cursor: '0' }),
+    /正整数/,
+  );
 });
 
 test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async () => {

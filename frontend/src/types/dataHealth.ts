@@ -31,3 +31,32 @@ export interface DataHealthIssueResponse {
   total: number
   nextCursor: string | null
 }
+
+export type DuplicateReason =
+  | "douban_id" | "tmdb_id" | "imdb_id" | "trakt_id"
+  | "rawg_id" | "steam_id" | "xbox_id" | "psn_id"
+  | "title_year" | "title_platform"
+
+export interface DuplicateRecord {
+  id: number
+  category: DataHealthCategory
+  title: string
+  posterUrl: string | null
+  year: string | null
+  platform: string | null
+  protected: boolean
+  sourceIds: Partial<Record<DuplicateReason, string>>
+}
+
+export interface DuplicateGroup {
+  key: string
+  reasons: DuplicateReason[]
+  records: DuplicateRecord[]
+}
+
+export interface DuplicateGroupResponse {
+  groups: DuplicateGroup[]
+  totalGroups: number
+  totalRecords: number
+  nextCursor: string | null
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
 import { confirmDialog } from "../components/Toast"
+import { DuplicateCandidatePanel } from "../components/data-health/DuplicateCandidatePanel"
 import { proxiedImageUrl } from "../imageProxy"
 import { useI18nStore } from "../stores/i18nStore"
 import { useTaskStore } from "../stores/taskStore"
@@ -46,6 +47,7 @@ export default function DataHealthPage() {
   const [startingRepair, setStartingRepair] = useState(false)
   const [repairTaskId, setRepairTaskId] = useState<string | null>(null)
   const [refreshVersion, setRefreshVersion] = useState(0)
+  const [view, setView] = useState<"fields" | "duplicates">("fields")
 
   useEffect(() => {
     let active = true
@@ -193,6 +195,20 @@ export default function DataHealthPage() {
       </section>
 
       <section className="border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-6">
+        <div className="mb-4 grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
+          {(["fields", "duplicates"] as const).map(item => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setView(item)}
+              className={`bg-[var(--surface)] px-4 py-3 text-left text-xs uppercase tracking-widest transition-colors hover:bg-[var(--surface-hover)] ${
+                view === item ? "text-[var(--accent)] shadow-[inset_0_-2px_0_var(--accent)]" : "text-[var(--muted)]"
+              }`}
+            >
+              {t(`health.view.${item}`)}
+            </button>
+          ))}
+        </div>
         <div className="grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
           {CATEGORIES.map(item => (
             <button
@@ -213,7 +229,7 @@ export default function DataHealthPage() {
           ))}
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {view === "fields" && <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {applicableIssues.map(item => {
             const count = Number(selectedSummary?.[item.field] ?? 0)
             const active = issue === item.key
@@ -249,10 +265,12 @@ export default function DataHealthPage() {
               </button>
             )
           })}
-        </div>
+        </div>}
       </section>
 
-      <section className="border border-[var(--line)] bg-[var(--surface)]">
+      {view === "duplicates" ? (
+        <DuplicateCandidatePanel category={category} />
+      ) : <section className="border border-[var(--line)] bg-[var(--surface)]">
         <div className="flex flex-col gap-4 border-b border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <span className="section-kicker">{t("health.queue")}</span>
@@ -336,7 +354,7 @@ export default function DataHealthPage() {
             </button>
           </div>
         )}
-      </section>
+      </section>}
     </div>
   )
 }
