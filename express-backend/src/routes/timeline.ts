@@ -1,35 +1,41 @@
 import { Router, Request, Response } from 'express';
 import { listTimelineRecords, listTimelineYears } from '../services/TimelineService';
-import { normalizeCategory, normalizeStatus } from '../services/LibraryService';
+import {
+  parseBooleanParameter,
+  parseEnumParameter,
+  parsePaginationCursorParameter,
+  parsePositiveIntegerParameter,
+  parseRecordStatusParameter,
+  parseYearParameter,
+} from './request-validation';
 
 const router = Router();
+const TIMELINE_CATEGORIES = ['all', 'media', 'movie', 'tv_show', 'game'] as const;
 
-function normalizeTimelineCategory(value?: string): 'all' | 'media' | 'movie' | 'tv_show' | 'game' {
-  if (value === 'movie' || value === 'tv_show' || value === 'game' || value === 'media') {
-    return value;
-  }
-  return 'all';
+export function parseTimelineCategory(value: unknown) {
+  return parseEnumParameter(value, 'category', TIMELINE_CATEGORIES) ?? 'all';
+}
+
+export function parseTimelineListParameters(query: Record<string, unknown>) {
+  return {
+    cursor: parsePaginationCursorParameter(query.cursor) ?? undefined,
+    limit: parsePositiveIntegerParameter(query.limit, 'limit', 96, 200),
+    includeTotals: parseBooleanParameter(query.includeTotals, 'includeTotals', true),
+    category: parseTimelineCategory(query.category),
+    year: parseYearParameter(query.year) ?? undefined,
+    status: parseRecordStatusParameter(query.status, null) ?? undefined,
+  };
 }
 
 router.get('/years', async (req: Request, res: Response) => {
-  const category = normalizeTimelineCategory(req.query.category as string | undefined);
+  const category = parseTimelineCategory(req.query.category);
   const years = await listTimelineYears(category);
   res.json({ years });
 });
 
 router.get('/', async (req: Request, res: Response) => {
-  const parsedLimit = parseInt(req.query.limit as string, 10);
-  const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 96, 1), 200);
-  const parsedYear = parseInt(req.query.year as string, 10);
-
-  const result = await listTimelineRecords({
-    cursor: req.query.cursor as string | undefined,
-    limit,
-    includeTotals: req.query.includeTotals !== 'false',
-    category: normalizeTimelineCategory(req.query.category as string | undefined),
-    year: Number.isFinite(parsedYear) ? parsedYear : undefined,
-    status: normalizeStatus(req.query.status as string | undefined),
-  });
+  const parameters = parseTimelineListParameters(req.query as Record<string, unknown>);
+  const result = await listTimelineRecords(parameters);
 
   res.json(result);
 });

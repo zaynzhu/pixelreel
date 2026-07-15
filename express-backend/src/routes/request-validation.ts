@@ -163,6 +163,44 @@ export function parseEnumParameter<T extends string>(
   return parsed as T;
 }
 
+export function parseBooleanParameter(value: unknown, name: string, defaultValue: boolean): boolean {
+  if (value == null) return defaultValue;
+  const parsed = parseStringParameter(value, name, true);
+  if (parsed === 'true') return true;
+  if (parsed === 'false') return false;
+  throw new RequestValidationError(`${name} 必须是 true 或 false`);
+}
+
+export function parseYearParameter(value: unknown, name = 'year'): number | null {
+  if (value == null) return null;
+  const parsed = parseStringParameter(value, name, true)!;
+  if (!/^\d{4}$/.test(parsed)) {
+    throw new RequestValidationError(`${name} 必须是 1900 到 3000 之间的年份`);
+  }
+  const year = Number(parsed);
+  if (year < 1900 || year > 3000) {
+    throw new RequestValidationError(`${name} 必须是 1900 到 3000 之间的年份`);
+  }
+  return year;
+}
+
+export function parsePaginationCursorParameter(value: unknown, name = 'cursor'): string | null {
+  if (value == null) return null;
+  const parsed = parseBoundedStringParameter(value, name, 100, true)!;
+  const separatorIndex = parsed.lastIndexOf('__');
+  if (separatorIndex <= 0) throw new RequestValidationError(`${name} 格式无效`);
+
+  const dateText = parsed.slice(0, separatorIndex);
+  const idText = parsed.slice(separatorIndex + 2);
+  const date = new Date(dateText);
+  const id = Number(idText);
+  if (Number.isNaN(date.getTime()) || date.toISOString() !== dateText
+    || !/^[1-9]\d*$/.test(idText) || !Number.isSafeInteger(id)) {
+    throw new RequestValidationError(`${name} 格式无效`);
+  }
+  return parsed;
+}
+
 export function parseRecordStatusParameter(value: unknown, defaultValue: RecordStatus): RecordStatus;
 export function parseRecordStatusParameter(value: unknown, defaultValue: null): RecordStatus | null;
 export function parseRecordStatusParameter(

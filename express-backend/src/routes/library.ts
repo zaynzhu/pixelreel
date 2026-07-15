@@ -1,22 +1,41 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords, normalizeCategory, parseYear, normalizeStatus } from '../services/LibraryService';
+import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords } from '../services/LibraryService';
 import {
+  parseBooleanParameter,
+  parseEnumParameter,
   parseLibraryRecordUpdateBody,
+  parsePaginationCursorParameter,
+  parsePositiveIntegerParameter,
+  parseRecordStatusParameter,
   parseRequiredPositiveIntegerParameter,
+  parseStringParameter,
+  parseYearParameter,
 } from './request-validation';
 
 const router = Router();
+const LIBRARY_CATEGORIES = ['all', 'media', 'movie', 'tv_show', 'game'] as const;
+const RECORD_CATEGORIES = ['movie', 'tv_show', 'tvshow', 'game'] as const;
+
+export function parseLibraryListParameters(query: Record<string, unknown>) {
+  return {
+    cursor: parsePaginationCursorParameter(query.cursor) ?? undefined,
+    limit: parsePositiveIntegerParameter(query.limit, 'limit', 50, 200),
+    includeTotals: parseBooleanParameter(query.includeTotals, 'includeTotals', true),
+    category: parseEnumParameter(query.category, 'category', LIBRARY_CATEGORIES) ?? 'all',
+    year: parseYearParameter(query.year) ?? undefined,
+    status: parseRecordStatusParameter(query.status, null) ?? undefined,
+  };
+}
+
+export function parseLibraryRecordCategory(value: unknown) {
+  const normalized = parseStringParameter(value, 'category', true)!.toLowerCase();
+  return parseEnumParameter(normalized, 'category', RECORD_CATEGORIES, true)!;
+}
 
 // GET /api/library — 游标分页混合列表，支持 category/year/status 筛选
 router.get('/', async (req: Request, res: Response) => {
-  const cursor = req.query.cursor as string | undefined;
-  const parsedLimit = parseInt(req.query.limit as string, 10);
-  const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 50, 1), 200);
-  const includeTotals = req.query.includeTotals !== 'false';
-  const category = normalizeCategory(req.query.category as string | undefined);
-  const year = parseYear(req.query.year as string | undefined);
-  const status = normalizeStatus(req.query.status as string | undefined);
-  const result = await listRecords({ cursor, limit, includeTotals, category, year, status });
+  const parameters = parseLibraryListParameters(req.query as Record<string, unknown>);
+  const result = await listRecords(parameters);
   res.json(result);
 });
 
@@ -24,7 +43,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/random', async (req: Request, res: Response, next: NextFunction) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    const limit = Math.min(parseInt(req.query.limit as string) || 1, 20);
+    const limit = parsePositiveIntegerParameter(req.query.limit, 'limit', 1, 20);
     if (limit === 1) {
       const record = await getRandomRecord();
       if (!record) {
@@ -48,7 +67,7 @@ router.get('/random', async (req: Request, res: Response, next: NextFunction) =>
 // GET /api/library/:category/:id — 获取单条完整记录
 router.get('/:category/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const category = req.params.category as string;
+    const category = parseLibraryRecordCategory(req.params.category);
     const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
     const result = await getRecord(category, id);
     res.json(result);
@@ -59,7 +78,7 @@ router.get('/:category/:id', async (req: Request, res: Response, next: NextFunct
 
 // PATCH /api/library/:category/:id — 更新记录状态/评分/短评（不变）
 router.patch('/:category/:id', async (req: Request, res: Response, next: NextFunction) => {
-  const category = req.params.category as string;
+  const category = parseLibraryRecordCategory(req.params.category);
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   const request = parseLibraryRecordUpdateBody(req.body);
 

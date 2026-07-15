@@ -15,12 +15,21 @@ import {
 } from '../middlewares/activity-log';
 import { getAuthStatus } from '../routes/auth';
 import { parseActivityCursor } from '../routes/activity';
+import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
+import {
+  parseLibraryListParameters,
+  parseLibraryRecordCategory,
+} from '../routes/library';
 import {
   parseRadarItemIdBody,
   parseRadarListParameters,
   parseRadarSyncSource,
 } from '../routes/radar';
+import {
+  parseTimelineCategory,
+  parseTimelineListParameters,
+} from '../routes/timeline';
 import {
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
@@ -249,6 +258,61 @@ test('外部搜索在发起请求前校验关键词、页码、Provider 和详�
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'unknown' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'tmdb,' }, providers), RequestValidationError);
   assert.throws(() => parsePatternParameter('1234567', 'imdbId', /^tt\d{7,10}$/, 12), RequestValidationError);
+});
+
+test('记录库、时间线和分析查询严格校验分页与筛选参数', () => {
+  const cursor = '2026-07-15T00:00:00.000Z__42';
+  assert.deepEqual(parseLibraryListParameters({}), {
+    cursor: undefined,
+    limit: 50,
+    includeTotals: true,
+    category: 'all',
+    year: undefined,
+    status: undefined,
+  });
+  assert.deepEqual(parseLibraryListParameters({
+    cursor,
+    limit: '100',
+    includeTotals: 'false',
+    category: 'media',
+    year: '2026',
+    status: 'done',
+  }), {
+    cursor,
+    limit: 100,
+    includeTotals: false,
+    category: 'media',
+    year: 2026,
+    status: RecordStatus.DONE,
+  });
+  assert.deepEqual(parseTimelineListParameters({
+    cursor,
+    category: 'game',
+    includeTotals: 'true',
+    year: '2025',
+    status: 'IN_PROGRESS',
+  }), {
+    cursor,
+    limit: 96,
+    includeTotals: true,
+    category: 'game',
+    year: 2025,
+    status: RecordStatus.IN_PROGRESS,
+  });
+  assert.equal(parseLibraryRecordCategory('TVSHOW'), 'tvshow');
+  assert.equal(parseTimelineCategory(undefined), 'all');
+  assert.equal(parseAnalyticsYear(undefined, 2026), 2026);
+  assert.equal(parseAnalyticsYear('2025', 2026), 2025);
+
+  assert.throws(() => parseLibraryListParameters({ cursor: 'invalid' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ cursor: '2026-07-15T00:00:00.000Z__1.5' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ limit: '1x' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ includeTotals: '0' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ category: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ year: '2026x' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ status: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseTimelineCategory(['all']), RequestValidationError);
+  assert.throws(() => parseAnalyticsYear('1899', 2026), RequestValidationError);
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {
