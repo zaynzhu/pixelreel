@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom"
 import { useI18nStore } from "../../stores/i18nStore"
 import type { AnalyticsData } from "../../types/analytics"
 import { ImgWithFallback } from "../ImgWithFallback"
@@ -34,11 +35,12 @@ export function TopRatedList({ items }: Props) {
   return (
     <div className="showcase-panel p-5">
       <div className="section-kicker mb-4">{t("analytics.top.title")}</div>
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((item, i) => (
-          <div
+          <Link
             key={`${item.category}-${item.id}`}
-            className="group relative"
+            to={`/library/${item.category}/${item.id}`}
+            className="group relative focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
             style={{ animation: `poster-enter 0.4s ease-out ${i * 60}ms both` }}
           >
             <div className="showcase-poster" style={{ aspectRatio: "2/3" }}>
@@ -103,7 +105,7 @@ export function TopRatedList({ items }: Props) {
                 </div>
               )}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

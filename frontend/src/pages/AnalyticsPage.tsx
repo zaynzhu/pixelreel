@@ -7,6 +7,7 @@ import { RatingChart } from "../components/analytics/RatingChart"
 import { SourcePieChart } from "../components/analytics/SourcePieChart"
 import { CrossPlatformChart } from "../components/analytics/CrossPlatformChart"
 import { TopRatedList } from "../components/analytics/TopRatedList"
+import { YearFingerprint } from "../components/analytics/YearFingerprint"
 
 export default function AnalyticsPage() {
   const { data, year, loading, error, fetchAnalytics } = useAnalyticsStore()
@@ -105,6 +106,9 @@ export default function AnalyticsPage() {
 
       {/* 总览卡片 */}
       <OverviewCards overview={data.overview} />
+
+      {/* 年度指纹 */}
+      <YearFingerprint data={data} />
 
       {/* 月度完成趋势 */}
       <MonthlyChart data={data.monthlyCompletion} />
