@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useLibraryStore } from "../stores/libraryStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
@@ -23,6 +23,7 @@ type SelectedRecordKey = `${LibraryCategory}:${number}`;
 export default function LibraryPage() {
   const { records, loading, loadingMore, saving, error, fetchRecords, fetchMore, updateRecord, nextCursor, totals } = useLibraryStore();
   const { t } = useI18nStore();
+  const [searchParams] = useSearchParams();
   
   const STATUS_OPTIONS: Array<{ value: RecordStatus; label: string }> = [
     { value: "UNSET", label: t("global.status.unset") },
@@ -41,9 +42,12 @@ export default function LibraryPage() {
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [status, setStatus] = useState<"all" | RecordStatus>("all");
   const [source, setSource] = useState<LibrarySourceFilter>("all");
-  const [reviewFilter, setReviewFilter] = useState<LibraryReviewFilter>("all");
+  const [reviewFilter, setReviewFilter] = useState<LibraryReviewFilter>(() => {
+    const review = searchParams.get("review");
+    return review === "reviewed" || review === "unreviewed" ? review : "all";
+  });
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [sortBy, setSortBy] = useState<LibrarySort>("recent");
+  const [sortBy, setSortBy] = useState<LibrarySort>(() => searchParams.get("sort") === "rating" ? "rating" : "recent");
   const [selectedKey, setSelectedKey] = useState<SelectedRecordKey | null>(null);
   const [form, setForm] = useState<LibraryRecordUpdateInput>({
     status: "UNSET",

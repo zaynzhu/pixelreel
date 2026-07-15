@@ -40,6 +40,7 @@ import {
   assertEmptyImportRequestBody,
   assertKnownImportParameters,
   buildPlatformImportStatus,
+  buildImportSourceStatus,
   DOUBAN_CSV_MAX_BYTES,
   getDoubanCsvUploadError,
   parseDoubanCsvImportParameters,
@@ -359,6 +360,42 @@ test('主机平台导入状态不暴露密钥并准确标记配置缺失', () =>
     xbox: { available: true, reason: null },
     psn: { available: true, reason: null },
   });
+});
+
+test('同步中心来源状态区分凭据、账号、开关和本地数据缺口', () => {
+  const unavailable = buildImportSourceStatus({
+    steamApiKey: '',
+    steamDefaultId: '',
+    traktClientId: 'client-id',
+    traktAccessToken: '',
+    doubanHarvestEnabled: false,
+    doubanUserId: '',
+    doubanCollectExists: false,
+    openxblEnabled: true,
+    openxblApiKey: '',
+    psnProfilesEnabled: false,
+  });
+  assert.deepEqual(unavailable.steam, { available: false, reason: 'missing_api_key' });
+  assert.deepEqual(unavailable.trakt, { available: false, reason: 'missing_access_token' });
+  assert.deepEqual(unavailable.douban.modes.json, { available: false, reason: 'missing_data' });
+  assert.deepEqual(unavailable.douban.modes.full, { available: false, reason: 'disabled' });
+  assert.deepEqual(unavailable.xbox, { available: false, reason: 'missing_api_key' });
+  assert.deepEqual(unavailable.psn, { available: false, reason: 'disabled' });
+
+  const available = buildImportSourceStatus({
+    steamApiKey: 'configured',
+    steamDefaultId: '76561198000000000',
+    traktClientId: 'client-id',
+    traktAccessToken: 'token',
+    doubanHarvestEnabled: true,
+    doubanUserId: 'user',
+    doubanCollectExists: true,
+    openxblEnabled: true,
+    openxblApiKey: 'configured',
+    psnProfilesEnabled: true,
+  });
+  assert.equal(Object.values(available).every(source => source.available), true);
+  assert.equal(available.douban.modes.incremental.available, true);
 });
 
 test('数据健康查询只接受适用的问题类型和有界分页参数', () => {

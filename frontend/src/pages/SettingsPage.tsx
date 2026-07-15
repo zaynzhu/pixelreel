@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useI18nStore } from '../stores/i18nStore';
 import { apiFetch } from '../api';
 import { toast } from '../stores/toastStore';
@@ -6,6 +7,7 @@ import type { SettingsCategory, SettingsResponse, SettingsSaveResponse } from '.
 
 export default function SettingsPage() {
   const { t, lang } = useI18nStore();
+  const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState<SettingsCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,6 +39,13 @@ export default function SettingsPage() {
   }, [t]);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
+
+  useEffect(() => {
+    const requestedCategory = searchParams.get('category');
+    if (requestedCategory && categories.some(category => category.key === requestedCategory)) {
+      setActiveCategory(requestedCategory);
+    }
+  }, [categories, searchParams]);
 
   const hasChanges = Object.keys(editValues).some(
     (k) => editValues[k] !== originalValues[k]

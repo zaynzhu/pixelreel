@@ -153,6 +153,7 @@ curl -X POST http://localhost:18889/api/import/steam/owned
 | `/activity` | 操作日志（筛选、无限滚动、撤销） |
 | `/showcase` | 大屏展示（网格 + 全屏轮播） |
 | `/analytics` | 数据分析（年度报告 + 习惯洞察） |
+| `/sync` | 多来源同步中心（配置状态、同步操作、任务进度与结果） |
 | `/settings` | 系统设置（环境变量配置） |
 | `/radar` | 雷达发现（TMDB + 优酷 + 腾讯聚合） |
 | `/login` | 登录页 |

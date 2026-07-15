@@ -1,4 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
 import multer from 'multer';
 import { importSteamOwnedGames, backfillSteamData } from '../services/import/SteamOwnedGamesImportService';
 import {
@@ -110,6 +112,16 @@ type PlatformImportStatusConfig = {
   psnProfilesEnabled: boolean;
 };
 
+type ImportSourceStatusConfig = PlatformImportStatusConfig & {
+  steamApiKey: string;
+  steamDefaultId: string;
+  traktClientId: string;
+  traktAccessToken: string;
+  doubanHarvestEnabled: boolean;
+  doubanUserId: string;
+  doubanCollectExists: boolean;
+};
+
 export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) {
   const xboxReason = !settings.openxblEnabled
     ? 'disabled'
@@ -127,8 +139,69 @@ export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) 
   };
 }
 
+export function buildImportSourceStatus(settings: ImportSourceStatusConfig) {
+  const platforms = buildPlatformImportStatus(settings);
+  const steamReason = !settings.steamApiKey.trim()
+    ? 'missing_api_key'
+    : settings.steamDefaultId.trim() ? null : 'missing_account';
+  const traktReason = !settings.traktClientId.trim()
+    ? 'missing_client_id'
+    : settings.traktAccessToken.trim() ? null : 'missing_access_token';
+  const doubanHarvestReason = !settings.doubanHarvestEnabled
+    ? 'disabled'
+    : settings.doubanUserId.trim() ? null : 'missing_account';
+
+  return {
+    steam: {
+      available: steamReason == null,
+      reason: steamReason,
+    },
+    trakt: {
+      available: traktReason == null,
+      reason: traktReason,
+    },
+    douban: {
+      available: settings.doubanCollectExists || doubanHarvestReason == null,
+      reason: settings.doubanCollectExists || doubanHarvestReason == null
+        ? null
+        : doubanHarvestReason,
+      modes: {
+        json: {
+          available: settings.doubanCollectExists,
+          reason: settings.doubanCollectExists ? null : 'missing_data',
+        },
+        incremental: {
+          available: doubanHarvestReason == null,
+          reason: doubanHarvestReason,
+        },
+        full: {
+          available: doubanHarvestReason == null,
+          reason: doubanHarvestReason,
+        },
+      },
+    },
+    xbox: platforms.xbox,
+    psn: platforms.psn,
+  };
+}
+
 function getCurrentPlatformImportStatus() {
   return buildPlatformImportStatus({
+    openxblEnabled: config.openxbl.enabled,
+    openxblApiKey: config.openxbl.apiKey,
+    psnProfilesEnabled: config.psnProfiles.enabled,
+  });
+}
+
+function getCurrentImportSourceStatus() {
+  return buildImportSourceStatus({
+    steamApiKey: config.steam.apiKey,
+    steamDefaultId: config.steam.defaultSteamId,
+    traktClientId: config.trakt.clientId,
+    traktAccessToken: config.trakt.accessToken,
+    doubanHarvestEnabled: config.douban.harvestEnabled,
+    doubanUserId: config.douban.userId,
+    doubanCollectExists: fs.existsSync(path.join(config.douban.dataDir, 'collect.json')),
     openxblEnabled: config.openxbl.enabled,
     openxblApiKey: config.openxbl.apiKey,
     psnProfilesEnabled: config.psnProfiles.enabled,
@@ -334,6 +407,12 @@ router.get('/tasks', (req: Request, res: Response) => {
 router.get('/platforms/status', (req: Request, res: Response) => {
   assertKnownImportParameters(req.query, []);
   res.json(getCurrentPlatformImportStatus());
+});
+
+// GET /api/import/sources/status — 同步中心来源可用性，不返回任何凭据
+router.get('/sources/status', (req: Request, res: Response) => {
+  assertKnownImportParameters(req.query, []);
+  res.json(getCurrentImportSourceStatus());
 });
 
 // DELETE /api/import/tasks/:taskId — 取消任务
