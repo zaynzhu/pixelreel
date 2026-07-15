@@ -102,6 +102,29 @@ export function parseImportTaskStatusParameters(value: Record<string, unknown>):
   return parseBoundedStringParameter(value.taskId, 'taskId', 100, true)!;
 }
 
+type PlatformImportStatusConfig = {
+  openxblEnabled: boolean;
+  openxblApiKey: string;
+  psnProfilesEnabled: boolean;
+};
+
+export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) {
+  const xboxReason = !settings.openxblEnabled
+    ? 'disabled'
+    : settings.openxblApiKey ? null : 'missing_api_key';
+  const psnReason = settings.psnProfilesEnabled ? null : 'disabled';
+  return {
+    xbox: {
+      available: xboxReason == null,
+      reason: xboxReason,
+    },
+    psn: {
+      available: psnReason == null,
+      reason: psnReason,
+    },
+  };
+}
+
 // multer 内存存储，用于豆瓣 CSV 上传
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -292,6 +315,16 @@ router.post('/douban-harvest', async (req: Request, res: Response) => {
 router.get('/tasks', (req: Request, res: Response) => {
   assertKnownImportParameters(req.query, []);
   res.json(listTasks());
+});
+
+// GET /api/import/platforms/status — 主机平台导入可用性，不返回密钥或 Cookie
+router.get('/platforms/status', (req: Request, res: Response) => {
+  assertKnownImportParameters(req.query, []);
+  res.json(buildPlatformImportStatus({
+    openxblEnabled: config.openxbl.enabled,
+    openxblApiKey: config.openxbl.apiKey,
+    psnProfilesEnabled: config.psnProfiles.enabled,
+  }));
 });
 
 // DELETE /api/import/tasks/:taskId — 取消任务

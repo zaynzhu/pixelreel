@@ -90,9 +90,10 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 - **用途**: 导入 Xbox 已玩游戏
 - **获取步骤**:
   1. 访问 https://xbl.io/ 注册账号
-  2. 登录后在 https://xbl.io/app/api-keys 获取 API Key
+  2. 登录后在 https://xbl.io/dashboard 获取 API Key
   3. `.env` 中 `OPENXBL_API_KEY` 填 Key，`OPENXBL_ENABLED` 改为 `true`
 - **调用方式**: `POST /api/import/xbox/owned?gamertag=你的Xbox昵称&status=UNSET`
+- **API 地址**: 默认 `https://api.xbl.io/v2`，通常不需要修改
 
 ## PSN 已玩游戏导入
 
@@ -106,6 +107,8 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
   3. `.env` 中 `PSN_PROFILES_ENABLED` 改为 `true`，`PSN_PROFILES_COOKIE` 填 Cookie
 - **调用方式**: `POST /api/import/psn/owned?psnId=你的PSN ID&status=UNSET`
 - **备注**: Cookie 有时效，长期用需定期更新
+
+前端游戏检索页会读取 `GET /api/import/platforms/status`；配置不完整时会明确显示原因并禁用导入按钮。
 
 ## RAWG 封面补全
 

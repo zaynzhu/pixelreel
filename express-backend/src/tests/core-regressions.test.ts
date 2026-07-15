@@ -33,6 +33,7 @@ import { getHealthStatus } from '../routes/health';
 import {
   assertEmptyImportRequestBody,
   assertKnownImportParameters,
+  buildPlatformImportStatus,
   DOUBAN_CSV_MAX_BYTES,
   getDoubanCsvUploadError,
   parseDoubanCsvImportParameters,
@@ -43,6 +44,7 @@ import {
   parseSteamOwnedImportParameters,
   parseXboxOwnedImportParameters,
 } from '../routes/import';
+import { extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
 import {
   parseLibraryListParameters,
   parseLibraryRandomParameters,
@@ -273,6 +275,60 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   });
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: 'player?name' }), RequestValidationError);
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: [] }), RequestValidationError);
+});
+
+test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏条目', () => {
+  const response = {
+    content: {
+      xuid: '2535473210914202',
+      titles: [
+        {
+          titleId: '1632510060',
+          name: 'The Sims 4',
+          type: 'Game',
+          displayImage: 'https://images.example/game.jpg',
+          achievement: {
+            currentAchievements: 0,
+            totalAchievements: 50,
+          },
+        },
+        {
+          titleId: 'app-1',
+          name: 'Streaming App',
+          type: 'App',
+        },
+      ],
+    },
+    code: 200,
+  };
+  assert.deepEqual(parseXboxTitles(response), [{
+    titleId: '1632510060',
+    name: 'The Sims 4',
+    posterUrl: 'https://images.example/game.jpg',
+    playtimeMinutes: null,
+    achievementTotal: 50,
+    achievementUnlocked: 0,
+  }]);
+  assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
+});
+
+test('主机平台导入状态不暴露密钥并准确标记配置缺失', () => {
+  assert.deepEqual(buildPlatformImportStatus({
+    openxblEnabled: true,
+    openxblApiKey: '',
+    psnProfilesEnabled: false,
+  }), {
+    xbox: { available: false, reason: 'missing_api_key' },
+    psn: { available: false, reason: 'disabled' },
+  });
+  assert.deepEqual(buildPlatformImportStatus({
+    openxblEnabled: true,
+    openxblApiKey: 'secret',
+    psnProfilesEnabled: true,
+  }), {
+    xbox: { available: true, reason: null },
+    psn: { available: true, reason: null },
+  });
 });
 
 test('同步导入和任务查询拒绝未知或超长参数', () => {

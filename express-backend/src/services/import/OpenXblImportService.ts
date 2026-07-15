@@ -4,6 +4,15 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+export interface XboxImportedTitle {
+  titleId: string;
+  name: string | null;
+  posterUrl: string | null;
+  playtimeMinutes: number | null;
+  achievementTotal: number | null;
+  achievementUnlocked: number | null;
+}
+
 // Xbox 已玩游戏导入服务，与 Java 端 OpenXblImportService 完全对齐
 export async function importXboxOwnedGames(gamertag: string, status?: string | null): Promise<ImportSummary> {
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
@@ -40,26 +49,15 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
   }
 
   // 2. 获取游戏列表
-  let titleHistory: any[] = [];
+  let titleHistory: XboxImportedTitle[] = [];
   try {
-    const titleRes = await axios.get(`${config.openxbl.baseUrl}/player/titleHistory/${xuid}`, {
+    const titleRes = await axios.get(`${config.openxbl.baseUrl}/titles/${xuid}`, {
       headers: { 'X-Authorization': config.openxbl.apiKey },
     });
     titleHistory = parseXboxTitles(titleRes.data);
   } catch (ex: any) {
     summary.errors.push(`获取 Xbox 游戏列表失败: ${ex.message}`);
     return summary;
-  }
-
-  // 3. 获取成就统计
-  let achievementStats: Map<string, { total: number | null; unlocked: number | null }> = new Map();
-  try {
-    const achRes = await axios.get(`${config.openxbl.baseUrl}/achievements/player/${xuid}`, {
-      headers: { 'X-Authorization': config.openxbl.apiKey },
-    });
-    achievementStats = parseXboxAchievements(achRes.data);
-  } catch {
-    summary.errors.push('获取成就统计失败，已跳过成就数据');
   }
 
   summary.total = titleHistory.length;
@@ -89,15 +87,14 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
       continue;
     }
 
-    const stats = achievementStats.get(title.titleId);
     toSave.push({
       xboxId: title.titleId,
       title: title.name,
       posterUrl: title.posterUrl || null,
       platform: 'XBOX',
-      playtimeMinutes: title.playtimeMinutes || null,
-      achievementTotal: stats?.total ?? null,
-      achievementUnlocked: stats?.unlocked ?? null,
+      playtimeMinutes: title.playtimeMinutes,
+      achievementTotal: title.achievementTotal,
+      achievementUnlocked: title.achievementUnlocked,
       importedAt: now,
       status: effectiveStatus,
       rating: null,
@@ -113,19 +110,19 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
   return summary;
 }
 
-function extractXuid(data: any): string | null {
+export function extractXuid(data: unknown): string | null {
   if (!data) return null;
   if (typeof data === 'object') {
-    // 尝试多种结构
-    if (data.xuid) return String(data.xuid);
-    if (data.Xuid) return String(data.Xuid);
+    const record = data as Record<string, unknown>;
+    if (record.xuid) return String(record.xuid);
+    if (record.Xuid) return String(record.Xuid);
     if (Array.isArray(data)) {
       for (const item of data) {
         const found = extractXuid(item);
         if (found) return found;
       }
     } else {
-      for (const val of Object.values(data)) {
+      for (const val of Object.values(record)) {
         if (typeof val === 'object' && val !== null) {
           const found = extractXuid(val);
           if (found) return found;
@@ -136,61 +133,67 @@ function extractXuid(data: any): string | null {
   return null;
 }
 
-function parseXboxTitles(data: any): any[] {
-  if (!data) return [];
-  // 尝试从多种结构中提取游戏列表
-  let array = data?.titles || data?.titleHistory || data?.data || data?.items;
-  if (!Array.isArray(array)) {
-    // 遍历对象寻找包含 titleId 的数组
-    for (const val of Object.values(data || {})) {
-      if (Array.isArray(val) && val.length > 0 && val[0]?.titleId) {
-        array = val;
-        break;
-      }
-    }
-  }
-  if (!Array.isArray(array)) return [];
+export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
+  const array = findXboxTitleArray(data);
+  return array.flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const item = value as Record<string, unknown>;
+    const type = readString(item.type);
+    if (type && type.toLowerCase() !== 'game') return [];
 
-  return array.map((item: any) => ({
-    titleId: item.titleId || item.titleID || item.id || item.title_id || null,
-    name: item.name || item.title || item.displayName || item.game || null,
-    posterUrl: item.displayImage || item.displayImageUrl || item.image || item.imageUrl || item.boxArt || item.boxArtUrl || null,
-    playtimeMinutes: item.playtimeMinutes || item.minutesPlayed || item.timePlayedMinutes || item.minutes || null,
-  })).filter((t: any) => t.titleId || t.name);
+    const titleId = readString(item.titleId ?? item.titleID ?? item.id ?? item.title_id);
+    if (!titleId) return [];
+    const statsValue = item.achievement ?? item.achievements ?? item.stats ?? item.progress;
+    const stats = statsValue && typeof statsValue === 'object'
+      ? statsValue as Record<string, unknown>
+      : {};
+    return [{
+      titleId,
+      name: readString(item.name ?? item.title ?? item.displayName ?? item.game),
+      posterUrl: readString(
+        item.displayImage ?? item.displayImageUrl ?? item.image
+        ?? item.imageUrl ?? item.boxArt ?? item.boxArtUrl,
+      ),
+      playtimeMinutes: readNonNegativeInteger(
+        item.playtimeMinutes ?? item.minutesPlayed ?? item.timePlayedMinutes ?? item.minutes,
+      ),
+      achievementTotal: readNonNegativeInteger(
+        stats.totalAchievements ?? stats.total ?? stats.achievementTotal,
+      ),
+      achievementUnlocked: readNonNegativeInteger(
+        stats.currentAchievements ?? stats.unlockedAchievements
+        ?? stats.achievementUnlocked ?? stats.earned,
+      ),
+    }];
+  });
 }
 
-function parseXboxAchievements(data: any): Map<string, { total: number | null; unlocked: number | null }> {
-  const map = new Map<string, { total: number | null; unlocked: number | null }>();
-  if (!data) return map;
-
-  let array = data?.titles || data?.data || data?.items;
-  if (!Array.isArray(array)) {
-    for (const val of Object.values(data || {})) {
-      if (Array.isArray(val) && val.length > 0 && val[0]?.titleId) {
-        array = val;
-        break;
-      }
-    }
+function findXboxTitleArray(data: unknown): unknown[] {
+  if (!data || typeof data !== 'object') return [];
+  const record = data as Record<string, unknown>;
+  const content = record.content && typeof record.content === 'object'
+    ? record.content as Record<string, unknown>
+    : record;
+  const direct = content.titles ?? content.titleHistory ?? content.data ?? content.items;
+  if (Array.isArray(direct)) return direct;
+  for (const value of Object.values(content)) {
+    if (Array.isArray(value) && value.some(item => (
+      item && typeof item === 'object'
+      && ('titleId' in item || 'titleID' in item)
+    ))) return value;
   }
-  if (!Array.isArray(array)) return map;
+  return [];
+}
 
-  for (const item of array) {
-    const titleId = String(item.titleId || item.titleID || item.id || item.title_id || '');
-    if (!titleId) continue;
+function readString(value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+}
 
-    const stats = item.achievement || item.achievements || item.stats || item.progress;
-    let total: number | null = null;
-    let unlocked: number | null = null;
-
-    if (stats && typeof stats === 'object') {
-      total = stats.totalAchievements ?? stats.total ?? stats.achievementTotal ?? null;
-      unlocked = stats.currentAchievements ?? stats.unlockedAchievements ?? stats.achievementUnlocked ?? stats.earned ?? null;
-    }
-
-    if (total !== null || unlocked !== null) {
-      map.set(titleId, { total, unlocked });
-    }
-  }
-
-  return map;
+function readNonNegativeInteger(value: unknown): number | null {
+  if (value == null || (typeof value !== 'number' && typeof value !== 'string')) return null;
+  if (typeof value === 'string' && !value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }

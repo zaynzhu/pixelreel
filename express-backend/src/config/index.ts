@@ -120,7 +120,7 @@ export const config = {
 
   openxbl: {
     apiKey: process.env.OPENXBL_API_KEY || '',
-    baseUrl: process.env.OPENXBL_BASE_URL || 'https://xbl.io/api/v2',
+    baseUrl: process.env.OPENXBL_BASE_URL || 'https://api.xbl.io/v2',
     enabled: process.env.OPENXBL_ENABLED === 'true',
   },
 

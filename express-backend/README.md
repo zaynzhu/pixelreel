@@ -72,6 +72,7 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/import/douban-harvest?mode=json\|full\|incremental` | 豆瓣数据导入/爬取 |
 | GET | `/api/import/douban-harvest/status?taskId=xxx` | 任务进度 |
 | GET | `/api/import/tasks` | 所有任务列表 |
+| GET | `/api/import/platforms/status` | Xbox/PSN 导入可用性（不返回敏感配置） |
 | DELETE | `/api/import/tasks/:taskId` | 取消任务 |
 | POST | `/api/import/tmdb-enrich/backfill?limit=50` | 批量补充 TMDB 数据 |
 | POST | `/api/import/tmdb-detail/backfill?limit=50` | 按 tmdbId 回填详情 |

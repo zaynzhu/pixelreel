@@ -193,6 +193,7 @@ GET   /api/timeline/years?category=
 ```text
 POST   /api/import/douban-harvest?mode=json|full|incremental
 GET    /api/import/douban-harvest/status?taskId=xxx
+GET    /api/import/platforms/status
 POST   /api/trakt/import/movies
 POST   /api/trakt/import/shows
 POST   /api/import/steam/owned

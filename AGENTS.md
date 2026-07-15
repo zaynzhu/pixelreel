@@ -99,6 +99,7 @@ frontend/src/
 | — | `POST /api/import/douban-harvest` (豆瓣导入/爬取) |
 | — | `GET /api/import/douban-harvest/status` (任务进度) |
 | — | `GET /api/import/tasks` (所有任务列表) |
+| — | `GET /api/import/platforms/status`（Xbox/PSN 导入可用性，不返回敏感配置） |
 | — | `DELETE /api/import/tasks/:taskId` (取消任务) |
 | — | `POST /api/import/tmdb-enrich/backfill?limit=50` (批量为已有记录补充 TMDB 数据) |
 | — | `POST /api/import/tmdb-detail/backfill?limit=50` (按 tmdbId 回填完整详情：imdbId/voteAverage/title/overview/genres 等) |

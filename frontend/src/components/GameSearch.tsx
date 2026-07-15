@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   ExternalGameSearchResult,
   ExternalSearchResponse,
@@ -53,6 +53,13 @@ interface ImportSummary {
   errors: string[];
 }
 
+type PlatformImportReason = "disabled" | "missing_api_key" | null;
+
+interface PlatformImportStatus {
+  xbox: { available: boolean; reason: PlatformImportReason };
+  psn: { available: boolean; reason: PlatformImportReason };
+}
+
 const defaultProvider = PROVIDERS[0].id;
 
 export default function GameSearch() {
@@ -71,11 +78,30 @@ export default function GameSearch() {
   const [importStatus, setImportStatus] = useState<RecordStatus>("UNSET");
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [platformImportStatus, setPlatformImportStatus] = useState<PlatformImportStatus | null>(null);
+  const [platformStatusFailed, setPlatformStatusFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<PlatformImportStatus>("/import/platforms/status")
+      .then((status) => {
+        if (!cancelled) setPlatformImportStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setPlatformStatusFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
   const activeProviderConfig =
     PROVIDERS.find((item) => item.id === activeProvider) ?? PROVIDERS[0];
   const isSearchProvider = activeProviderConfig.mode === "search";
+  const activePlatformStatus = activeProvider === "xbox" || activeProvider === "psn"
+    ? platformImportStatus?.[activeProvider] ?? null
+    : null;
 
   const search = async (nextPage = 1) => {
     const trimmed = query.trim();
@@ -232,6 +258,24 @@ export default function GameSearch() {
                 : "search.game.import.psn.description"
             )}
           </p>
+          {(platformStatusFailed || !activePlatformStatus?.available) && (
+            <div className="mb-4 border-l-4 border-yellow-500 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400">
+              <p className="font-bold uppercase tracking-wider">
+                {platformStatusFailed
+                  ? t("search.game.import.status_failed")
+                  : !activePlatformStatus
+                    ? t("search.game.import.checking")
+                    : activePlatformStatus.reason === "missing_api_key"
+                      ? t("search.game.import.unavailable.missing_api_key")
+                      : t("search.game.import.unavailable.disabled")}
+              </p>
+              {!platformStatusFailed && activePlatformStatus && (
+                <a href="/settings" className="mt-2 inline-block underline underline-offset-4">
+                  {t("search.game.import.configure")}
+                </a>
+              )}
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
             <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
               {t(
@@ -269,7 +313,7 @@ export default function GameSearch() {
               type="button"
               onClick={importOwnedGames}
               className="brutal-btn-accent"
-              disabled={importing || !accountId.trim()}
+              disabled={importing || !accountId.trim() || !activePlatformStatus?.available}
             >
               {importing
                 ? t("search.game.import.importing")

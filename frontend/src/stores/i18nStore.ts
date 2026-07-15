@@ -193,6 +193,11 @@ const dictionaries = {
     "search.game.import.importing": "IMPORTING...",
     "search.game.import.failed": "IMPORT FAILED",
     "search.game.import.summary": "TOTAL {0} // IMPORTED {1} // SKIPPED {2}",
+    "search.game.import.checking": "CHECKING PLATFORM CONFIGURATION...",
+    "search.game.import.status_failed": "PLATFORM STATUS UNAVAILABLE. IMPORT DISABLED.",
+    "search.game.import.unavailable.disabled": "THIS PLATFORM IMPORT IS DISABLED.",
+    "search.game.import.unavailable.missing_api_key": "OPENXBL API KEY IS NOT CONFIGURED.",
+    "search.game.import.configure": "OPEN SETTINGS TO CONFIGURE",
 
     // Global
     "global.status.unset": "UNSET",
@@ -606,6 +611,11 @@ const dictionaries = {
     "search.game.import.importing": "导入中...",
     "search.game.import.failed": "导入失败",
     "search.game.import.summary": "共 {0} 条 // 导入 {1} 条 // 跳过 {2} 条",
+    "search.game.import.checking": "正在检查平台配置...",
+    "search.game.import.status_failed": "无法读取平台状态，已禁用导入。",
+    "search.game.import.unavailable.disabled": "该平台导入当前未启用。",
+    "search.game.import.unavailable.missing_api_key": "尚未配置 OpenXBL API Key。",
+    "search.game.import.configure": "前往设置进行配置",
 
     // Global
     "global.status.unset": "未设置",
