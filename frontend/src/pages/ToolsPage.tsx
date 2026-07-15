@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18nStore } from '../stores/i18nStore';
 import { apiDownload, apiFetch } from '../api';
 import { toast } from '../stores/toastStore';
@@ -32,9 +32,15 @@ export default function ToolsPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [converting, setConverting] = useState<number | null>(null);
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const latestSearchRequest = useRef(0);
+
+  useEffect(() => () => {
+    latestSearchRequest.current++;
+  }, []);
 
   const handleExport = async () => {
     if (exporting) return
@@ -59,16 +65,20 @@ export default function ToolsPage() {
 
   const handleSearch = async () => {
     if (!query.trim()) return;
+    const requestId = ++latestSearchRequest.current;
     setSearching(true);
     setSearched(true);
+    setSearchError(null);
+    setResults([]);
     try {
       const data = await apiFetch<SearchResponse>(`/tools/search?query=${encodeURIComponent(query.trim())}`);
+      if (requestId !== latestSearchRequest.current) return;
       setResults(data.results || []);
-    } catch (e: any) {
-      toast(`${t('tools.convert.failed')}: ${e.message}`, 'error');
-      setResults([]);
+    } catch (reason) {
+      if (requestId !== latestSearchRequest.current) return;
+      setSearchError(reason instanceof Error ? reason.message : t('tools.convert.search_failed'));
     } finally {
-      setSearching(false);
+      if (requestId === latestSearchRequest.current) setSearching(false);
     }
   };
 
@@ -179,7 +189,21 @@ export default function ToolsPage() {
         </div>
 
         {/* Results */}
-        {searched && !searching && results.length === 0 && (
+        {searchError && !searching && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-4 border border-red-500/50 bg-red-500/10 p-4 text-xs text-red-300">
+            <div>
+              <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-red-400">
+                {t('tools.convert.search_failed')}
+              </div>
+              <p className="mt-1 break-all">{searchError}</p>
+            </div>
+            <button type="button" onClick={() => void handleSearch()} className="brutal-btn">
+              {t('tools.convert.search_retry')}
+            </button>
+          </div>
+        )}
+
+        {searched && !searching && !searchError && results.length === 0 && (
           <div className="text-center py-8 text-[var(--muted)] text-xs uppercase tracking-widest">
             {t('tools.convert.no_results')}
           </div>
