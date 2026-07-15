@@ -74,16 +74,29 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [detailLoading, setDetailLoading] = useState<string | null>(null)
+  const latestSearchRequest = useRef(0)
+  const selectionInProgress = useRef(false)
+
+  const invalidateSearch = () => {
+    latestSearchRequest.current += 1
+    setSearching(false)
+    setHasSearched(false)
+    setResults([])
+    setError(null)
+  }
 
   // 自动聚焦搜索框
   useEffect(() => {
     inputRef.current?.focus()
+    return () => {
+      latestSearchRequest.current += 1
+    }
   }, [])
 
   // ESC 关闭
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape" && !selectionInProgress.current) onClose()
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
@@ -91,6 +104,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
 
   // 切换来源选中状态
   const toggleProvider = (id: string) => {
+    invalidateSearch()
     setSelectedProviders((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     )
@@ -106,6 +120,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
     const trimmed = query.trim()
     if (!trimmed || selectedProviders.length === 0) return
 
+    const requestId = ++latestSearchRequest.current
     setSearching(true)
     setHasSearched(true)
     setError(null)
@@ -121,6 +136,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
         const flat = (payload.providers ?? []).flatMap((p) =>
           p.results.map(mapMovieResult)
         )
+        if (requestId !== latestSearchRequest.current) return
         setResults(flat)
       } else if (record.category === "tv_show") {
         const payload = await apiFetch<ExternalSearchResponse<ExternalTvShowSearchResult>>(
@@ -129,6 +145,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
         const flat = (payload.providers ?? []).flatMap((p) =>
           p.results.map(mapTvShowResult)
         )
+        if (requestId !== latestSearchRequest.current) return
         setResults(flat)
       } else {
         const payload = await apiFetch<ExternalSearchResponse<ExternalGameSearchResult>>(
@@ -137,12 +154,14 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
         const flat = (payload.providers ?? []).flatMap((p) =>
           p.results.map(mapGameResult)
         )
+        if (requestId !== latestSearchRequest.current) return
         setResults(flat)
       }
     } catch (err) {
+      if (requestId !== latestSearchRequest.current) return
       setError(err instanceof Error ? err.message : t("lib.rescrape.failed"))
     } finally {
-      setSearching(false)
+      if (requestId === latestSearchRequest.current) setSearching(false)
     }
   }
 
@@ -185,6 +204,8 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
   // ── 选择结果 → 获取详情 → 更新记录 ──
 
   const handleSelect = async (result: SearchResult) => {
+    if (selectionInProgress.current) return
+    selectionInProgress.current = true
     const key = buildResultKey(result)
     setDetailLoading(key)
     setError(null)
@@ -223,6 +244,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
     } catch (err) {
       setError(err instanceof Error ? err.message : t("lib.rescrape.failed"))
     } finally {
+      selectionInProgress.current = false
       setDetailLoading(null)
       setUpdating(false)
     }
@@ -293,12 +315,14 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
     }
   }
 
+  const selectionBusy = detailLoading !== null || updating
+
   // ── 渲染 ──
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && !selectionInProgress.current && onClose()}
     >
       <div
         role="dialog"
@@ -322,7 +346,8 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => !selectionInProgress.current && onClose()}
+            disabled={selectionBusy}
             aria-label={t("lib.rescrape.close")}
             className="p-1 text-[var(--muted)] hover:text-white transition-colors text-sm"
           >
@@ -347,6 +372,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
               <button
                 key={p.id}
                 onClick={() => toggleProvider(p.id)}
+                disabled={selectionBusy}
                 className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 transition-all ${
                   selectedProviders.includes(p.id)
                     ? "neo-badge-accent"
@@ -363,14 +389,18 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
             <input
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              onChange={(e) => {
+                invalidateSearch()
+                setQuery(e.target.value)
+              }}
+              onKeyDown={(e) => e.key === "Enter" && !selectionBusy && handleSearch()}
+              disabled={selectionBusy}
               placeholder={t("lib.rescrape.search_placeholder")}
               className="tech-input flex-1"
             />
             <button
               onClick={handleSearch}
-              disabled={searching || selectedProviders.length === 0}
+              disabled={searching || selectionBusy || selectedProviders.length === 0}
               className="brutal-btn-accent flex items-center gap-1.5"
             >
               <span>&#x1F50D;</span>
@@ -413,9 +443,9 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
                 return (
                   <div
                     key={key}
-                    onClick={() => !isLoading && !updating && handleSelect(result)}
+                    onClick={() => !selectionBusy && handleSelect(result)}
                     className={`group flex gap-4 p-3 border border-[var(--line)] bg-[var(--surface-hover)] transition-all ${
-                      isLoading || updating
+                      selectionBusy
                         ? "opacity-60 cursor-wait"
                         : "cursor-pointer hover:border-[var(--accent)]"
                     }`}
