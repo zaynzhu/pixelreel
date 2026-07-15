@@ -15,6 +15,7 @@ import {
 
 const router = Router();
 const MAX_TRAKT_PAGE_COUNT = 1000;
+const MAX_TRAKT_ACCESS_TOKEN_LENGTH = 4096;
 const TRAKT_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_TRAKT_OAUTH_STATES = 20;
 const TRAKT_CALLBACK_PARAMETER_KEYS = new Set(['code', 'state']);
@@ -110,6 +111,21 @@ export function parseTraktPageData(value: unknown): any[] {
   return value;
 }
 
+export function parseTraktAccessToken(value: unknown): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TraktApiResponseError('Trakt 返回了无效的令牌响应');
+  }
+  const accessToken = (value as Record<string, unknown>).access_token;
+  if (typeof accessToken !== 'string') {
+    throw new TraktApiResponseError('Trakt 返回了无效的令牌响应');
+  }
+  const normalized = accessToken.trim();
+  if (!normalized || normalized.length > MAX_TRAKT_ACCESS_TOKEN_LENGTH) {
+    throw new TraktApiResponseError('Trakt 返回了无效的令牌响应');
+  }
+  return normalized;
+}
+
 export function parseTraktCallbackParameters(
   value: Record<string, unknown>,
   stateStore = traktOAuthStates,
@@ -159,7 +175,7 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
       grant_type: 'authorization_code',
     });
 
-    const accessToken = tokenRes.data.access_token;
+    const accessToken = parseTraktAccessToken(tokenRes.data);
     res.json({
       message: 'Trakt 授权成功！请将以下 access_token 配置到 .env 的 TRAKT_ACCESS_TOKEN',
       access_token: accessToken,

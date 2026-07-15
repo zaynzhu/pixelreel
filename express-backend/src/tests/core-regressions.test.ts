@@ -66,6 +66,7 @@ import {
 import {
   assertEmptyTraktImportBody,
   parseTraktCallbackParameters,
+  parseTraktAccessToken,
   parseTraktImportParameters,
   parseTraktPageCount,
   parseTraktPageData,
@@ -1007,6 +1008,22 @@ test('Trakt OAuth state 限时且只能消费一次', () => {
   assert.throws(
     () => parseTraktCallbackParameters({ code: 'code-2', state: 'invalid', debug: '1' }, expiredStore),
     RequestValidationError,
+  );
+});
+
+test('Trakt OAuth 拒绝无效的令牌响应', () => {
+  assert.equal(parseTraktAccessToken({ access_token: ' token-123 ' }), 'token-123');
+  for (const value of [null, [], {}, { access_token: '' }, { access_token: 123 }]) {
+    assert.throws(
+      () => parseTraktAccessToken(value),
+      (error: unknown) => error instanceof Error
+        && (error as Error & { status?: number }).status === 502,
+    );
+  }
+  assert.throws(
+    () => parseTraktAccessToken({ access_token: 'x'.repeat(4097) }),
+    (error: unknown) => error instanceof Error
+      && (error as Error & { status?: number }).status === 502,
   );
 });
 
