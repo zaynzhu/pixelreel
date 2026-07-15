@@ -76,7 +76,7 @@ export default function AppShell() {
                   aria-controls="task-panel"
                   className="brutal-btn relative"
                 >
-                  TASKS
+                  {t('task.panel.title')}
                   {runningTasks > 0 && (
                     <span className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-deep)] text-[10px] font-bold text-white">
                       {runningTasks}

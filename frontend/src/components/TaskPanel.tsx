@@ -56,7 +56,7 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
         <div className="flex items-center justify-between border-b border-[var(--line)] px-6 py-5">
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 ${running > 0 ? 'bg-[var(--accent-deep)]' : 'bg-[var(--accent)]'} animate-pulse`} />
-            <span id="task-panel-title" className="section-kicker !mb-0">TASKS</span>
+            <span id="task-panel-title" className="section-kicker !mb-0">{t('task.panel.title')}</span>
             {running > 0 && (
               <span className="ml-2 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-black">
                 {running}
@@ -81,7 +81,7 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
               <svg className="w-8 h-8 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <span className="text-[10px] uppercase tracking-widest">No tasks</span>
+              <span className="text-[10px] uppercase tracking-widest">{t('task.panel.empty')}</span>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -97,6 +97,7 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
 }
 
 function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['tasks'][0] }) {
+  const { lang, t } = useI18nStore()
   const pct = task.progress.total > 0
     ? Math.round((task.progress.processed / task.progress.total) * 100)
     : 0;
@@ -110,12 +111,12 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
         : 'text-red-400';
 
   const statusLabel = task.status === 'running'
-    ? 'RUNNING'
+    ? t('task.panel.status.running')
     : task.status === 'completed'
-      ? 'DONE'
+      ? t('task.panel.status.done')
       : task.status === 'cancelled'
-        ? 'CANCELLED'
-        : 'FAILED';
+        ? t('task.panel.status.cancelled')
+        : t('task.panel.status.failed');
 
   return (
     <div className="border border-[var(--line)] bg-[var(--surface-hover)] p-4">
@@ -128,10 +129,11 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
           </span>
           {task.status === 'running' && (
             <button
+              type="button"
               onClick={() => useTaskStore.getState().cancelTask(task.taskId)}
               className="text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 px-2 py-0.5 hover:bg-red-400/10 transition-colors"
             >
-              CANCEL
+              {t('task.panel.cancel')}
             </button>
           )}
         </div>
@@ -151,7 +153,7 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
               {task.progress.total > 0
                 ? `${task.progress.processed}/${task.progress.total}`
                 : task.progress.processed > 0
-                  ? `${task.progress.processed}条`
+                  ? t('task.panel.items', task.progress.processed)
                   : ''}
             </span>
             <span className="text-[10px] text-[var(--muted)] truncate max-w-[180px] ml-2">
@@ -164,10 +166,10 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
       {/* 完成结果 */}
       {(task.status === 'completed' || task.status === 'cancelled') && task.result && (
         <div className="flex gap-3 text-[10px] text-[var(--muted)]">
-          <span>导入 <span className="text-white">{task.result.imported}</span></span>
-          <span>跳过 <span className="text-white">{task.result.skipped}</span></span>
+          <span>{t('task.panel.result.imported')} <span className="text-white">{task.result.imported}</span></span>
+          <span>{t('task.panel.result.skipped')} <span className="text-white">{task.result.skipped}</span></span>
           {task.result.errors.length > 0 && (
-            <span>错误 <span className="text-red-400">{task.result.errors.length}</span></span>
+            <span>{t('task.panel.result.errors')} <span className="text-red-400">{task.result.errors.length}</span></span>
           )}
         </div>
       )}
@@ -179,8 +181,8 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
 
       {/* 时间 */}
       <div className="mt-2 text-[10px] text-[var(--muted)]">
-        {new Date(task.startedAt).toLocaleTimeString()}
-        {task.completedAt && ` → ${new Date(task.completedAt).toLocaleTimeString()}`}
+        {new Date(task.startedAt).toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+        {task.completedAt && ` → ${new Date(task.completedAt).toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en-US')}`}
       </div>
     </div>
   );
