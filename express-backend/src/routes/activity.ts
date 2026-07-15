@@ -2,20 +2,24 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import { logActivity, EntityType } from '../services/activity-log'
 import {
+  parseBoundedStringParameter,
   parseDateParameter,
+  parseEnumParameter,
   parsePositiveBigIntParameter,
   parsePositiveIntegerParameter,
-  parseStringParameter,
   RequestValidationError,
 } from './request-validation'
 
 const router = Router()
 
 const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE'])
+const ACTIVITY_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'TASK_START', 'TASK_DONE', 'TASK_FAIL', 'UNDO'] as const
+const ACTIVITY_ENTITY_TYPES = ['MOVIE', 'TV_SHOW', 'GAME', 'TASK'] as const
+const ACTIVITY_LIST_PARAMETER_KEYS = new Set(['limit', 'cursor', 'action', 'entityType', 'entityId', 'from', 'to'])
 const undoInProgress = new Set<string>()
 
 export function parseActivityCursor(value: unknown): { createdAt: Date; id: bigint } | null {
-  const cursor = parseStringParameter(value, 'cursor')
+  const cursor = parseBoundedStringParameter(value, 'cursor', 100)
   if (!cursor) return null
   const parts = cursor.split('__')
   if (parts.length !== 2) throw new RequestValidationError('cursor 格式无效')
@@ -23,6 +27,25 @@ export function parseActivityCursor(value: unknown): { createdAt: Date; id: bigi
   const id = parsePositiveBigIntParameter(parts[1], 'cursor id', true)!
   if (isNaN(createdAt.getTime())) throw new RequestValidationError('cursor 时间无效')
   return { createdAt, id }
+}
+
+export function parseActivityListParameters(value: Record<string, unknown>) {
+  const unknownKey = Object.keys(value).find(key => !ACTIVITY_LIST_PARAMETER_KEYS.has(key))
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`)
+
+  const from = parseDateParameter(value.from, 'from')
+  const to = parseDateParameter(value.to, 'to')
+  if (from && to && from > to) throw new RequestValidationError('from 不能晚于 to')
+
+  return {
+    limit: parsePositiveIntegerParameter(value.limit, 'limit', 50, 100),
+    cursor: parseActivityCursor(value.cursor),
+    action: parseEnumParameter(value.action, 'action', ACTIVITY_ACTIONS),
+    entityType: parseEnumParameter(value.entityType, 'entityType', ACTIVITY_ENTITY_TYPES),
+    entityId: parsePositiveBigIntParameter(value.entityId, 'entityId'),
+    from,
+    to,
+  }
 }
 
 export function getUndoneLogId(metadata: unknown): string | null {
@@ -61,14 +84,7 @@ function entityDelegate(entityType: string) {
 // GET /api/activity — 活动日志列表（游标分页）
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const limit = parsePositiveIntegerParameter(req.query.limit, 'limit', 50, 100)
-    const cursorObj = parseActivityCursor(req.query.cursor)
-    const action = parseStringParameter(req.query.action, 'action')
-    const entityType = parseStringParameter(req.query.entityType, 'entityType')
-    const entityId = parsePositiveBigIntParameter(req.query.entityId, 'entityId')
-    const from = parseDateParameter(req.query.from, 'from')
-    const to = parseDateParameter(req.query.to, 'to')
-    if (from && to && from > to) throw new RequestValidationError('from 不能晚于 to')
+    const { limit, cursor: cursorObj, action, entityType, entityId, from, to } = parseActivityListParameters(req.query)
 
     const where: any = {}
     if (action) where.action = action

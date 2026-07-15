@@ -20,7 +20,12 @@ import {
   parseLoginBody,
   secureCredentialEqual,
 } from '../routes/auth';
-import { getUndoneLogId, parseActivityCursor, serializeLog } from '../routes/activity';
+import {
+  getUndoneLogId,
+  parseActivityCursor,
+  parseActivityListParameters,
+  serializeLog,
+} from '../routes/activity';
 import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
 import {
@@ -397,7 +402,33 @@ test('活动日志参数拒绝非法游标、ID 和日期', () => {
   });
   assert.throws(() => parseActivityCursor('2026-07-15T00:00:00.000Z__bad'), RequestValidationError);
   assert.throws(() => parseActivityCursor('invalid-cursor'), RequestValidationError);
+  assert.throws(
+    () => parseActivityCursor(`2026-07-15T00:00:00.000Z__${'1'.repeat(101)}`),
+    RequestValidationError,
+  );
   assert.equal(parseActivityCursor(undefined), null);
+
+  assert.deepEqual(parseActivityListParameters({
+    limit: '25',
+    action: 'UPDATE',
+    entityType: 'MOVIE',
+    entityId: '42',
+  }), {
+    limit: 25,
+    cursor: null,
+    action: 'UPDATE',
+    entityType: 'MOVIE',
+    entityId: 42n,
+    from: null,
+    to: null,
+  });
+  assert.throws(() => parseActivityListParameters({ action: 'INVALID' }), RequestValidationError);
+  assert.throws(() => parseActivityListParameters({ entityType: 'USER' }), RequestValidationError);
+  assert.throws(() => parseActivityListParameters({ verbose: 'true' }), RequestValidationError);
+  assert.throws(() => parseActivityListParameters({
+    from: '2026-07-16T00:00:00.000Z',
+    to: '2026-07-15T00:00:00.000Z',
+  }), RequestValidationError);
 });
 
 test('已撤销的活动日志不再标记为可撤销', () => {
