@@ -416,8 +416,20 @@ test('直接 CRUD 写入仅接受已知字段和有效类型', () => {
 
 test('活动日志参数拒绝非法游标、ID 和日期', () => {
   assert.equal(parsePositiveBigIntParameter('9007199254740993', 'entityId'), 9007199254740993n);
+  assert.equal(
+    parsePositiveBigIntParameter('9223372036854775807', 'entityId'),
+    9223372036854775807n,
+  );
   assert.equal(parsePositiveBigIntParameter(42, 'entityId'), 42n);
   assert.throws(() => parsePositiveBigIntParameter('not-a-number', 'entityId'), RequestValidationError);
+  assert.throws(
+    () => parsePositiveBigIntParameter('9223372036854775808', 'entityId'),
+    RequestValidationError,
+  );
+  assert.throws(
+    () => parsePositiveBigIntParameter('9'.repeat(1000), 'entityId'),
+    RequestValidationError,
+  );
   assert.equal(parseDateParameter('2026-07-15T00:00:00.000Z', 'from')?.toISOString(), '2026-07-15T00:00:00.000Z');
   assert.throws(() => parseDateParameter('not-a-date', 'from'), RequestValidationError);
   assert.deepEqual(parseActivityCursor('2026-07-15T00:00:00.000Z__42'), {

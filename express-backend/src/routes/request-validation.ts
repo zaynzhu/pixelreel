@@ -2,6 +2,8 @@ import { RecordStatus } from '../enums/RecordStatus';
 import type { LibraryRecordUpdateRequest } from '../dto/library';
 
 const EXTERNAL_SEARCH_PARAMETER_KEYS = new Set(['query', 'page', 'providers']);
+const MAX_SIGNED_BIGINT = 9_223_372_036_854_775_807n;
+const MAX_SIGNED_BIGINT_DIGITS = 19;
 
 export class RequestValidationError extends Error {
   readonly status = 400;
@@ -70,10 +72,21 @@ export function parsePositiveBigIntParameter(
     }
     return BigInt(value);
   }
-  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value.trim())) {
+  if (typeof value !== 'string') {
     throw new RequestValidationError(`${name} 必须是正整数`);
   }
-  return BigInt(value.trim());
+  const normalized = value.trim();
+  if (!/^[1-9]\d*$/.test(normalized)) {
+    throw new RequestValidationError(`${name} 必须是正整数`);
+  }
+  if (normalized.length > MAX_SIGNED_BIGINT_DIGITS) {
+    throw new RequestValidationError(`${name} 超出 64 位整数范围`);
+  }
+  const parsed = BigInt(normalized);
+  if (parsed > MAX_SIGNED_BIGINT) {
+    throw new RequestValidationError(`${name} 超出 64 位整数范围`);
+  }
+  return parsed;
 }
 
 export function parseDateParameter(value: unknown, name: string): Date | null {
