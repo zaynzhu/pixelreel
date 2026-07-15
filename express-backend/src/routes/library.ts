@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords } from '../services/LibraryService';
 import {
+  assertNoQueryParameters,
   parseBooleanParameter,
   parseEnumParameter,
   parseLibraryRecordUpdateBody,
@@ -95,6 +96,7 @@ router.get('/:category/:id', async (req: Request, res: Response, next: NextFunct
 
 // PATCH /api/library/:category/:id — 更新记录状态/评分/短评（不变）
 router.patch('/:category/:id', async (req: Request, res: Response, next: NextFunction) => {
+  assertNoQueryParameters(req.query);
   const category = parseLibraryRecordCategory(req.params.category);
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   const request = parseLibraryRecordUpdateBody(req.body);

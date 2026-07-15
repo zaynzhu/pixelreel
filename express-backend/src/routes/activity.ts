@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import { logActivity, EntityType } from '../services/activity-log'
 import {
+  assertEmptyRequestBody,
+  assertNoQueryParameters,
   parseBoundedStringParameter,
   parseDateParameter,
   parseEnumParameter,
@@ -148,6 +150,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 // POST /api/activity/:id/undo — 撤销操作
 router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    assertNoQueryParameters(req.query)
+    assertEmptyRequestBody(req.body)
     const id = parsePositiveBigIntParameter(req.params.id, 'id', true)!
     const undoKey = id.toString()
     if (undoInProgress.has(undoKey)) {

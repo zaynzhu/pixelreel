@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { config } from '../config';
-import { RequestValidationError } from './request-validation';
+import { assertNoQueryParameters, RequestValidationError } from './request-validation';
 
 const router = Router();
 const LOGIN_MAX_FAILURES = 5;
@@ -88,6 +88,7 @@ router.get('/status', (_req: Request, res: Response) => {
 
 // 登录接口：简单的单用户验证
 router.post('/login', (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
   if (!config.authEnabled) {
     res.status(409).json({ error: '认证未启用' });
     return;

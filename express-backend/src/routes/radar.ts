@@ -3,6 +3,7 @@ import { config } from '../config';
 import { getDb } from '../config/db';
 import { runRadarSync, isSyncRunning, getRadarSyncStatus, runNewReleaseRadarSync, isNewReleaseSyncRunning, getNewReleaseRadarSyncStatus } from '../services/radar/radarSyncService';
 import {
+  assertNoQueryParameters,
   parseEnumParameter,
   parsePositiveBigIntParameter,
   parsePositiveIntegerParameter,
@@ -218,6 +219,7 @@ router.post('/sync-new-releases/:source', async (req: Request, res: Response, ne
 
 // POST /api/radar/add-to-library
 router.post('/add-to-library', async (req: Request, res: Response, next: NextFunction) => {
+  assertNoQueryParameters(req.query);
   const radarItemId = parseRadarItemIdBody(req.body);
 
   try {

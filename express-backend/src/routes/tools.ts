@@ -3,6 +3,7 @@ import { getDb } from '../config/db'
 import fs from 'fs'
 import path from 'path'
 import {
+  assertNoQueryParameters,
   parseBoundedStringParameter,
   parseEnumParameter,
   parsePositiveBigIntParameter,
@@ -102,6 +103,7 @@ router.get('/search', async (req: Request, res: Response) => {
 
 // 转换记录类型（movie ↔ tv_show）
 router.post('/convert-category', async (req: Request, res: Response, next: NextFunction) => {
+  assertNoQueryParameters(req.query)
   const { id: numericId, from, to } = parseConvertCategoryBody(req.body)
 
   const db = getDb()

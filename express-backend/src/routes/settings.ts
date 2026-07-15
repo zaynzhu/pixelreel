@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
 import { validateAuthConfiguration } from '../config';
-import { RequestValidationError } from './request-validation';
+import { assertNoQueryParameters, RequestValidationError } from './request-validation';
 
 const router = Router();
 
@@ -304,6 +304,7 @@ router.get('/', (_req: Request, res: Response, next: NextFunction) => {
 // ── PUT /api/settings ──
 router.put('/', (req: Request, res: Response, next: NextFunction) => {
   try {
+    assertNoQueryParameters(req.query);
     const values = parseSettingsUpdateBody(req.body);
 
     const validationError = validateSettingValues(values);
