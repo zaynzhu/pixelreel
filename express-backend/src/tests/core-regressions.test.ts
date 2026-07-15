@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import type { Request, Response } from 'express';
+import multer from 'multer';
 import { config, validateAuthConfiguration } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
 import { authMiddleware } from '../middlewares/auth';
@@ -22,6 +23,7 @@ import {
 import { getUndoneLogId, parseActivityCursor, serializeLog } from '../routes/activity';
 import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
+import { DOUBAN_CSV_MAX_BYTES, getDoubanCsvUploadError } from '../routes/import';
 import {
   parseLibraryListParameters,
   parseLibraryRecordCategory,
@@ -71,6 +73,12 @@ import {
   buildDoubanRawData,
   buildMissingDoubanRawData,
 } from '../services/douban-harvester/import-service';
+import {
+  assertDoubanCsvRowLimit,
+  DOUBAN_CSV_MAX_ROWS,
+  DoubanCsvLimitError,
+  parseCsvBuffer,
+} from '../services/import/DoubanCsvImportService';
 import { INTERRUPTED_TASK_ERROR, TaskConflictError, TaskManager } from '../services/task-manager';
 
 test('敏感配置只返回已配置标记', () => {
@@ -112,6 +120,33 @@ test('导入参数拒绝无效 limit、status 和标识值', () => {
   assert.equal(parseStringParameter('  player-id  ', 'steamId'), 'player-id');
   assert.throws(() => parseStringParameter([], 'steamId'), RequestValidationError);
   assert.throws(() => parseStringParameter('  ', 'gamertag', true), RequestValidationError);
+});
+
+test('豆瓣 CSV 上传在解析和写库前限制资源占用', async () => {
+  const tooLarge = getDoubanCsvUploadError(new multer.MulterError('LIMIT_FILE_SIZE'));
+  assert.deepEqual(tooLarge, {
+    status: 413,
+    message: `CSV 文件不能超过 ${DOUBAN_CSV_MAX_BYTES / 1024 / 1024} MiB`,
+  });
+  assert.deepEqual(
+    getDoubanCsvUploadError(new multer.MulterError('LIMIT_UNEXPECTED_FILE')),
+    { status: 400, message: '仅接受一个名为 file 的 CSV 文件' },
+  );
+  assert.equal(getDoubanCsvUploadError(new Error('other')), null);
+
+  assert.doesNotThrow(() => assertDoubanCsvRowLimit(DOUBAN_CSV_MAX_ROWS - 1));
+  assert.throws(
+    () => assertDoubanCsvRowLimit(DOUBAN_CSV_MAX_ROWS),
+    (error: unknown) => error instanceof DoubanCsvLimitError && error.status === 413,
+  );
+
+  const csvParser = await import('csv-parser');
+  const rows = await parseCsvBuffer(Buffer.from('unknown\nx\n'), csvParser);
+  assert.deepEqual(rows, [{ unknown: 'x' }]);
+  await assert.rejects(
+    parseCsvBuffer(Buffer.from(`unknown\n${'x\n'.repeat(DOUBAN_CSV_MAX_ROWS + 1)}`), csvParser),
+    (error: unknown) => error instanceof DoubanCsvLimitError && error.status === 413,
+  );
 });
 
 test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {

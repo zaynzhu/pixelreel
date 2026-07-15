@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { importSteamOwnedGames, backfillSteamData } from '../services/import/SteamOwnedGamesImportService';
 import { importXboxOwnedGames } from '../services/import/OpenXblImportService';
@@ -22,10 +22,41 @@ import {
 const router = Router();
 const IMPORT_DEFAULT_LIMIT = 50;
 const IMPORT_MAX_LIMIT = 100;
+export const DOUBAN_CSV_MAX_BYTES = 5 * 1024 * 1024;
 const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
 
 // multer 内存存储，用于豆瓣 CSV 上传
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: DOUBAN_CSV_MAX_BYTES,
+    files: 1,
+    fields: 0,
+  },
+});
+
+export function getDoubanCsvUploadError(error: unknown) {
+  if (!(error instanceof multer.MulterError)) return null;
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return { status: 413, message: `CSV 文件不能超过 ${DOUBAN_CSV_MAX_BYTES / 1024 / 1024} MiB` };
+  }
+  return { status: 400, message: '仅接受一个名为 file 的 CSV 文件' };
+}
+
+function uploadDoubanCsv(req: Request, res: Response, next: NextFunction) {
+  upload.single('file')(req, res, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+    const uploadError = getDoubanCsvUploadError(error);
+    if (uploadError) {
+      res.status(uploadError.status).json({ error: uploadError.message });
+      return;
+    }
+    next(error);
+  });
+}
 
 // POST /api/import/steam/owned?steamId=xxx&status=WANT
 router.post('/steam/owned', async (req: Request, res: Response) => {
@@ -58,9 +89,13 @@ router.post('/psn/owned', async (req: Request, res: Response) => {
 });
 
 // POST /api/import/douban — multipart 文件上传
-router.post('/douban', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/douban', uploadDoubanCsv, async (req: Request, res: Response) => {
   const defaultStatus = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
   const file = req.file;
+  if (!file || file.size === 0) {
+    res.status(400).json({ error: 'CSV 文件为空' });
+    return;
+  }
   const result = await importDoubanCsv(file, defaultStatus);
   res.json(result);
 });

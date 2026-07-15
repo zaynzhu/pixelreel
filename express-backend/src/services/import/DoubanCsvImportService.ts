@@ -10,6 +10,23 @@ interface CsvRow {
   [key: string]: string;
 }
 
+export const DOUBAN_CSV_MAX_ROWS = 20_000;
+
+export class DoubanCsvLimitError extends Error {
+  readonly status = 413;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'DoubanCsvLimitError';
+  }
+}
+
+export function assertDoubanCsvRowLimit(currentRowCount: number) {
+  if (currentRowCount >= DOUBAN_CSV_MAX_ROWS) {
+    throw new DoubanCsvLimitError(`CSV 数据行不能超过 ${DOUBAN_CSV_MAX_ROWS} 行`);
+  }
+}
+
 export async function importDoubanCsv(file: Express.Multer.File | undefined, defaultStatus?: string | null): Promise<ImportSummary> {
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
 
@@ -103,15 +120,23 @@ export async function importDoubanCsv(file: Express.Multer.File | undefined, def
   return summary;
 }
 
-function parseCsvBuffer(buffer: Buffer, csvParser: any): Promise<CsvRow[]> {
+export function parseCsvBuffer(buffer: Buffer, csvParser: any): Promise<CsvRow[]> {
   return new Promise((resolve, reject) => {
     const rows: CsvRow[] = [];
     const stream = require('stream').Readable.from(buffer);
-    stream
-      .pipe(new csvParser.default())
-      .on('data', (row: CsvRow) => rows.push(row))
+    const parser = csvParser.default();
+    parser
+      .on('data', (row: CsvRow) => {
+        try {
+          assertDoubanCsvRowLimit(rows.length);
+          rows.push(row);
+        } catch (error) {
+          parser.destroy(error as Error);
+        }
+      })
       .on('end', () => resolve(rows))
       .on('error', (err: Error) => reject(err));
+    stream.pipe(parser);
   });
 }
 
