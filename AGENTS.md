@@ -85,7 +85,7 @@ frontend/src/
 | — | `GET /api/search/rawg/:rawgId` (RAWG 游戏详情：评分、开发商、类型等) |
 | — | `GET /api/search/steam/:steamAppId` (Steam 游戏详情：Metacritic、开发商、类型等) |
 | — | `GET /api/search/proxy/image?url=` (图片代理，解决豆瓣防盗链) |
-| `/library` | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
+| `/library` | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | `GET /api/timeline?cursor=&limit=96&category=&year=`, `GET /api/timeline/years?category=` |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
@@ -161,8 +161,8 @@ frontend/src/
 
 ## 记录库分页
 
-- `GET /api/library` 支持游标分页及全库筛选：`?cursor=...&limit=50&category=movie&status=DONE&query=标题&source=douban&review=reviewed`
-- cursor 格式：`{createdAt的ISO字符串}__{id}`，同一秒多条记录用 id 作 tiebreaker
+- `GET /api/library` 支持游标分页、全库筛选和全局排序：`?cursor=...&limit=50&category=movie&status=DONE&query=标题&source=douban&review=reviewed&sort=rating`
+- `sort` 支持 `recent|rating`，默认 `recent`；cursor 是包含排序方式、时间、类别和 ID 的不透明版本化字符串，必须原样传回，旧版 `recent` cursor 仍兼容
 - 返回 `{ records: LibraryRecord[], nextCursor: string | null, totals: { total, rated, reviewed, completed } }`，`nextCursor` 为 null 表示无更多
 - `source` 支持 `douban|tmdb|imdb|trakt|steam|rawg|xbox|psn|manual`；`review` 支持 `reviewed|unreviewed`
 - `totals` 使用与列表相同的筛选条件且不受分页影响，前端统计卡片直接使用

@@ -10,6 +10,24 @@ export type LibrarySourceFilter =
   | 'all' | 'douban' | 'tmdb' | 'imdb' | 'trakt'
   | 'steam' | 'rawg' | 'xbox' | 'psn' | 'manual';
 export type LibraryReviewFilter = 'all' | 'reviewed' | 'unreviewed';
+export type LibrarySort = 'recent' | 'rating';
+
+type LibraryRecordCategory = LibraryRecordResponse['category'];
+
+export interface LibraryCursor {
+  sort: LibrarySort;
+  createdAt: Date;
+  category: LibraryRecordCategory | null;
+  id: number;
+  rating: number | null;
+}
+
+const LIBRARY_CURSOR_PREFIX = 'lr1.';
+const LIBRARY_CATEGORY_RANK: Record<LibraryRecordCategory, number> = {
+  movie: 0,
+  tv_show: 1,
+  game: 2,
+};
 
 export interface ListRecordsOptions {
   cursor?: string;
@@ -21,6 +39,7 @@ export interface ListRecordsOptions {
   query?: string;
   source?: LibrarySourceFilter;
   review?: LibraryReviewFilter;
+  sort?: LibrarySort;
 }
 
 export function normalizeCategory(value?: string): LibraryCategoryFilter {
@@ -59,8 +78,61 @@ export function parseCursor(cursor: string): { createdAt: Date; id: number } | n
   if (parts.length !== 2) return null;
   const createdAt = new Date(parts[0]);
   const id = Number(parts[1]);
-  if (isNaN(createdAt.getTime()) || isNaN(id)) return null;
+  if (isNaN(createdAt.getTime()) || !Number.isSafeInteger(id) || id <= 0) return null;
   return { createdAt, id };
+}
+
+export function encodeLibraryCursor(
+  record: Pick<LibraryRecordResponse, 'id' | 'category' | 'createdAt' | 'rating'>,
+  sort: LibrarySort,
+) {
+  const payload = {
+    sort,
+    createdAt: new Date(record.createdAt).toISOString(),
+    category: record.category,
+    id: record.id,
+    rating: sort === 'rating' ? record.rating ?? null : null,
+  };
+  return `${LIBRARY_CURSOR_PREFIX}${Buffer.from(JSON.stringify(payload)).toString('base64url')}`;
+}
+
+export function parseLibraryCursor(value: string, sort: LibrarySort): LibraryCursor | null {
+  if (!value.startsWith(LIBRARY_CURSOR_PREFIX)) {
+    if (sort !== 'recent') return null;
+    const legacy = parseCursor(value);
+    return legacy
+      ? { sort, createdAt: legacy.createdAt, category: null, id: legacy.id, rating: null }
+      : null;
+  }
+
+  try {
+    const payload = JSON.parse(
+      Buffer.from(value.slice(LIBRARY_CURSOR_PREFIX.length), 'base64url').toString('utf8'),
+    ) as Record<string, unknown>;
+    const createdAt = new Date(String(payload.createdAt ?? ''));
+    const category = payload.category;
+    const id = Number(payload.id);
+    const rating = payload.rating == null ? null : Number(payload.rating);
+    if (
+      payload.sort !== sort
+      || !Object.hasOwn(LIBRARY_CATEGORY_RANK, String(category))
+      || Number.isNaN(createdAt.getTime())
+      || !Number.isSafeInteger(id)
+      || id <= 0
+      || (sort === 'rating' && rating != null && (!Number.isInteger(rating) || rating < 1 || rating > 5))
+    ) {
+      return null;
+    }
+    return {
+      sort,
+      createdAt,
+      category: category as LibraryRecordCategory,
+      id,
+      rating,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function buildBaseWhere(options: ListRecordsOptions) {
@@ -176,26 +248,99 @@ export function buildCompletedWhere(options?: ListRecordsOptions) {
   };
 }
 
+function buildRankIdCursorWhere(
+  kind: LibraryRecordCategory,
+  cursor: LibraryCursor,
+): Record<string, unknown> | null {
+  const kindRank = LIBRARY_CATEGORY_RANK[kind];
+  const cursorRank = cursor.category == null ? -1 : LIBRARY_CATEGORY_RANK[cursor.category];
+  if (kindRank > cursorRank) return {};
+  if (kindRank < cursorRank) return null;
+  return { id: { lt: cursor.id } };
+}
+
+function buildLibraryCursorWhere(
+  kind: LibraryRecordCategory,
+  cursor: LibraryCursor | undefined,
+) {
+  if (!cursor) return {};
+  const rankIdWhere = buildRankIdCursorWhere(kind, cursor);
+  const sameDateWhere = rankIdWhere == null
+    ? []
+    : [{ createdAt: { equals: cursor.createdAt }, ...rankIdWhere }];
+
+  if (cursor.sort === 'recent') {
+    return {
+      OR: [
+        { createdAt: { lt: cursor.createdAt } },
+        ...sameDateWhere,
+      ],
+    };
+  }
+
+  const sameRatingWhere = [
+    { rating: cursor.rating, createdAt: { lt: cursor.createdAt } },
+    ...sameDateWhere.map(where => ({ rating: cursor.rating, ...where })),
+  ];
+  if (cursor.rating == null) {
+    return { OR: sameRatingWhere };
+  }
+  return {
+    OR: [
+      { rating: { lt: cursor.rating } },
+      { rating: null },
+      ...sameRatingWhere,
+    ],
+  };
+}
+
+function compareLibraryRecords(
+  left: LibraryRecordResponse,
+  right: LibraryRecordResponse,
+  sort: LibrarySort,
+) {
+  if (sort === 'rating') {
+    const leftRating = left.rating ?? null;
+    const rightRating = right.rating ?? null;
+    if (leftRating == null && rightRating != null) return 1;
+    if (leftRating != null && rightRating == null) return -1;
+    if (leftRating != null && rightRating != null && leftRating !== rightRating) {
+      return rightRating - leftRating;
+    }
+  }
+
+  const dateDifference = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  if (dateDifference !== 0) return dateDifference;
+  const categoryDifference = LIBRARY_CATEGORY_RANK[left.category] - LIBRARY_CATEGORY_RANK[right.category];
+  if (categoryDifference !== 0) return categoryDifference;
+  return right.id - left.id;
+}
+
 export async function listRecords(
   options?: ListRecordsOptions,
 ): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null; totals?: { total: number; rated: number; reviewed: number; completed: number } }> {
   const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
   const pageTake = limit + 1;
-  const cursorObj = options?.cursor ? parseCursor(options.cursor) : undefined;
+  const sort = options?.sort ?? 'recent';
+  const parsedCursor = options?.cursor ? parseLibraryCursor(options.cursor, sort) : null;
+  if (options?.cursor && !parsedCursor) {
+    throw Object.assign(new Error('cursor 与排序方式不匹配或格式无效'), { status: 400 });
+  }
+  const cursorObj = parsedCursor ?? undefined;
 
   const resolvedOptions = options ?? {};
-  const cursorWhere = cursorObj
-    ? {
-        OR: [
-          { createdAt: { lt: cursorObj.createdAt } },
-          { createdAt: { equals: cursorObj.createdAt }, id: { lt: cursorObj.id } },
-        ],
-      }
-    : {};
-
-  const movieWhere = buildEntityWhere('movie', resolvedOptions, cursorWhere);
-  const tvShowWhere = buildEntityWhere('tv_show', resolvedOptions, cursorWhere);
-  const gameWhere = buildEntityWhere('game', resolvedOptions, cursorWhere);
+  const movieWhere = buildEntityWhere(
+    'movie', resolvedOptions, buildLibraryCursorWhere('movie', cursorObj),
+  );
+  const tvShowWhere = buildEntityWhere(
+    'tv_show', resolvedOptions, buildLibraryCursorWhere('tv_show', cursorObj),
+  );
+  const gameWhere = buildEntityWhere(
+    'game', resolvedOptions, buildLibraryCursorWhere('game', cursorObj),
+  );
+  const orderBy = sort === 'rating'
+    ? [{ rating: 'desc' as const }, { createdAt: 'desc' as const }, { id: 'desc' as const }]
+    : [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
 
   const category = options?.category ?? 'all';
   // media is a PixelReel UI convention for movie + tv_show.
@@ -208,13 +353,13 @@ export async function listRecords(
 
   const [movies, games, tvShows, totals] = await Promise.all([
     includeMovies
-      ? getDb().movie.findMany({ where: movieWhere, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().movie.findMany({ where: movieWhere, orderBy, take: pageTake })
       : Promise.resolve([]),
     includeGames
-      ? getDb().game.findMany({ where: gameWhere, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().game.findMany({ where: gameWhere, orderBy, take: pageTake })
       : Promise.resolve([]),
     includeTvShows
-      ? getDb().tvShow.findMany({ where: tvShowWhere, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageTake })
+      ? getDb().tvShow.findMany({ where: tvShowWhere, orderBy, take: pageTake })
       : Promise.resolve([]),
     options?.includeTotals === false ? Promise.resolve(undefined) : fetchTotals(options),
   ]);
@@ -225,19 +370,14 @@ export async function listRecords(
     ...tvShows.map(toTvShowRecord),
   ];
 
-  allRecords.sort((a, b) => {
-    const ta = new Date(a.createdAt).getTime();
-    const tb = new Date(b.createdAt).getTime();
-    if (tb !== ta) return tb - ta;
-    return b.id - a.id;
-  });
+  allRecords.sort((left, right) => compareLibraryRecords(left, right, sort));
 
   // 多取一条来判断是否有下一页
   const hasMore = allRecords.length > limit;
   const records = allRecords.slice(0, limit);
   const lastRecord = records[records.length - 1];
   const nextCursor = hasMore && lastRecord
-    ? `${new Date(lastRecord.createdAt).toISOString()}__${lastRecord.id}`
+    ? encodeLibraryCursor(lastRecord, sort)
     : null;
 
   return totals ? { records, nextCursor, totals } : { records, nextCursor };

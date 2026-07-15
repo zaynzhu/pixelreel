@@ -4,6 +4,7 @@ import type {
   LibraryRecord,
   LibraryRecordUpdateInput,
   LibraryReviewFilter,
+  LibrarySort,
   LibrarySourceFilter,
   RecordStatus,
 } from "../types/library";
@@ -34,6 +35,7 @@ type LibraryState = {
   filterQuery: string;
   filterSource: LibrarySourceFilter;
   filterReview: LibraryReviewFilter;
+  filterSort: LibrarySort;
   fetchRecords: (options?: {
     limit?: number;
     category?: "all" | LibraryCategory;
@@ -41,6 +43,7 @@ type LibraryState = {
     query?: string;
     source?: LibrarySourceFilter;
     review?: LibraryReviewFilter;
+    sort?: LibrarySort;
   }) => Promise<void>;
   fetchMore: () => Promise<void>;
   updateRecord: (
@@ -70,6 +73,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   filterQuery: "",
   filterSource: "all",
   filterReview: "all",
+  filterSort: "recent",
 
   fetchRecords: async (options) => {
     const limit = Math.min(Math.max(options?.limit ?? get().pageSize, 1), 200);
@@ -78,12 +82,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     const filterQuery = options?.query ?? get().filterQuery;
     const source = options?.source ?? get().filterSource;
     const review = options?.review ?? get().filterReview;
+    const sort = options?.sort ?? get().filterSort;
     const query = new URLSearchParams({ limit: String(limit) });
     if (category !== "all") query.set("category", category);
     if (status !== "all") query.set("status", status);
     if (filterQuery) query.set("query", filterQuery);
     if (source !== "all") query.set("source", source);
     if (review !== "all") query.set("review", review);
+    if (sort !== "recent") query.set("sort", sort);
     const requestId = ++latestFetchRequest;
     set({
       loading: true,
@@ -95,6 +101,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       filterQuery,
       filterSource: source,
       filterReview: review,
+      filterSort: sort,
     });
     try {
       const payload = await apiFetch<PaginatedResponse>(`/library?${query.toString()}`);
@@ -125,6 +132,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       filterQuery,
       filterSource,
       filterReview,
+      filterSort,
     } = get();
     if (!nextCursor || loadingMore || loading) return;
     const cursor = nextCursor;
@@ -140,6 +148,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (filterQuery) query.set("query", filterQuery);
       if (filterSource !== "all") query.set("source", filterSource);
       if (filterReview !== "all") query.set("review", filterReview);
+      if (filterSort !== "recent") query.set("sort", filterSort);
       const payload = await apiFetch<PaginatedResponse>(`/library?${query.toString()}`);
       if (get().nextCursor !== cursor) {
         set({ loadingMore: false });

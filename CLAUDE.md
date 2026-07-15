@@ -87,7 +87,7 @@ frontend/src/
 | — | `GET /api/search/rawg/:rawgId` (RAWG 游戏详情：评分、开发商、类型等) |
 | — | `GET /api/search/steam/:steamAppId` (Steam 游戏详情：Metacritic、开发商、类型等) |
 | — | `GET /api/search/proxy/image?url=` (图片代理，解决豆瓣防盗链) |
-| `/library` | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
+| `/library` | `GET /api/library?cursor=&limit=50&category=&year=&status=&query=&source=&review=&sort=`, `GET /api/library/:category/:id`, `PATCH /api/library/:cat/:id` |
 | `/timeline` | `GET /api/timeline?cursor=&limit=96&category=&year=`, `GET /api/timeline/years?category=`（轻量 API，前端 `timelineStore` + `timelineDetailStore`） |
 | `/activity` | `GET /api/activity`（游标分页 + 筛选）, `POST /api/activity/:id/undo`（撤销） |
 | `/showcase` | `GET /api/library/random?limit=N`（随机记录，N 最大 20，默认 1，库空返回 404） |
@@ -135,7 +135,7 @@ frontend/src/
 - **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）且原状态为 WANT 的游戏，在统计和新 Steam 导入中按 IN_PROGRESS 处理；不批量改写已有数据库记录。
 - **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。代理有域名允许列表（TMDB/Steam CDN/RAWG/豆瓣/优酷/腾讯），未知域名返回 400。代理先发 HEAD 请求检查 Content-Type 再下载 body（避免浪费带宽下载非图片响应）。响应带 `Cache-Control: public, max-age=7d, immutable`。前端统一用 `proxiedImageUrl()` 路由代理，搜索组件（MovieSearch/TvShowSearch）和 TimelinePopup 都必须使用此函数。
 - **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录，前端用 `timelineDetailStore` 缓存（key 格式 `category:id`）。`/api/timeline/years?category=` 用 `SELECT DISTINCT YEAR(createdAt)` 高效返回年份列表。
-- **记录库服务端过滤：** `GET /api/library` 支持 `category`、`year`、`status`、`query`、`source` 和 `review`，列表、后续分页与 totals 使用同一条件。`category=media` 等于 `movie + tv_show`；`query` 最长 200 字符；`review` 为 `reviewed|unreviewed`。
+- **记录库服务端过滤与排序：** `GET /api/library` 支持 `category`、`year`、`status`、`query`、`source`、`review` 和 `sort`，列表、后续分页与 totals 使用同一条件。`category=media` 等于 `movie + tv_show`；`query` 最长 200 字符；`review` 为 `reviewed|unreviewed`；`sort` 为 `recent|rating`。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
 - **Toast 通知：** 用 `toastStore` 的 `addToast(message, type)` 和 `toast()` 便捷函数。错误用 `toast(msg, 'error')`，成功用默认 `toast(msg)`。确认对话框用 `confirmDialog(msg, danger?)` 返回 `Promise<boolean>`，替代浏览器原生 `alert()`/`confirm()`。
@@ -173,8 +173,8 @@ frontend/src/
 
 ## 记录库分页
 
-- `GET /api/library` 支持游标分页：`?cursor=...&limit=50&category=media&year=2026&status=DONE&query=标题&source=douban&review=reviewed`
-- cursor 格式：`{createdAt的ISO字符串}__{id}`，同一秒多条记录用 id 作 tiebreaker
+- `GET /api/library` 支持游标分页：`?cursor=...&limit=50&category=media&year=2026&status=DONE&query=标题&source=douban&review=reviewed&sort=rating`
+- cursor 是包含排序方式、时间、类别和 ID 的不透明版本化字符串，必须原样传回；旧版 `{createdAt}__{id}` 仅兼容默认的 `recent` 排序
 - `category` 筛选：`movie|tv_show|game|media|all`，`media` = movie + tv_show（产品约定）
 - `year` 筛选：按 `createdAt` 年份过滤
 - `status` 筛选：`UNSET|WANT|IN_PROGRESS|DONE|DROPPED`

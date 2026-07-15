@@ -11,6 +11,7 @@ import type {
   LibraryRecord,
   LibraryRecordUpdateInput,
   LibraryReviewFilter,
+  LibrarySort,
   LibrarySourceFilter,
   RecordStatus,
 } from "../types/library";
@@ -33,10 +34,7 @@ export default function LibraryPage() {
   const SORT_OPTIONS = [
     { value: "recent", label: t("global.sort.latest") },
     { value: "rating", label: t("global.sort.rating") },
-    { value: "title", label: t("global.sort.az") },
   ] as const;
-
-  type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
@@ -44,7 +42,7 @@ export default function LibraryPage() {
   const [source, setSource] = useState<LibrarySourceFilter>("all");
   const [reviewFilter, setReviewFilter] = useState<LibraryReviewFilter>("all");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortValue>("recent");
+  const [sortBy, setSortBy] = useState<LibrarySort>("recent");
   const [selectedKey, setSelectedKey] = useState<SelectedRecordKey | null>(null);
   const [form, setForm] = useState<LibraryRecordUpdateInput>({
     status: "UNSET",
@@ -71,8 +69,9 @@ export default function LibraryPage() {
       query: debouncedQuery,
       source,
       review: reviewFilter,
+      sort: sortBy,
     });
-  }, [category, debouncedQuery, fetchRecords, reviewFilter, source, status]);
+  }, [category, debouncedQuery, fetchRecords, reviewFilter, sortBy, source, status]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -93,8 +92,7 @@ export default function LibraryPage() {
 
   const sourceOptions = buildSourceOptions(category, t);
 
-  const filteredRecords = [...records]
-    .sort((left, right) => compareRecords(left, right, sortBy));
+  const filteredRecords = records;
 
   const selectedRecord =
     filteredRecords.find((record) => buildRecordKey(record) === selectedKey) ?? filteredRecords[0] ?? null;
@@ -636,16 +634,6 @@ function EmptyState({ loading, t }: { loading: boolean, t: any }) {
   );
 }
 
-function compareRecords(left: LibraryRecord, right: LibraryRecord, sortBy: string) {
-  if (sortBy === "rating") {
-    return (right.rating ?? -1) - (left.rating ?? -1) || compareByRecent(left, right);
-  }
-  if (sortBy === "title") {
-    return left.title.localeCompare(right.title, "zh-CN") || compareByRecent(left, right);
-  }
-  return compareByRecent(left, right);
-}
-
 function buildSourceOptions(category: CategoryFilter, t: any) {
   const mediaOptions = [
     { value: "douban", label: t("global.source.douban") },
@@ -665,10 +653,6 @@ function buildSourceOptions(category: CategoryFilter, t: any) {
       ? mediaOptions
       : [...mediaOptions, ...gameOptions];
   return [...options, { value: "manual", label: t("global.source.manual") }];
-}
-
-function compareByRecent(left: LibraryRecord, right: LibraryRecord) {
-  return toTimestamp(right.updatedAt ?? right.createdAt) - toTimestamp(left.updatedAt ?? left.createdAt);
 }
 
 function buildRecordKey(record: LibraryRecord | null): SelectedRecordKey {
@@ -725,12 +709,4 @@ function formatDate(value?: string | null) {
     return "NULL_DATE";
   }
   return date.toISOString().split('T')[0];
-}
-
-function toTimestamp(value?: string | null) {
-  if (!value) {
-    return 0;
-  }
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? 0 : time;
 }

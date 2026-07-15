@@ -107,7 +107,11 @@ import {
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { buildCrossPlatformRatings } from '../services/AnalyticsService';
-import { buildCompletedWhere } from '../services/LibraryService';
+import {
+  buildCompletedWhere,
+  encodeLibraryCursor,
+  parseLibraryCursor,
+} from '../services/LibraryService';
 import { SteamGameSearchProvider } from '../services/provider/SteamGameSearchProvider';
 import {
   parseSteamOwnedGamesResponse,
@@ -637,6 +641,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     query: undefined,
     source: 'all',
     review: 'all',
+    sort: 'recent',
   });
   assert.deepEqual(parseLibraryListParameters({
     cursor,
@@ -648,6 +653,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     query: ' 后室 ',
     source: 'douban',
     review: 'reviewed',
+    sort: 'recent',
   }), {
     cursor,
     limit: 100,
@@ -658,6 +664,7 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     query: '后室',
     source: 'douban',
     review: 'reviewed',
+    sort: 'recent',
   });
   assert.deepEqual(parseTimelineListParameters({
     cursor,
@@ -685,6 +692,18 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     status: RecordStatus.DONE,
   });
   assert.equal(buildCompletedWhere({ status: RecordStatus.DROPPED }), null);
+  const ratingCursor = encodeLibraryCursor({
+    id: 7,
+    category: 'game',
+    createdAt: '2026-07-15T00:00:00.000Z',
+    rating: 5,
+  }, 'rating');
+  const parsedRatingCursor = parseLibraryCursor(ratingCursor, 'rating');
+  assert.equal(parsedRatingCursor?.category, 'game');
+  assert.equal(parsedRatingCursor?.id, 7);
+  assert.equal(parsedRatingCursor?.rating, 5);
+  assert.equal(parseLibraryCursor(ratingCursor, 'recent'), null);
+  assert.equal(parseLibraryListParameters({ cursor: ratingCursor, sort: 'rating' }).sort, 'rating');
 
   assert.throws(() => parseLibraryListParameters({ cursor: 'invalid' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ cursor: '2026-07-15T00:00:00.000Z__1.5' }), RequestValidationError);
@@ -696,6 +715,8 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseLibraryListParameters({ query: 'x'.repeat(201) }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ source: 'unknown' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ review: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ sort: 'title' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ cursor, sort: 'rating' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ t: 'invalid' }), RequestValidationError);
   assert.throws(() => parseLibraryRandomParameters({ verbose: 'true' }), RequestValidationError);

@@ -5,6 +5,7 @@ export type LibrarySourceFilter =
   | "all" | "douban" | "tmdb" | "imdb" | "trakt"
   | "steam" | "rawg" | "xbox" | "psn" | "manual";
 export type LibraryReviewFilter = "all" | "reviewed" | "unreviewed";
+export type LibrarySort = "recent" | "rating";
 
 export type LibraryRecord = {
   id: number;

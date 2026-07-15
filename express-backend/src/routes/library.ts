@@ -1,12 +1,18 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { listRecords, updateRecord, getRecord, getRandomRecord, getRandomRecords } from '../services/LibraryService';
+import {
+  getRandomRecord,
+  getRandomRecords,
+  getRecord,
+  listRecords,
+  parseLibraryCursor,
+  updateRecord,
+} from '../services/LibraryService';
 import {
   assertNoQueryParameters,
   parseBooleanParameter,
   parseBoundedStringParameter,
   parseEnumParameter,
   parseLibraryRecordUpdateBody,
-  parsePaginationCursorParameter,
   parsePositiveIntegerParameter,
   parseRecordStatusParameter,
   parseRequiredPositiveIntegerParameter,
@@ -22,10 +28,11 @@ const LIBRARY_SOURCES = [
   'steam', 'rawg', 'xbox', 'psn', 'manual',
 ] as const;
 const LIBRARY_REVIEW_FILTERS = ['all', 'reviewed', 'unreviewed'] as const;
+const LIBRARY_SORTS = ['recent', 'rating'] as const;
 const RECORD_CATEGORIES = ['movie', 'tv_show', 'tvshow', 'game'] as const;
 const LIBRARY_LIST_PARAMETER_KEYS = new Set([
   'cursor', 'limit', 'includeTotals', 'category', 'year', 'status',
-  'query', 'source', 'review',
+  'query', 'source', 'review', 'sort',
 ]);
 const LIBRARY_RANDOM_PARAMETER_KEYS = new Set(['limit', 't']);
 
@@ -36,8 +43,13 @@ function assertKnownLibraryParameters(query: Record<string, unknown>, allowedKey
 
 export function parseLibraryListParameters(query: Record<string, unknown>) {
   assertKnownLibraryParameters(query, LIBRARY_LIST_PARAMETER_KEYS);
+  const sort = parseEnumParameter(query.sort, 'sort', LIBRARY_SORTS) ?? 'recent';
+  const cursor = parseBoundedStringParameter(query.cursor, 'cursor', 1000) ?? undefined;
+  if (cursor && !parseLibraryCursor(cursor, sort)) {
+    throw new RequestValidationError('cursor 与排序方式不匹配或格式无效');
+  }
   return {
-    cursor: parsePaginationCursorParameter(query.cursor) ?? undefined,
+    cursor,
     limit: parsePositiveIntegerParameter(query.limit, 'limit', 50, 200),
     includeTotals: parseBooleanParameter(query.includeTotals, 'includeTotals', true),
     category: parseEnumParameter(query.category, 'category', LIBRARY_CATEGORIES) ?? 'all',
@@ -46,6 +58,7 @@ export function parseLibraryListParameters(query: Record<string, unknown>) {
     query: parseBoundedStringParameter(query.query, 'query', 200) ?? undefined,
     source: parseEnumParameter(query.source, 'source', LIBRARY_SOURCES) ?? 'all',
     review: parseEnumParameter(query.review, 'review', LIBRARY_REVIEW_FILTERS) ?? 'all',
+    sort,
   };
 }
 
