@@ -108,7 +108,7 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 - **调用方式**: `POST /api/import/psn/owned?psnId=你的PSN ID&status=UNSET`
 - **备注**: Cookie 有时效，长期用需定期更新
 
-前端游戏检索页会读取 `GET /api/import/platforms/status`；配置不完整时会明确显示原因并禁用导入按钮。
+前端游戏检索页会读取 `GET /api/import/platforms/status`；配置不完整时会明确显示原因并禁用导入按钮。两个 POST 接口都会立即返回 `taskId`，实际导入在后台执行，进度和取消统一通过任务面板或 `GET /api/import/tasks` 管理。
 
 ## RAWG 封面补全
 

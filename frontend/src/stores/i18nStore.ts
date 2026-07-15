@@ -198,6 +198,7 @@ const dictionaries = {
     "search.game.import.unavailable.disabled": "THIS PLATFORM IMPORT IS DISABLED.",
     "search.game.import.unavailable.missing_api_key": "OPENXBL API KEY IS NOT CONFIGURED.",
     "search.game.import.configure": "OPEN SETTINGS TO CONFIGURE",
+    "search.game.import.task_started": "IMPORT TASK STARTED. TRACK PROGRESS IN TASKS.",
 
     // Global
     "global.status.unset": "UNSET",
@@ -616,6 +617,7 @@ const dictionaries = {
     "search.game.import.unavailable.disabled": "该平台导入当前未启用。",
     "search.game.import.unavailable.missing_api_key": "尚未配置 OpenXBL API Key。",
     "search.game.import.configure": "前往设置进行配置",
+    "search.game.import.task_started": "导入任务已启动，请在任务面板查看进度。",
 
     // Global
     "global.status.unset": "未设置",

@@ -5,8 +5,15 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 
+type ImportProgress = (processed: number, total: number, currentTitle: string) => void;
+
 // PSNProfile 爬取导入服务，与 Java 端 PsnProfilesImportService 完全对齐
-export async function importPsnOwnedGames(psnId: string, status?: string | null): Promise<ImportSummary> {
+export async function importPsnOwnedGames(
+  psnId: string,
+  status?: string | null,
+  onProgress?: ImportProgress,
+  signal?: AbortSignal,
+): Promise<ImportSummary> {
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
 
   if (!config.psnProfiles.enabled) {
@@ -19,15 +26,18 @@ export async function importPsnOwnedGames(psnId: string, status?: string | null)
   }
 
   let html: string | null = null;
+  onProgress?.(0, 0, '读取 PSNProfiles 游戏库');
   try {
     const response = await axios.get(`${config.psnProfiles.baseUrl}/${encodeURIComponent(psnId.trim())}`, {
       headers: {
         'User-Agent': config.psnProfiles.userAgent,
         ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
       },
+      signal,
     });
     html = response.data;
   } catch (ex: any) {
+    if (signal?.aborted) return summary;
     summary.errors.push(`无法获取 PSNProfiles 页面: ${ex.message}`);
     return summary;
   }
@@ -49,7 +59,9 @@ export async function importPsnOwnedGames(psnId: string, status?: string | null)
   const now = new Date();
   const toSave: any[] = [];
 
-  for (const game of games) {
+  for (const [index, game] of games.entries()) {
+    if (signal?.aborted) return summary;
+    onProgress?.(index, summary.total, game.title || game.psnId || '未知游戏');
     if (!game.psnId) {
       summary.errors.push(`缺少 PSN 游戏 ID，已跳过: ${game.title || '未知游戏'}`);
       summary.skipped++;
@@ -79,10 +91,12 @@ export async function importPsnOwnedGames(psnId: string, status?: string | null)
     });
   }
 
+  if (signal?.aborted) return summary;
   if (toSave.length > 0) {
     await getDb().game.createMany({ data: toSave });
     summary.imported = toSave.length;
   }
+  onProgress?.(summary.total, summary.total, '');
 
   return summary;
 }

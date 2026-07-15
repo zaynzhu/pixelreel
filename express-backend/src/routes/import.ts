@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { importSteamOwnedGames, backfillSteamData } from '../services/import/SteamOwnedGamesImportService';
-import { importXboxOwnedGames } from '../services/import/OpenXblImportService';
-import { importPsnOwnedGames } from '../services/import/PsnProfilesImportService';
+import {
+  startPsnOwnedImportTask,
+  startXboxOwnedImportTask,
+} from '../services/import/PlatformGameImportTaskService';
 import { importDoubanCsv } from '../services/import/DoubanCsvImportService';
 import { fillMissingCovers } from '../services/import/RawgCoverFillService';
 import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
@@ -111,7 +113,7 @@ type PlatformImportStatusConfig = {
 export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) {
   const xboxReason = !settings.openxblEnabled
     ? 'disabled'
-    : settings.openxblApiKey ? null : 'missing_api_key';
+    : settings.openxblApiKey.trim() ? null : 'missing_api_key';
   const psnReason = settings.psnProfilesEnabled ? null : 'disabled';
   return {
     xbox: {
@@ -123,6 +125,23 @@ export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) 
       reason: psnReason,
     },
   };
+}
+
+function getCurrentPlatformImportStatus() {
+  return buildPlatformImportStatus({
+    openxblEnabled: config.openxbl.enabled,
+    openxblApiKey: config.openxbl.apiKey,
+    psnProfilesEnabled: config.psnProfiles.enabled,
+  });
+}
+
+function assertPlatformImportAvailable(platform: 'xbox' | 'psn') {
+  const state = getCurrentPlatformImportStatus()[platform];
+  if (state.available) return;
+  const message = state.reason === 'missing_api_key'
+    ? '缺少 OpenXBL API Key'
+    : `${platform === 'xbox' ? 'OpenXBL' : 'PSNProfiles'} 未启用`;
+  throw Object.assign(new Error(message), { status: state.reason === 'disabled' ? 403 : 400 });
 }
 
 // multer 内存存储，用于豆瓣 CSV 上传
@@ -182,24 +201,18 @@ router.post('/steam/backfill', async (req: Request, res: Response) => {
 router.post('/xbox/owned', async (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
   const { gamertag, status } = parseXboxOwnedImportParameters(req.query);
-  const result = await runExclusiveImport(
-    'xbox-owned',
-    'Xbox 导入',
-    () => importXboxOwnedGames(gamertag, status),
-  );
-  res.json(result);
+  assertPlatformImportAvailable('xbox');
+  const task = startXboxOwnedImportTask(gamertag, status);
+  res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 
 // POST /api/import/psn/owned?psnId=xxx&status=UNSET
 router.post('/psn/owned', async (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
   const { psnId, status } = parsePsnOwnedImportParameters(req.query);
-  const result = await runExclusiveImport(
-    'psn-owned',
-    'PSN 导入',
-    () => importPsnOwnedGames(psnId, status),
-  );
-  res.json(result);
+  assertPlatformImportAvailable('psn');
+  const task = startPsnOwnedImportTask(psnId, status);
+  res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 
 // POST /api/import/douban — multipart 文件上传
@@ -320,11 +333,7 @@ router.get('/tasks', (req: Request, res: Response) => {
 // GET /api/import/platforms/status — 主机平台导入可用性，不返回密钥或 Cookie
 router.get('/platforms/status', (req: Request, res: Response) => {
   assertKnownImportParameters(req.query, []);
-  res.json(buildPlatformImportStatus({
-    openxblEnabled: config.openxbl.enabled,
-    openxblApiKey: config.openxbl.apiKey,
-    psnProfilesEnabled: config.psnProfiles.enabled,
-  }));
+  res.json(getCurrentPlatformImportStatus());
 });
 
 // DELETE /api/import/tasks/:taskId — 取消任务

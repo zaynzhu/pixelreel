@@ -118,6 +118,7 @@ frontend/src/
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403。分类转换仅允许在同一事务完整复制记录后删除源记录。
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
+- **主机平台导入：** Xbox/PSN 导入先通过 `GET /api/import/platforms/status` 检查配置；可用时 `POST /api/import/xbox/owned`、`POST /api/import/psn/owned` 创建持久化异步任务并返回 `taskId`，进度与取消统一走任务面板。
 - **记录编辑：** 路径 `id` 必须是 JavaScript 安全范围内的正整数；Library PATCH 只接受 `status`、`rating`、`shortReview`，评分限定 1-5，短评最长 1000 字符，非法请求在写库前返回 400。
 - **HTTP 错误边界：** 路由内部异常统一交给 `errorHandler`；4xx 保留可操作提示且只记录单行警告，5xx 客户端固定返回“内部服务器错误”，详细堆栈只写服务端日志。Express 框架指纹响应头已关闭。
 - **活动日志参数：** `/api/activity` 的 `limit`、游标、实体 ID 和日期必须通过格式校验；非法值及反向日期范围返回 400，不能进入 Prisma 或被记录成 500。

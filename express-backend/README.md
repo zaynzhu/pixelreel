@@ -80,8 +80,8 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/trakt/import/movies` | Trakt 电影导入 |
 | POST | `/api/trakt/import/shows` | Trakt 电视剧导入 |
 | POST | `/api/import/steam/owned` | Steam 已购导入 |
-| POST | `/api/import/xbox/owned` | Xbox 已玩导入 |
-| POST | `/api/import/psn/owned` | PSN 已玩导入 |
+| POST | `/api/import/xbox/owned` | 启动 Xbox 已玩导入任务 |
+| POST | `/api/import/psn/owned` | 启动 PSN 已玩导入任务 |
 | POST | `/api/import/covers/fill` | RAWG 封面补全 |
 | POST | `/api/import/tmdb-covers/fill` | TMDB 封面补全 |
 

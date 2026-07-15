@@ -8,6 +8,7 @@ import type {
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
 import { useI18nStore } from "../stores/i18nStore";
+import { useTaskStore } from "../stores/taskStore";
 
 const PROVIDERS = [
   {
@@ -46,11 +47,11 @@ const PROVIDERS = [
 
 type ProviderId = (typeof PROVIDERS)[number]["id"];
 
-interface ImportSummary {
-  total: number;
-  imported: number;
-  skipped: number;
-  errors: string[];
+interface ImportTaskResponse {
+  taskId: string;
+  status: "running";
+  type: string;
+  label: string;
 }
 
 type PlatformImportReason = "disabled" | "missing_api_key" | null;
@@ -77,9 +78,10 @@ export default function GameSearch() {
   const [accountId, setAccountId] = useState("");
   const [importStatus, setImportStatus] = useState<RecordStatus>("UNSET");
   const [importing, setImporting] = useState(false);
-  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [importTaskStarted, setImportTaskStarted] = useState(false);
   const [platformImportStatus, setPlatformImportStatus] = useState<PlatformImportStatus | null>(null);
   const [platformStatusFailed, setPlatformStatusFailed] = useState(false);
+  const tasks = useTaskStore((state) => state.tasks);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +104,11 @@ export default function GameSearch() {
   const activePlatformStatus = activeProvider === "xbox" || activeProvider === "psn"
     ? platformImportStatus?.[activeProvider] ?? null
     : null;
+  const activeTaskType = activeProvider === "xbox" || activeProvider === "psn"
+    ? `${activeProvider}-owned`
+    : null;
+  const platformTaskRunning = activeTaskType != null
+    && tasks.some((task) => task.type === activeTaskType && task.status === "running");
 
   const search = async (nextPage = 1) => {
     const trimmed = query.trim();
@@ -186,15 +193,16 @@ export default function GameSearch() {
 
     const accountParameter = activeProvider === "xbox" ? "gamertag" : "psnId";
     setImporting(true);
-    setImportSummary(null);
+    setImportTaskStarted(false);
     setError(null);
 
     try {
-      const summary = await apiFetch<ImportSummary>(
+      await apiFetch<ImportTaskResponse>(
         `/import/${activeProvider}/owned?${accountParameter}=${encodeURIComponent(trimmed)}&status=${importStatus}`,
         { method: "POST" }
       );
-      setImportSummary(summary);
+      setImportTaskStarted(true);
+      await useTaskStore.getState().pollTasks();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("search.game.import.failed"));
     } finally {
@@ -216,7 +224,7 @@ export default function GameSearch() {
               setData(null);
               setPage(1);
               setError(null);
-              setImportSummary(null);
+              setImportTaskStarted(false);
               setAccountId("");
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
@@ -313,34 +321,21 @@ export default function GameSearch() {
               type="button"
               onClick={importOwnedGames}
               className="brutal-btn-accent"
-              disabled={importing || !accountId.trim() || !activePlatformStatus?.available}
+              disabled={
+                importing
+                || platformTaskRunning
+                || !accountId.trim()
+                || !activePlatformStatus?.available
+              }
             >
-              {importing
+              {importing || platformTaskRunning
                 ? t("search.game.import.importing")
                 : t("search.game.import.button")}
             </button>
           </div>
-          {importSummary && (
-            <div
-              className={`mt-5 border-l-4 px-4 py-3 text-xs font-bold uppercase tracking-wider ${
-                importSummary.errors.length > 0
-                  ? "border-red-500 bg-red-500/10 text-red-400"
-                  : "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-              }`}
-            >
-              <p>
-                {t(
-                  "search.game.import.summary",
-                  importSummary.total,
-                  importSummary.imported,
-                  importSummary.skipped
-                )}
-              </p>
-              {importSummary.errors.map((message, index) => (
-                <p key={`${message}-${index}`} className="mt-2 normal-case">
-                  [ERR] {message}
-                </p>
-              ))}
+          {importTaskStarted && (
+            <div className="mt-5 border-l-4 border-[var(--accent)] bg-[var(--accent)]/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
+              {t("search.game.import.task_started")}
             </div>
           )}
         </div>

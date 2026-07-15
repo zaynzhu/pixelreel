@@ -13,8 +13,15 @@ export interface XboxImportedTitle {
   achievementUnlocked: number | null;
 }
 
+type ImportProgress = (processed: number, total: number, currentTitle: string) => void;
+
 // Xbox 已玩游戏导入服务，与 Java 端 OpenXblImportService 完全对齐
-export async function importXboxOwnedGames(gamertag: string, status?: string | null): Promise<ImportSummary> {
+export async function importXboxOwnedGames(
+  gamertag: string,
+  status?: string | null,
+  onProgress?: ImportProgress,
+  signal?: AbortSignal,
+): Promise<ImportSummary> {
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
 
   if (!config.openxbl.enabled) {
@@ -32,13 +39,16 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
 
   // 1. 通过 gamertag 查 XUID
   let xuid: string | null = null;
+  onProgress?.(0, 0, '解析 Xbox 账号');
   try {
     const searchRes = await axios.get(`${config.openxbl.baseUrl}/search/${encodeURIComponent(gamertag.trim())}`, {
       headers: { 'X-Authorization': config.openxbl.apiKey },
+      signal,
     });
     // 尝试从返回数据中提取 xuid
     xuid = extractXuid(searchRes.data);
   } catch (ex: any) {
+    if (signal?.aborted) return summary;
     summary.errors.push(`Xbox 用户搜索失败: ${ex.message}`);
     return summary;
   }
@@ -51,11 +61,14 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
   // 2. 获取游戏列表
   let titleHistory: XboxImportedTitle[] = [];
   try {
+    onProgress?.(0, 0, '读取 Xbox 游戏库');
     const titleRes = await axios.get(`${config.openxbl.baseUrl}/titles/${xuid}`, {
       headers: { 'X-Authorization': config.openxbl.apiKey },
+      signal,
     });
     titleHistory = parseXboxTitles(titleRes.data);
   } catch (ex: any) {
+    if (signal?.aborted) return summary;
     summary.errors.push(`获取 Xbox 游戏列表失败: ${ex.message}`);
     return summary;
   }
@@ -71,7 +84,9 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
     : new Map<any, any>();
 
   const toSave: any[] = [];
-  for (const title of titleHistory) {
+  for (const [index, title] of titleHistory.entries()) {
+    if (signal?.aborted) return summary;
+    onProgress?.(index, summary.total, title.name || title.titleId);
     if (!title.titleId) {
       summary.errors.push(`缺少 Xbox titleId，已跳过: ${title.name || '未知游戏'}`);
       summary.skipped++;
@@ -102,10 +117,12 @@ export async function importXboxOwnedGames(gamertag: string, status?: string | n
     });
   }
 
+  if (signal?.aborted) return summary;
   if (toSave.length > 0) {
     await getDb().game.createMany({ data: toSave });
     summary.imported = toSave.length;
   }
+  onProgress?.(summary.total, summary.total, '');
 
   return summary;
 }
