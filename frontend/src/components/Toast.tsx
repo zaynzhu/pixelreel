@@ -23,18 +23,21 @@ function ToastItem({ id, message, type, onDismiss }: {
   type: ToastType;
   onDismiss: (id: string) => void;
 }) {
+  const { t } = useI18nStore()
   const borderColor = type === 'error' ? 'border-[var(--accent-deep)]' : type === 'warning' ? 'border-yellow-500' : 'border-[var(--accent)]';
   const textColor = type === 'error' ? 'text-[var(--accent-deep)]' : type === 'warning' ? 'text-yellow-400' : 'text-[var(--accent)]';
 
   return (
     <div
+      role={type === 'success' ? 'status' : 'alert'}
+      aria-atomic="true"
       className={`pointer-events-auto flex items-center gap-2 border-l-4 ${borderColor} bg-[var(--surface)] px-4 py-2 shadow-[0_0_20px_rgba(0,0,0,0.6)] animate-[slideIn_0.3s_ease-out] min-w-[240px] max-w-[360px]`}
     >
       <span className={`text-xs font-bold uppercase tracking-wider ${textColor}`}>
         {type === 'error' ? '[ERR]' : type === 'warning' ? '[WARN]' : '[OK]'}
       </span>
       <span className="text-xs text-[var(--ink)] flex-1">{message}</span>
-      <button onClick={() => onDismiss(id)} className="text-[var(--muted)] hover:text-white text-xs ml-2">✕</button>
+      <button type="button" aria-label={t('toast.dismiss')} onClick={() => onDismiss(id)} className="text-[var(--muted)] hover:text-white text-xs ml-2">✕</button>
     </div>
   );
 }

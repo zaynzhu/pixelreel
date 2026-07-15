@@ -245,6 +245,7 @@ const dictionaries = {
     "confirm.title": "CONFIRM ACTION",
     "confirm.cancel": "CANCEL",
     "confirm.accept": "CONFIRM",
+    "toast.dismiss": "DISMISS NOTIFICATION",
 
     // Activity
     "activity.title": "ACTIVITY LOG",
@@ -632,6 +633,7 @@ const dictionaries = {
     "confirm.title": "确认操作",
     "confirm.cancel": "取消",
     "confirm.accept": "确认",
+    "toast.dismiss": "关闭通知",
 
     // Activity
     "activity.title": "操作日志",
