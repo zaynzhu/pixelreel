@@ -15,6 +15,7 @@ import {
 
 const router = Router();
 const MAX_TRAKT_PAGE_COUNT = 1000;
+const TRAKT_PAGE_LIMIT = 250;
 const MAX_TRAKT_ACCESS_TOKEN_LENGTH = 4096;
 const TRAKT_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_TRAKT_OAUTH_STATES = 20;
@@ -108,6 +109,9 @@ export function parseTraktPageData(value: unknown): any[] {
   if (!Array.isArray(value)) {
     throw new TraktApiResponseError('Trakt 返回了无效的数据格式');
   }
+  if (value.length > TRAKT_PAGE_LIMIT) {
+    throw new TraktApiResponseError(`Trakt 返回的单页数据超出 ${TRAKT_PAGE_LIMIT} 条限制`);
+  }
   return value;
 }
 
@@ -194,11 +198,10 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
   };
   
   let page = 1;
-  const limit = 250; // 根据 Trakt 最新 API 规范，单页最稳妥上限为 250
   let allData: any[] = [];
   
   while (true) {
-    const res = await axios.get(`${config.trakt.baseUrl}${endpoint}?page=${page}&limit=${limit}`, { headers });
+    const res = await axios.get(`${config.trakt.baseUrl}${endpoint}?page=${page}&limit=${TRAKT_PAGE_LIMIT}`, { headers });
     const data = parseTraktPageData(res.data);
     allData = allData.concat(data);
     

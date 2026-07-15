@@ -1044,6 +1044,12 @@ test('Trakt 导入拒绝异常分页响应以避免失控请求', () => {
     () => parseTraktPageData({ error: 'upstream failure' }),
     (error: any) => error.status === 502 && error.message === 'Trakt 返回了无效的数据格式',
   );
+  assert.equal(parseTraktPageData(new Array(250).fill({})).length, 250);
+  assert.throws(
+    () => parseTraktPageData(new Array(251).fill({})),
+    (error: any) => error.status === 502
+      && error.message === 'Trakt 返回的单页数据超出 250 条限制',
+  );
 });
 
 test('工具页在查询和转换前严格校验参数', () => {
