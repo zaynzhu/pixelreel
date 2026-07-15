@@ -21,6 +21,11 @@ export type ActionQueueItem = RecentRecordItem & {
   playtimeMinutes: number | null;
 };
 
+export type MonthlyMemoryItem = RecentRecordItem & {
+  completedAt: string;
+  yearsAgo: number;
+};
+
 export type YearlyTimelineItem = {
   year: string;
   count: number;
@@ -56,6 +61,7 @@ export type ProfileSummary = {
     backlog: ActionQueueItem[];
     reflect: ActionQueueItem[];
   };
+  monthlyMemories: MonthlyMemoryItem[];
   recentItems: RecentRecordItem[];
   yearlyTimeline: YearlyTimelineItem[];
 };

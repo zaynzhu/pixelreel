@@ -101,6 +101,15 @@ const dictionaries = {
     "dash.queue.playtime_minutes": "{0}M PLAYED",
     "dash.queue.added": "ADDED {0}",
     "dash.queue.rating_review": "{0}/5 // ADD A NOTE",
+    "dash.memory.kicker": "ARCHIVE // MONTHLY ECHOES",
+    "dash.memory.title": "{0} ECHOES",
+    "dash.memory.desc": "One standout record from this month in each previous year.",
+    "dash.memory.rule": "ONE YEAR // ONE HIGHEST-RATED MEMORY",
+    "dash.memory.years_ago": "AGO // {0}Y",
+    "dash.memory.empty": "NO MEMORIES FROM THIS MONTH YET",
+    "dash.memory.category.movie": "MOVIE",
+    "dash.memory.category.tv": "TV SHOW",
+    "dash.memory.category.game": "GAME",
 
     // Library
     "lib.kicker": "DATABASE // ACCESS",
@@ -728,6 +737,15 @@ const dictionaries = {
     "dash.queue.playtime_minutes": "已玩 {0} 分钟",
     "dash.queue.added": "加入于 {0}",
     "dash.queue.rating_review": "{0}/5 // 待写短评",
+    "dash.memory.kicker": "档案 // 本月回声",
+    "dash.memory.title": "{0}回声",
+    "dash.memory.desc": "从每个往年的这个月，找回一条评分最高的完成记录。",
+    "dash.memory.rule": "一年 // 一条最高分记忆",
+    "dash.memory.years_ago": "距今 {0} 年",
+    "dash.memory.empty": "往年这个月还没有完成记录",
+    "dash.memory.category.movie": "电影",
+    "dash.memory.category.tv": "剧集",
+    "dash.memory.category.game": "游戏",
 
     // Library
     "lib.kicker": "数据库 // 访问",

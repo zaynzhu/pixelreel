@@ -130,13 +130,17 @@ import {
   validateAuthSettingValues,
   validateSettingValues,
 } from '../routes/settings';
-import { buildNextUpQueue, isImportedGame } from '../services/ProfileSummaryService';
+import {
+  buildMonthlyMemories,
+  buildNextUpQueue,
+  isImportedGame,
+} from '../services/ProfileSummaryService';
 import { buildGameStatusWhere, effectiveGameStatus } from '../services/GameStatusService';
 import {
   buildCrossPlatformRatings,
   collectAvailableAnalyticsYears,
-  resolveCompletionDate,
 } from '../services/AnalyticsService';
+import { resolveCompletionDate } from '../services/RecordDateService';
 import {
   buildDataHealthWhere,
   isDataHealthIssueApplicable,
@@ -1823,6 +1827,46 @@ test('首页行动队列覆盖继续游玩、等待最久和高分未回顾记�
   assert.deepEqual(queue.backlog.map(record => record.id), [12, 20, 1]);
   assert.deepEqual(queue.reflect.map(record => record.id), [2, 3]);
   assert.equal(queue.resume[1].status, RecordStatus.IN_PROGRESS);
+});
+
+test('本月回声为每个往年选择本月评分最高的已完成记录', () => {
+  const item = (
+    id: number,
+    status: string,
+    doubanDate: string,
+    rating: number | null,
+  ) => ({
+    id,
+    title: `回忆 ${id}`,
+    posterUrl: null,
+    status,
+    rating,
+    createdAt: new Date(`${doubanDate}T00:00:00.000Z`),
+    updatedAt: new Date(`${doubanDate}T12:00:00.000Z`),
+    doubanDate,
+  });
+  const memories = buildMonthlyMemories(
+    [
+      item(1, RecordStatus.DONE, '2025-07-20', 4),
+      item(2, RecordStatus.DONE, '2025-07-10', 5),
+      item(3, RecordStatus.WANT, '2024-07-25', 5),
+      item(4, RecordStatus.DONE, '2026-07-01', 5),
+    ],
+    [item(10, RecordStatus.DONE, '2023-07-08', 4)],
+    [
+      item(20, RecordStatus.DONE, '2024-07-12', 5),
+      item(21, RecordStatus.DONE, '2022-06-30', 5),
+    ],
+    new Date('2026-07-15T00:00:00.000Z'),
+  );
+
+  assert.deepEqual(memories.map(record => record.id), [2, 20, 10]);
+  assert.deepEqual(memories.map(record => record.yearsAgo), [1, 2, 3]);
+  assert.deepEqual(memories.map(record => record.completedAt.slice(0, 10)), [
+    '2025-07-10',
+    '2024-07-12',
+    '2023-07-08',
+  ]);
 });
 
 test('跨平台评分只聚合本年入库记录并按相同分数组合', () => {

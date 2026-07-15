@@ -1,6 +1,7 @@
 import { getDb } from '../config/db';
 import {
   ActionQueueItem,
+  MonthlyMemoryItem,
   ProfileSummaryResponse,
   CountItem,
   RecentRecordItem,
@@ -8,11 +9,13 @@ import {
 } from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
 import { effectiveGameStatus } from './GameStatusService';
+import { resolveCompletionDate } from './RecordDateService';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
 
 const RECENT_LIMIT = 15;
 const ACTION_QUEUE_LIMIT = 4;
+const MONTHLY_MEMORY_LIMIT = 5;
 
 export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
   const db = getDb();
@@ -26,8 +29,10 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         rating: true,
         shortReview: true,
         createdAt: true,
+        updatedAt: true,
         tmdbId: true,
         doubanId: true,
+        doubanDate: true,
         imdbId: true,
         traktId: true,
       },
@@ -42,6 +47,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         rating: true,
         shortReview: true,
         createdAt: true,
+        updatedAt: true,
         platform: true,
         playtimeMinutes: true,
         importedAt: true,
@@ -61,8 +67,10 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         rating: true,
         shortReview: true,
         createdAt: true,
+        updatedAt: true,
         tmdbId: true,
         doubanId: true,
+        doubanDate: true,
         imdbId: true,
         traktId: true,
       },
@@ -80,9 +88,58 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
     gamePlatforms: buildGamePlatformCounts(games),
     tvShowSources: buildTvShowSourceCounts(tvShows),
     nextUp: buildNextUpQueue(movies, games, tvShows),
+    monthlyMemories: buildMonthlyMemories(movies, games, tvShows),
     recentItems: buildRecentItems(movies, games, tvShows),
     yearlyTimeline: buildYearlyTimeline(movies, games, tvShows),
   };
+}
+
+export function buildMonthlyMemories(
+  movies: any[],
+  games: any[],
+  tvShows: any[],
+  now = new Date(),
+): MonthlyMemoryItem[] {
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth();
+  const candidates = [
+    ...movies.map(record => ({ category: 'movie' as const, record })),
+    ...tvShows.map(record => ({ category: 'tv_show' as const, record })),
+    ...games.map(record => ({ category: 'game' as const, record })),
+  ]
+    .filter(({ record }) => safeStatus(record.status) === RecordStatus.DONE)
+    .map(candidate => ({
+      ...candidate,
+      completedAt: resolveCompletionDate(candidate.record),
+    }))
+    .filter(candidate => (
+      candidate.completedAt != null
+      && candidate.completedAt.getUTCFullYear() < currentYear
+      && candidate.completedAt.getUTCMonth() === currentMonth
+    ))
+    .sort((left, right) => (
+      right.completedAt!.getUTCFullYear() - left.completedAt!.getUTCFullYear()
+      || (right.record.rating ?? 0) - (left.record.rating ?? 0)
+      || right.completedAt!.getTime() - left.completedAt!.getTime()
+      || left.category.localeCompare(right.category)
+      || Number(right.record.id) - Number(left.record.id)
+    ));
+
+  const seenYears = new Set<number>();
+  const memories: MonthlyMemoryItem[] = [];
+  for (const candidate of candidates) {
+    const completedAt = candidate.completedAt!;
+    const completionYear = completedAt.getUTCFullYear();
+    if (seenYears.has(completionYear)) continue;
+    seenYears.add(completionYear);
+    memories.push({
+      ...toRecentRecordItem(candidate.category, candidate.record),
+      completedAt: completedAt.toISOString(),
+      yearsAgo: currentYear - completionYear,
+    });
+    if (memories.length === MONTHLY_MEMORY_LIMIT) break;
+  }
+  return memories;
 }
 
 export function buildNextUpQueue(movies: any[], games: any[], tvShows: any[]) {
@@ -141,7 +198,17 @@ function toActionQueueItem(
   category: ActionQueueItem['category'],
   record: any,
 ): ActionQueueItem {
-  const source = category === 'game'
+  return {
+    ...toRecentRecordItem(category, record),
+    playtimeMinutes: category === 'game' ? record.playtimeMinutes ?? null : null,
+  };
+}
+
+function toRecentRecordItem(
+  category: RecentRecordItem['category'],
+  record: any,
+): RecentRecordItem {
+  const subtitle = category === 'game'
     ? platformLabel(inferGamePlatform(record))
     : category === 'movie'
       ? sourceLabel(inferMovieSource(record))
@@ -150,11 +217,10 @@ function toActionQueueItem(
     category,
     id: Number(record.id),
     title: record.title,
-    subtitle: source,
+    subtitle,
     posterUrl: record.posterUrl ?? null,
     status: category === 'game' ? effectiveGameStatus(record) : safeStatus(record.status),
     rating: record.rating ?? null,
-    playtimeMinutes: category === 'game' ? record.playtimeMinutes ?? null : null,
     createdAt: record.createdAt,
   };
 }

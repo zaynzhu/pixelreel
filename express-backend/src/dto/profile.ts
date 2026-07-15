@@ -29,6 +29,7 @@ export interface ProfileSummaryResponse {
     backlog: ActionQueueItem[];
     reflect: ActionQueueItem[];
   };
+  monthlyMemories: MonthlyMemoryItem[];
   recentItems: RecentRecordItem[];
   yearlyTimeline: YearlyTimelineItem[];
 }
@@ -57,4 +58,9 @@ export interface RecentRecordItem {
 
 export interface ActionQueueItem extends RecentRecordItem {
   playtimeMinutes: number | null;
+}
+
+export interface MonthlyMemoryItem extends RecentRecordItem {
+  completedAt: string;
+  yearsAgo: number;
 }
