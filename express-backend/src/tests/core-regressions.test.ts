@@ -65,9 +65,11 @@ import {
 } from '../routes/timeline';
 import {
   assertEmptyTraktImportBody,
+  parseTraktCallbackParameters,
   parseTraktImportParameters,
   parseTraktPageCount,
   parseTraktPageData,
+  TraktOAuthStateStore,
 } from '../routes/trakt';
 import { parseConvertCategoryBody, parseToolSearchParameters } from '../routes/tools';
 import {
@@ -893,6 +895,16 @@ test('关闭认证时放行请求，开启认证时拒绝无令牌请求', () =>
     assert.equal(nextCalled, false);
     assert.equal(statusCode, 401);
     assert.deepEqual(responseBody, { error: '未提供认证令牌' });
+
+    nextCalled = false;
+    const traktCallbackRequest = { headers: {}, method: 'GET', path: '/trakt/callback' } as Request;
+    authMiddleware(traktCallbackRequest, response, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
+
+    nextCalled = false;
+    const traktCallbackPost = { headers: {}, method: 'POST', path: '/trakt/callback' } as Request;
+    authMiddleware(traktCallbackPost, response, () => { nextCalled = true; });
+    assert.equal(nextCalled, false);
   } finally {
     mutableConfig.authEnabled = originalAuthEnabled;
   }
@@ -973,6 +985,27 @@ test('Trakt 导入仅接受状态参数且拒绝通过 URL 传递凭据', () => 
   );
   assert.throws(
     () => parseTraktImportParameters({ status: 'INVALID' }),
+    RequestValidationError,
+  );
+});
+
+test('Trakt OAuth state 限时且只能消费一次', () => {
+  const stateStore = new TraktOAuthStateStore();
+  const state = stateStore.create();
+  assert.match(state, /^[A-Za-z0-9_-]{43}$/);
+  assert.deepEqual(parseTraktCallbackParameters({ code: ' code-1 ', state }, stateStore), {
+    code: 'code-1',
+  });
+  assert.throws(
+    () => parseTraktCallbackParameters({ code: 'code-1', state }, stateStore),
+    RequestValidationError,
+  );
+
+  const expiredStore = new TraktOAuthStateStore();
+  const expiredState = expiredStore.create(0);
+  assert.equal(expiredStore.consume(expiredState, 10 * 60 * 1000), false);
+  assert.throws(
+    () => parseTraktCallbackParameters({ code: 'code-2', state: 'invalid', debug: '1' }, expiredStore),
     RequestValidationError,
   );
 });

@@ -1,11 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import axios from 'axios';
+import { randomBytes } from 'node:crypto';
 import { config } from '../config';
 import { getDb } from '../config/db';
 import { RecordStatus } from '../enums/RecordStatus';
 import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
 import { runExclusiveImport } from '../services/import-operation-lock';
 import {
+  assertNoQueryParameters,
   parseBoundedStringParameter,
   parseRecordStatusParameter,
   RequestValidationError,
@@ -13,10 +15,46 @@ import {
 
 const router = Router();
 const MAX_TRAKT_PAGE_COUNT = 1000;
+const TRAKT_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const MAX_PENDING_TRAKT_OAUTH_STATES = 20;
+const TRAKT_CALLBACK_PARAMETER_KEYS = new Set(['code', 'state']);
 
 class TraktApiResponseError extends Error {
   status = 502;
 }
+
+export class TraktOAuthStateStore {
+  private readonly states = new Map<string, number>();
+
+  create(now = Date.now()): string {
+    this.pruneExpired(now);
+    while (this.states.size >= MAX_PENDING_TRAKT_OAUTH_STATES) {
+      const oldestState = this.states.keys().next().value;
+      if (!oldestState) break;
+      this.states.delete(oldestState);
+    }
+
+    const state = randomBytes(32).toString('base64url');
+    this.states.set(state, now + TRAKT_OAUTH_STATE_TTL_MS);
+    return state;
+  }
+
+  consume(state: string, now = Date.now()): boolean {
+    this.pruneExpired(now);
+    const expiresAt = this.states.get(state);
+    if (expiresAt == null) return false;
+    this.states.delete(state);
+    return expiresAt > now;
+  }
+
+  private pruneExpired(now: number) {
+    for (const [state, expiresAt] of this.states) {
+      if (expiresAt <= now) this.states.delete(state);
+    }
+  }
+}
+
+const traktOAuthStates = new TraktOAuthStateStore();
 
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
@@ -72,13 +110,35 @@ export function parseTraktPageData(value: unknown): any[] {
   return value;
 }
 
+export function parseTraktCallbackParameters(
+  value: Record<string, unknown>,
+  stateStore = traktOAuthStates,
+) {
+  const unknownKey = Object.keys(value).find(key => !TRAKT_CALLBACK_PARAMETER_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+
+  const code = parseBoundedStringParameter(value.code, 'code', 1000, true)!;
+  const state = parseBoundedStringParameter(value.state, 'state', 100, true)!;
+  if (!stateStore.consume(state)) {
+    throw new RequestValidationError('Trakt OAuth state 无效或已过期，请重新发起授权');
+  }
+  return { code };
+}
+
 // GET /api/trakt/auth — 重定向到 Trakt 授权页
-router.get('/auth', (_req: Request, res: Response) => {
+router.get('/auth', (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
   if (!config.trakt.clientId) {
     res.status(400).json({ error: '未配置 TRAKT_CLIENT_ID' });
     return;
   }
-  const authUrl = `${config.trakt.baseUrl}/oauth/authorize?response_type=code&client_id=${config.trakt.clientId}&redirect_uri=${encodeURIComponent(config.trakt.redirectUri)}`;
+  const parameters = new URLSearchParams({
+    response_type: 'code',
+    client_id: config.trakt.clientId,
+    redirect_uri: config.trakt.redirectUri,
+    state: traktOAuthStates.create(),
+  });
+  const authUrl = `${config.trakt.baseUrl}/oauth/authorize?${parameters}`;
   res.redirect(authUrl);
 });
 
@@ -88,7 +148,7 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
     res.status(400).json({ error: '未完整配置 Trakt OAuth 凭据' });
     return;
   }
-  const code = parseBoundedStringParameter(req.query.code, 'code', 1000, true)!;
+  const { code } = parseTraktCallbackParameters(req.query);
 
   try {
     const tokenRes = await axios.post(`${config.trakt.baseUrl}/oauth/token`, {

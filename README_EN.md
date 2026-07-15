@@ -304,7 +304,7 @@ All sources can be toggled via `RADAR_ENABLED` and `RADAR_SCRAPERS_ENABLED`.
 <details>
 <summary>How to disable login authentication?</summary>
 
-By default `AUTH_ENABLED=false` — no login required. When set to `true`, every API except `POST /api/auth/login` requires a valid JWT token. The backend binds to `127.0.0.1` by default; configure both `HOST` and `CORS_ALLOWED_ORIGINS` for LAN access.
+By default `AUTH_ENABLED=false` — no login required. When set to `true`, every API except auth status, login, health checks, and the one-time `state`-validated Trakt OAuth callback requires a valid JWT token. The backend binds to `127.0.0.1` by default; configure both `HOST` and `CORS_ALLOWED_ORIGINS` for LAN access.
 
 </details>
 

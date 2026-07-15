@@ -2,9 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 
+const AUTH_EXEMPT_PATHS = new Set(['/trakt/callback']);
+
 // JWT 鉴权中间件
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  if (!config.authEnabled) {
+  const isExemptRequest = req.method === 'GET' && AUTH_EXEMPT_PATHS.has(req.path);
+  if (!config.authEnabled || isExemptRequest) {
     next();
     return;
   }

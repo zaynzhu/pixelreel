@@ -305,7 +305,7 @@ TMDB API 在国内需要代理访问。在 `.env` 中配置 `HTTPS_PROXY=http://
 <details>
 <summary>如何关闭登录鉴权？</summary>
 
-默认 `AUTH_ENABLED=false`，无需登录即可使用。启用前须配置至少 32 个字符的 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`；启用后除认证状态、登录和健康检查外的 API 都需要有效 JWT Token。服务默认只监听 `127.0.0.1`；局域网部署时请同时配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
+默认 `AUTH_ENABLED=false`，无需登录即可使用。启用前须配置至少 32 个字符的 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`；启用后除认证状态、登录、健康检查和带一次性 `state` 校验的 Trakt OAuth 回调外，API 都需要有效 JWT Token。服务默认只监听 `127.0.0.1`；局域网部署时请同时配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
 
 </details>
 
