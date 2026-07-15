@@ -109,8 +109,9 @@ export class SteamGameSearchProvider implements GameSearchProvider {
       result.totalPages = totalPages;
       result.totalResults = total;
       result.results = results;
-    } catch {
-      // 搜索失败返回空结果
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      result.message = `搜索失败: ${message}`;
     }
 
     return result;

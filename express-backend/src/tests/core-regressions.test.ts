@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import type { Request, Response } from 'express';
+import axios from 'axios';
 import multer from 'multer';
 import { config, validateAuthConfiguration } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
@@ -106,6 +107,7 @@ import {
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
 import { buildCrossPlatformRatings } from '../services/AnalyticsService';
+import { SteamGameSearchProvider } from '../services/provider/SteamGameSearchProvider';
 import {
   parseSteamOwnedGamesResponse,
   resolveSteamImportStatus,
@@ -1209,6 +1211,25 @@ test('跨平台评分按相同分数组合聚合', () => {
     { doubanRating: 4, tmdbRating: 3.8, count: 1 },
     { doubanRating: 5, tmdbRating: 4, count: 2 },
   ]);
+});
+
+test('Steam 搜索失败返回明确提示而不是伪装成空结果', async () => {
+  const mutableConfig = config as unknown as { steam: { apiKey: string } };
+  const originalApiKey = mutableConfig.steam.apiKey;
+  const axiosClient = axios as unknown as { get: typeof axios.get };
+  const originalGet = axiosClient.get;
+
+  try {
+    mutableConfig.steam.apiKey = 'test-key';
+    axiosClient.get = async () => { throw new Error('Steam unavailable'); };
+    const result = await new SteamGameSearchProvider().search('Portal', 1);
+    assert.equal(result.enabled, true);
+    assert.equal(result.message, '搜索失败: Steam unavailable');
+    assert.deepEqual(result.results, []);
+  } finally {
+    axiosClient.get = originalGet;
+    mutableConfig.steam.apiKey = originalApiKey;
+  }
 });
 
 test('Steam 导入默认状态尊重显式状态和游玩时长', () => {
