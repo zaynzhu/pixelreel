@@ -24,6 +24,30 @@ const IMPORT_DEFAULT_LIMIT = 50;
 const IMPORT_MAX_LIMIT = 100;
 export const DOUBAN_CSV_MAX_BYTES = 5 * 1024 * 1024;
 const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
+const activeImportOperations = new Set<string>();
+
+export class ImportOperationConflictError extends Error {
+  readonly status = 409;
+
+  constructor(label: string) {
+    super(`${label} 正在执行，请稍后再试`);
+    this.name = 'ImportOperationConflictError';
+  }
+}
+
+export async function runExclusiveImport<T>(
+  key: string,
+  label: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (activeImportOperations.has(key)) throw new ImportOperationConflictError(label);
+  activeImportOperations.add(key);
+  try {
+    return await operation();
+  } finally {
+    activeImportOperations.delete(key);
+  }
+}
 
 // multer 内存存储，用于豆瓣 CSV 上传
 const upload = multer({
@@ -62,13 +86,17 @@ function uploadDoubanCsv(req: Request, res: Response, next: NextFunction) {
 router.post('/steam/owned', async (req: Request, res: Response) => {
   const steamId = parseStringParameter(req.query.steamId, 'steamId');
   const status = parseRecordStatusParameter(req.query.status, null);
-  const result = await importSteamOwnedGames(steamId, status);
+  const result = await runExclusiveImport(
+    'steam',
+    'Steam 导入或回填',
+    () => importSteamOwnedGames(steamId, status),
+  );
   res.json(result);
 });
 
 // POST /api/import/steam/backfill — 回填已有 Steam 游戏的海报和游玩时间
 router.post('/steam/backfill', async (_req: Request, res: Response) => {
-  const result = await backfillSteamData();
+  const result = await runExclusiveImport('steam', 'Steam 导入或回填', backfillSteamData);
   res.json(result);
 });
 
@@ -76,7 +104,11 @@ router.post('/steam/backfill', async (_req: Request, res: Response) => {
 router.post('/xbox/owned', async (req: Request, res: Response) => {
   const gamertag = parseStringParameter(req.query.gamertag, 'gamertag', true)!;
   const status = parseRecordStatusParameter(req.query.status, null);
-  const result = await importXboxOwnedGames(gamertag, status);
+  const result = await runExclusiveImport(
+    'xbox-owned',
+    'Xbox 导入',
+    () => importXboxOwnedGames(gamertag, status),
+  );
   res.json(result);
 });
 
@@ -84,7 +116,11 @@ router.post('/xbox/owned', async (req: Request, res: Response) => {
 router.post('/psn/owned', async (req: Request, res: Response) => {
   const psnId = parseStringParameter(req.query.psnId, 'psnId', true)!;
   const status = parseRecordStatusParameter(req.query.status, null);
-  const result = await importPsnOwnedGames(psnId, status);
+  const result = await runExclusiveImport(
+    'psn-owned',
+    'PSN 导入',
+    () => importPsnOwnedGames(psnId, status),
+  );
   res.json(result);
 });
 
@@ -96,7 +132,11 @@ router.post('/douban', uploadDoubanCsv, async (req: Request, res: Response) => {
     res.status(400).json({ error: 'CSV 文件为空' });
     return;
   }
-  const result = await importDoubanCsv(file, defaultStatus);
+  const result = await runExclusiveImport(
+    'douban-csv',
+    '豆瓣 CSV 导入',
+    () => importDoubanCsv(file, defaultStatus),
+  );
   res.json(result);
 });
 
@@ -105,7 +145,11 @@ router.post('/covers/fill', async (req: Request, res: Response) => {
   const limit = parsePositiveIntegerParameter(
     req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
   );
-  const result = await fillMissingCovers(limit);
+  const result = await runExclusiveImport(
+    'rawg-covers',
+    'RAWG 封面回填',
+    () => fillMissingCovers(limit),
+  );
   res.json(result);
 });
 
@@ -114,7 +158,11 @@ router.post('/tmdb-covers/fill', async (req: Request, res: Response) => {
   const limit = parsePositiveIntegerParameter(
     req.query.limit, 'limit', IMPORT_DEFAULT_LIMIT, IMPORT_MAX_LIMIT,
   );
-  const result = await fillTmdbCovers(limit);
+  const result = await runExclusiveImport(
+    'tmdb-covers',
+    'TMDB 封面回填',
+    () => fillTmdbCovers(limit),
+  );
   res.json(result);
 });
 

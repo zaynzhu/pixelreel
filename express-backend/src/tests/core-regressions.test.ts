@@ -23,7 +23,12 @@ import {
 import { getUndoneLogId, parseActivityCursor, serializeLog } from '../routes/activity';
 import { parseAnalyticsYear } from '../routes/analytics';
 import { getHealthStatus } from '../routes/health';
-import { DOUBAN_CSV_MAX_BYTES, getDoubanCsvUploadError } from '../routes/import';
+import {
+  DOUBAN_CSV_MAX_BYTES,
+  getDoubanCsvUploadError,
+  ImportOperationConflictError,
+  runExclusiveImport,
+} from '../routes/import';
 import {
   parseLibraryListParameters,
   parseLibraryRecordCategory,
@@ -178,6 +183,41 @@ test('豆瓣 CSV 导入在写库前规范字段并拒绝重复标识', () => {
   assert.equal(claimCsvIdentifiers('200', null, seenDoubanIds, seenImdbIds), false);
   assert.equal(claimCsvIdentifiers('300', 'tt0000001', seenDoubanIds, seenImdbIds), false);
   assert.equal(claimCsvIdentifiers('300', null, seenDoubanIds, seenImdbIds), false);
+});
+
+test('同一同步导入拒绝并发执行且异常后释放锁', async () => {
+  let releaseFirst!: () => void;
+  let markStarted!: () => void;
+  const firstStarted = new Promise<void>(resolve => { markStarted = resolve; });
+  const firstGate = new Promise<void>(resolve => { releaseFirst = resolve; });
+  const first = runExclusiveImport('test-import', '测试导入', async () => {
+    markStarted();
+    await firstGate;
+    return 'done';
+  });
+  await firstStarted;
+
+  await assert.rejects(
+    runExclusiveImport('test-import', '测试导入', async () => 'duplicate'),
+    (error: unknown) => error instanceof ImportOperationConflictError && error.status === 409,
+  );
+  releaseFirst();
+  assert.equal(await first, 'done');
+  assert.equal(
+    await runExclusiveImport('test-import', '测试导入', async () => 'next'),
+    'next',
+  );
+
+  await assert.rejects(
+    runExclusiveImport('failed-import', '失败导入', async () => {
+      throw new Error('failed');
+    }),
+    /failed/,
+  );
+  assert.equal(
+    await runExclusiveImport('failed-import', '失败导入', async () => 'recovered'),
+    'recovered',
+  );
 });
 
 test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {
