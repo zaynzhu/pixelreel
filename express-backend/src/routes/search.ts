@@ -20,7 +20,7 @@ const axiosProxyOpts: any = proxyUrl
 
 const router = Router();
 const MOVIE_SEARCH_PROVIDERS = ['tmdb', 'omdb', 'trakt', 'douban', 'imdb'] as const;
-const GAME_SEARCH_PROVIDERS = ['rawg', 'steam', 'psn', 'xbox', 'switch'] as const;
+export const GAME_SEARCH_PROVIDERS = ['rawg', 'steam'] as const;
 const EMPTY_SEARCH_QUERY_PARAMETER_KEYS = new Set<string>();
 const IMAGE_PROXY_PARAMETER_KEYS = new Set(['url']);
 const TMDB_DETAIL_PARAMETER_KEYS = new Set(['mediaType']);

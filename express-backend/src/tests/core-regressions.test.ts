@@ -74,6 +74,7 @@ import {
 import {
   assertAllowedImageProxyUrl,
   assertKnownSearchQueryParameters,
+  GAME_SEARCH_PROVIDERS,
   mapTmdbIdentityMetadata,
   parseImageProxyParameters,
   parseTmdbDetailParameters,
@@ -1070,6 +1071,23 @@ test('外部搜索在发起请求前校验关键词、页码、Provider 和详�
   assert.throws(() => parseExternalSearchParameters({ query: '测试', page: '1x' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', page: '1001' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'unknown' }, providers), RequestValidationError);
+  assert.deepEqual(parseExternalSearchParameters({ query: '传送门', providers: 'rawg,steam' }, GAME_SEARCH_PROVIDERS), {
+    query: '传送门',
+    page: 1,
+    providers: ['rawg', 'steam'],
+  });
+  assert.throws(
+    () => parseExternalSearchParameters({ query: '传送门', providers: 'xbox' }, GAME_SEARCH_PROVIDERS),
+    RequestValidationError,
+  );
+  assert.throws(
+    () => parseExternalSearchParameters({ query: '传送门', providers: 'psn' }, GAME_SEARCH_PROVIDERS),
+    RequestValidationError,
+  );
+  assert.throws(
+    () => parseExternalSearchParameters({ query: '传送门', providers: 'switch' }, GAME_SEARCH_PROVIDERS),
+    RequestValidationError,
+  );
   assert.throws(() => parseExternalSearchParameters({ query: '测试', providers: 'tmdb,' }, providers), RequestValidationError);
   assert.throws(() => parseExternalSearchParameters({ query: '测试', limit: '10' }, providers), RequestValidationError);
   assert.throws(() => assertKnownSearchQueryParameters({ language: 'zh-CN' }), RequestValidationError);

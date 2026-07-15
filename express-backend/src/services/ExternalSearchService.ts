@@ -17,9 +17,6 @@ import { ImdbMovieSearchProvider } from './provider/ImdbMovieSearchProvider';
 
 import { RawgGameSearchProvider } from './provider/RawgGameSearchProvider';
 import { SteamGameSearchProvider } from './provider/SteamGameSearchProvider';
-import { PsnGameSearchProvider } from './provider/PsnGameSearchProvider';
-import { XboxGameSearchProvider } from './provider/XboxGameSearchProvider';
-import { SwitchGameSearchProvider } from './provider/SwitchGameSearchProvider';
 
 import { TmdbTvShowSearchProvider } from './provider/TmdbTvShowSearchProvider';
 import { DoubanTvShowSearchProvider } from './provider/DoubanTvShowSearchProvider';
@@ -37,9 +34,6 @@ const movieProviders: MovieSearchProvider[] = [
 const gameProviders: GameSearchProvider[] = [
   new RawgGameSearchProvider(),
   new SteamGameSearchProvider(),
-  new PsnGameSearchProvider(),
-  new XboxGameSearchProvider(),
-  new SwitchGameSearchProvider(),
 ];
 
 // 电视剧搜索 Provider

@@ -1,65 +1,29 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   ExternalGameSearchResult,
   ExternalSearchResponse,
   GameDetail,
   ProviderSearchResult,
-  RecordStatus,
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
 import { useI18nStore } from "../stores/i18nStore";
-import { useTaskStore } from "../stores/taskStore";
 
 const PROVIDERS = [
   {
     id: "rawg",
     label: "RAWG",
-    mode: "search",
     placeholder: "QUERY RAWG DATABASE",
     description: "Recommended node for general game telemetry.",
   },
   {
     id: "steam",
     label: "STEAM",
-    mode: "search",
     placeholder: "QUERY STEAM STORE",
     description: "Direct access to Steam Application records.",
-  },
-  {
-    id: "xbox",
-    label: "XBOX SYNC",
-    mode: "import",
-    description: "Use /api/import/xbox/owned?gamertag=ID to sync.",
-  },
-  {
-    id: "psn",
-    label: "PSN SYNC",
-    mode: "import",
-    description: "Use /api/import/psn/owned?psnId=ID to sync.",
-  },
-  {
-    id: "switch",
-    label: "SWITCH",
-    mode: "placeholder",
-    description: "Node offline. No data available.",
   },
 ] as const;
 
 type ProviderId = (typeof PROVIDERS)[number]["id"];
-
-interface ImportTaskResponse {
-  taskId: string;
-  status: "running";
-  type: string;
-  label: string;
-}
-
-type PlatformImportReason = "disabled" | "missing_api_key" | null;
-
-interface PlatformImportStatus {
-  xbox: { available: boolean; reason: PlatformImportReason };
-  psn: { available: boolean; reason: PlatformImportReason };
-}
 
 const defaultProvider = PROVIDERS[0].id;
 
@@ -75,48 +39,13 @@ export default function GameSearch() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<GameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [accountId, setAccountId] = useState("");
-  const [importStatus, setImportStatus] = useState<RecordStatus>("UNSET");
-  const [importing, setImporting] = useState(false);
-  const [importTaskStarted, setImportTaskStarted] = useState(false);
-  const [platformImportStatus, setPlatformImportStatus] = useState<PlatformImportStatus | null>(null);
-  const [platformStatusFailed, setPlatformStatusFailed] = useState(false);
-  const tasks = useTaskStore((state) => state.tasks);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiFetch<PlatformImportStatus>("/import/platforms/status")
-      .then((status) => {
-        if (!cancelled) setPlatformImportStatus(status);
-      })
-      .catch(() => {
-        if (!cancelled) setPlatformStatusFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
   const activeProviderConfig =
     PROVIDERS.find((item) => item.id === activeProvider) ?? PROVIDERS[0];
-  const isSearchProvider = activeProviderConfig.mode === "search";
-  const activePlatformStatus = activeProvider === "xbox" || activeProvider === "psn"
-    ? platformImportStatus?.[activeProvider] ?? null
-    : null;
-  const activeTaskType = activeProvider === "xbox" || activeProvider === "psn"
-    ? `${activeProvider}-owned`
-    : null;
-  const platformTaskRunning = activeTaskType != null
-    && tasks.some((task) => task.type === activeTaskType && task.status === "running");
 
   const search = async (nextPage = 1) => {
     const trimmed = query.trim();
-    if (!isSearchProvider) {
-      setData(null);
-      setError(null);
-      return;
-    }
     if (!trimmed) {
       setError(t("search.empty"));
       return;
@@ -187,29 +116,6 @@ export default function GameSearch() {
     }
   };
 
-  const importOwnedGames = async () => {
-    const trimmed = accountId.trim();
-    if (activeProviderConfig.mode !== "import" || !trimmed) return;
-
-    const accountParameter = activeProvider === "xbox" ? "gamertag" : "psnId";
-    setImporting(true);
-    setImportTaskStarted(false);
-    setError(null);
-
-    try {
-      await apiFetch<ImportTaskResponse>(
-        `/import/${activeProvider}/owned?${accountParameter}=${encodeURIComponent(trimmed)}&status=${importStatus}`,
-        { method: "POST" }
-      );
-      setImportTaskStarted(true);
-      await useTaskStore.getState().pollTasks();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("search.game.import.failed"));
-    } finally {
-      setImporting(false);
-    }
-  };
-
   return (
     <section className="dash-card max-w-5xl mx-auto w-full">
       <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[var(--accent)]" />
@@ -224,8 +130,6 @@ export default function GameSearch() {
               setData(null);
               setPage(1);
               setError(null);
-              setImportTaskStarted(false);
-              setAccountId("");
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >
@@ -234,116 +138,27 @@ export default function GameSearch() {
         ))}
       </div>
 
-      {isSearchProvider ? (
-        <div className="mt-6 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
-          <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
-          <p className="mb-3 text-[10px] uppercase font-bold text-[var(--muted)] tracking-widest">
-            /// {activeProviderConfig.description}
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={activeProviderConfig.placeholder}
-              className="tech-input flex-1"
-            />
-            <button
-              onClick={() => search(1)}
-              className="brutal-btn-accent"
-              disabled={loading}
-            >
-              {loading ? t("search.btn.searching") : t("search.btn.exec")}
-            </button>
-          </div>
+      <div className="mt-6 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
+        <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
+        <p className="mb-3 text-[10px] uppercase font-bold text-[var(--muted)] tracking-widest">
+          /// {activeProviderConfig.description}
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={activeProviderConfig.placeholder}
+            className="tech-input flex-1"
+          />
+          <button
+            onClick={() => search(1)}
+            className="brutal-btn-accent"
+            disabled={loading}
+          >
+            {loading ? t("search.btn.searching") : t("search.btn.exec")}
+          </button>
         </div>
-      ) : activeProviderConfig.mode === "import" ? (
-        <div className="mt-6 border border-[var(--line)] bg-[var(--surface-hover)] p-5 relative">
-          <div className="absolute top-0 right-0 w-8 h-1 bg-[var(--accent)] opacity-50" />
-          <p className="mb-4 text-[10px] uppercase font-bold text-[var(--muted)] tracking-widest">
-            /// {t(
-              activeProvider === "xbox"
-                ? "search.game.import.xbox.description"
-                : "search.game.import.psn.description"
-            )}
-          </p>
-          {(platformStatusFailed || !activePlatformStatus?.available) && (
-            <div className="mb-4 border-l-4 border-yellow-500 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400">
-              <p className="font-bold uppercase tracking-wider">
-                {platformStatusFailed
-                  ? t("search.game.import.status_failed")
-                  : !activePlatformStatus
-                    ? t("search.game.import.checking")
-                    : activePlatformStatus.reason === "missing_api_key"
-                      ? t("search.game.import.unavailable.missing_api_key")
-                      : t("search.game.import.unavailable.disabled")}
-              </p>
-              {!platformStatusFailed && activePlatformStatus && (
-                <a href="/settings" className="mt-2 inline-block underline underline-offset-4">
-                  {t("search.game.import.configure")}
-                </a>
-              )}
-            </div>
-          )}
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
-              {t(
-                activeProvider === "xbox"
-                  ? "search.game.import.xbox.account"
-                  : "search.game.import.psn.account"
-              )}
-              <input
-                value={accountId}
-                onChange={(event) => setAccountId(event.target.value)}
-                placeholder={t(
-                  activeProvider === "xbox"
-                    ? "search.game.import.xbox.placeholder"
-                    : "search.game.import.psn.placeholder"
-                )}
-                className="tech-input mt-2 w-full"
-                maxLength={100}
-              />
-            </label>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
-              {t("search.game.import.status")}
-              <select
-                value={importStatus}
-                onChange={(event) => setImportStatus(event.target.value as RecordStatus)}
-                className="tech-input mt-2 w-full"
-              >
-                <option value="UNSET">{t("global.status.unset")}</option>
-                <option value="WANT">{t("global.status.want")}</option>
-                <option value="IN_PROGRESS">{t("global.status.active")}</option>
-                <option value="DONE">{t("global.status.done")}</option>
-                <option value="DROPPED">{t("global.status.dropped")}</option>
-              </select>
-            </label>
-            <button
-              type="button"
-              onClick={importOwnedGames}
-              className="brutal-btn-accent"
-              disabled={
-                importing
-                || platformTaskRunning
-                || !accountId.trim()
-                || !activePlatformStatus?.available
-              }
-            >
-              {importing || platformTaskRunning
-                ? t("search.game.import.importing")
-                : t("search.game.import.button")}
-            </button>
-          </div>
-          {importTaskStarted && (
-            <div className="mt-5 border-l-4 border-[var(--accent)] bg-[var(--accent)]/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
-              {t("search.game.import.task_started")}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="mt-6 border border-dashed border-[var(--line)] p-8 text-[10px] uppercase tracking-widest text-[var(--muted)] flex items-center justify-center text-center">
-          {activeProviderConfig.description}
-        </div>
-      )}
+      </div>
 
       {data?.message && (
         <div className="mt-5 border-l-4 border-yellow-500 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-bold uppercase">
