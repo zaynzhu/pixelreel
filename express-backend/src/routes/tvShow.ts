@@ -2,11 +2,18 @@ import { Router, Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import { getDb } from '../config/db';
 import {
+  assertEmptyRequestBody,
+  assertNoQueryParameters,
   parseRequiredPositiveIntegerParameter,
   parseTvShowRecordWriteBody,
 } from './request-validation';
 
 const router = Router();
+
+router.use((req, _res, next) => {
+  assertNoQueryParameters(req.query);
+  next();
+});
 
 // GET /api/tv-shows
 router.get('/', async (_req: Request, res: Response) => {
@@ -43,6 +50,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 // DELETE /api/tv-shows/:id
 router.delete('/:id', async (req: Request, res: Response) => {
+  assertEmptyRequestBody(req.body);
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   await getDb().tvShow.delete({ where: { id } });
   res.status(204).end();

@@ -71,6 +71,8 @@ import {
 } from '../routes/trakt';
 import { parseConvertCategoryBody, parseToolSearchParameters } from '../routes/tools';
 import {
+  assertEmptyRequestBody,
+  assertNoQueryParameters,
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
   parseBoundedStringParameter,
@@ -356,6 +358,13 @@ test('记录编辑请求拒绝非法 ID、状态、评分和短评', () => {
 });
 
 test('直接 CRUD 写入仅接受已知字段和有效类型', () => {
+  assert.doesNotThrow(() => assertNoQueryParameters({}));
+  assert.doesNotThrow(() => assertEmptyRequestBody(undefined));
+  assert.doesNotThrow(() => assertEmptyRequestBody({}));
+  assert.throws(() => assertNoQueryParameters({ dryRun: 'true' }), RequestValidationError);
+  assert.throws(() => assertEmptyRequestBody({ reason: 'cleanup' }), RequestValidationError);
+  assert.throws(() => assertEmptyRequestBody([]), RequestValidationError);
+
   assert.deepEqual(parseMovieRecordWriteBody({
     title: '  测试电影  ',
     status: 'want',

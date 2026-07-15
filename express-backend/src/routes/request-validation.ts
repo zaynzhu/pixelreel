@@ -12,6 +12,19 @@ export class RequestValidationError extends Error {
   }
 }
 
+export function assertNoQueryParameters(value: Record<string, unknown>) {
+  const unknownKey = Object.keys(value)[0];
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+}
+
+export function assertEmptyRequestBody(value: unknown) {
+  if (value === undefined) return;
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value as Record<string, unknown>).length > 0) {
+    throw new RequestValidationError('请求体必须为空');
+  }
+}
+
 export function parsePositiveIntegerParameter(
   value: unknown,
   name: string,

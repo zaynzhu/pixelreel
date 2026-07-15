@@ -2,11 +2,18 @@ import { Router, Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import { getDb } from '../config/db';
 import {
+  assertEmptyRequestBody,
+  assertNoQueryParameters,
   parseGameRecordWriteBody,
   parseRequiredPositiveIntegerParameter,
 } from './request-validation';
 
 const router = Router();
+
+router.use((req, _res, next) => {
+  assertNoQueryParameters(req.query);
+  next();
+});
 
 // GET /api/games - 列出所有游戏
 router.get('/', async (_req: Request, res: Response) => {
@@ -43,6 +50,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 // DELETE /api/games/:id - 删除游戏
 router.delete('/:id', async (req: Request, res: Response) => {
+  assertEmptyRequestBody(req.body);
   const id = parseRequiredPositiveIntegerParameter(req.params.id, 'id');
   await getDb().game.delete({ where: { id } });
   res.status(204).end();
