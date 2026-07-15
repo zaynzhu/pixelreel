@@ -17,6 +17,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
         updatedAt: true,
         tmdbId: true,
         doubanId: true,
+        doubanDate: true,
         imdbId: true,
         traktId: true,
         doubanRating: true,
@@ -54,6 +55,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
         updatedAt: true,
         tmdbId: true,
         doubanId: true,
+        doubanDate: true,
         imdbId: true,
         traktId: true,
       },
@@ -63,21 +65,30 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
 
   const yearStart = new Date(year, 0, 1)
   const yearEnd = new Date(year + 1, 0, 1)
-  const lastYearStart = new Date(year - 1, 0, 1)
-  const lastYearEnd = new Date(year, 0, 1)
 
   const inYear = (d: Date | null) => d != null && d >= yearStart && d < yearEnd
-  const inLastYear = (d: Date | null) => d != null && d >= lastYearStart && d < lastYearEnd
 
-  // 本年完成的记录（updatedAt 是"完成时间"的最佳近似——状态改为 DONE 时 Prisma 自动刷新）
-  const doneMoviesThisYear = movies.filter(m => m.status === RecordStatus.DONE && inYear(m.updatedAt))
-  const doneGamesThisYear = games.filter(g => g.status === RecordStatus.DONE && inYear(g.updatedAt))
-  const doneTvShowsThisYear = tvShows.filter(s => s.status === RecordStatus.DONE && inYear(s.updatedAt))
+  // 豆瓣记录使用原始标记日期，其他来源才用 updatedAt 作为完成时间近似
+  const doneMoviesThisYear = movies.filter(
+    m => m.status === RecordStatus.DONE && completionFallsInYear(m, year),
+  )
+  const doneGamesThisYear = games.filter(
+    g => g.status === RecordStatus.DONE && completionFallsInYear(g, year),
+  )
+  const doneTvShowsThisYear = tvShows.filter(
+    s => s.status === RecordStatus.DONE && completionFallsInYear(s, year),
+  )
 
   // 上年完成的记录
-  const doneMoviesLastYear = movies.filter(m => m.status === RecordStatus.DONE && inLastYear(m.updatedAt))
-  const doneGamesLastYear = games.filter(g => g.status === RecordStatus.DONE && inLastYear(g.updatedAt))
-  const doneTvShowsLastYear = tvShows.filter(s => s.status === RecordStatus.DONE && inLastYear(s.updatedAt))
+  const doneMoviesLastYear = movies.filter(
+    m => m.status === RecordStatus.DONE && completionFallsInYear(m, year - 1),
+  )
+  const doneGamesLastYear = games.filter(
+    g => g.status === RecordStatus.DONE && completionFallsInYear(g, year - 1),
+  )
+  const doneTvShowsLastYear = tvShows.filter(
+    s => s.status === RecordStatus.DONE && completionFallsInYear(s, year - 1),
+  )
 
   const completedThisYear = doneMoviesThisYear.length + doneGamesThisYear.length + doneTvShowsThisYear.length
   const completedLastYear = doneMoviesLastYear.length + doneGamesLastYear.length + doneTvShowsLastYear.length
@@ -131,12 +142,33 @@ function buildMonthlyCompletion(
     const mm = i.toString().padStart(2, '0')
     months.push({
       month: mm,
-      movies: movies.filter(m => (m.updatedAt?.getMonth() ?? -1) === i - 1).length,
-      games: games.filter(g => (g.updatedAt?.getMonth() ?? -1) === i - 1).length,
-      tvShows: tvShows.filter(s => (s.updatedAt?.getMonth() ?? -1) === i - 1).length,
+      movies: movies.filter(m => (resolveCompletionDate(m)?.getUTCMonth() ?? -1) === i - 1).length,
+      games: games.filter(g => (resolveCompletionDate(g)?.getUTCMonth() ?? -1) === i - 1).length,
+      tvShows: tvShows.filter(s => (resolveCompletionDate(s)?.getUTCMonth() ?? -1) === i - 1).length,
     })
   }
   return months
+}
+
+export function resolveCompletionDate(record: {
+  doubanDate?: string | null
+  updatedAt: Date | null
+}): Date | null {
+  const value = record.doubanDate?.trim()
+  if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const date = new Date(`${value}T00:00:00.000Z`)
+    if (!Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value) {
+      return date
+    }
+  }
+  return record.updatedAt
+}
+
+function completionFallsInYear(
+  record: { doubanDate?: string | null; updatedAt: Date | null },
+  year: number,
+) {
+  return resolveCompletionDate(record)?.getUTCFullYear() === year
 }
 
 function buildRatingDistribution(

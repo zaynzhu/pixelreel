@@ -131,7 +131,7 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import { effectiveGameStatus, isImportedGame } from '../services/ProfileSummaryService';
-import { buildCrossPlatformRatings } from '../services/AnalyticsService';
+import { buildCrossPlatformRatings, resolveCompletionDate } from '../services/AnalyticsService';
 import {
   buildDataHealthWhere,
   isDataHealthIssueApplicable,
@@ -1786,6 +1786,17 @@ test('跨平台评分按相同分数组合聚合', () => {
     { doubanRating: 4, tmdbRating: 3.8, count: 1 },
     { doubanRating: 5, tmdbRating: 4, count: 2 },
   ]);
+});
+
+test('年度分析优先使用严格合法的豆瓣标记日期', () => {
+  const updatedAt = new Date('2026-05-22T14:18:03.000Z');
+  assert.equal(
+    resolveCompletionDate({ doubanDate: '2024-11-09', updatedAt })?.toISOString(),
+    '2024-11-09T00:00:00.000Z',
+  );
+  assert.equal(resolveCompletionDate({ doubanDate: null, updatedAt }), updatedAt);
+  assert.equal(resolveCompletionDate({ doubanDate: '2024-02-31', updatedAt }), updatedAt);
+  assert.equal(resolveCompletionDate({ doubanDate: 'not-a-date', updatedAt }), updatedAt);
 });
 
 test('Steam 搜索失败返回明确提示而不是伪装成空结果', async () => {
