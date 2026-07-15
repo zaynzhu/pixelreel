@@ -35,6 +35,7 @@ import {
   parseTimelineCategory,
   parseTimelineListParameters,
 } from '../routes/timeline';
+import { parseTraktImportParameters } from '../routes/trakt';
 import {
   parsePositiveIntegerParameter,
   parsePositiveBigIntParameter,
@@ -553,6 +554,20 @@ test('登录失败达到上限后限流并支持到期和成功重置', () => {
   limiter.recordFailure('client-a');
   now = 15_001;
   assert.deepEqual(limiter.check('client-a'), { allowed: true, retryAfterSeconds: 0 });
+});
+
+test('Trakt 导入仅接受状态参数且拒绝通过 URL 传递凭据', () => {
+  assert.deepEqual(parseTraktImportParameters({}), { status: RecordStatus.WANT });
+  assert.deepEqual(parseTraktImportParameters({ status: 'DONE' }), { status: RecordStatus.DONE });
+  assert.throws(
+    () => parseTraktImportParameters({ accessToken: 'secret' }),
+    (error: unknown) => error instanceof RequestValidationError
+      && error.message === '未知参数: accessToken',
+  );
+  assert.throws(
+    () => parseTraktImportParameters({ status: 'INVALID' }),
+    RequestValidationError,
+  );
 });
 
 test('健康检查区分数据库正常和不可用', async () => {

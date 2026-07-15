@@ -4,9 +4,21 @@ import { config } from '../config';
 import { getDb } from '../config/db';
 import { RecordStatus } from '../enums/RecordStatus';
 import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
-import { parseRecordStatusParameter } from './request-validation';
+import {
+  parseBoundedStringParameter,
+  parseRecordStatusParameter,
+  RequestValidationError,
+} from './request-validation';
 
 const router = Router();
+
+export function parseTraktImportParameters(value: Record<string, unknown>) {
+  const unknownKey = Object.keys(value).find(key => key !== 'status');
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+  return {
+    status: parseRecordStatusParameter(value.status, RecordStatus.WANT),
+  };
+}
 
 // GET /api/trakt/auth — 重定向到 Trakt 授权页
 router.get('/auth', (_req: Request, res: Response) => {
@@ -20,11 +32,11 @@ router.get('/auth', (_req: Request, res: Response) => {
 
 // GET /api/trakt/callback — Trakt OAuth 回调
 router.get('/callback', async (req: Request, res: Response, next: NextFunction) => {
-  const code = req.query.code as string;
-  if (!code) {
-    res.status(400).json({ error: '缺少授权码' });
+  if (!config.trakt.clientId || !config.trakt.clientSecret) {
+    res.status(400).json({ error: '未完整配置 Trakt OAuth 凭据' });
     return;
   }
+  const code = parseBoundedStringParameter(req.query.code, 'code', 1000, true)!;
 
   try {
     const tokenRes = await axios.post(`${config.trakt.baseUrl}/oauth/token`, {
@@ -73,15 +85,14 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
   return allData;
 }
 
-// POST /api/trakt/import/movies?accessToken=xxx&status=DONE
+// POST /api/trakt/import/movies?status=DONE
 router.post('/import/movies', async (req: Request, res: Response, next: NextFunction) => {
-  const accessToken = (req.query.accessToken as string) || config.trakt.accessToken;
+  const { status } = parseTraktImportParameters(req.query);
+  const accessToken = config.trakt.accessToken;
   if (!accessToken) {
-    res.status(400).json({ error: '需要 Trakt access_token，请先完成 OAuth 授权' });
+    res.status(400).json({ error: '需要 Trakt access_token，请先在设置中完成配置' });
     return;
   }
-
-  const status = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
 
   try {
     // 使用自动分页并发拉取所有页面的数据
@@ -143,9 +154,6 @@ router.post('/import/movies', async (req: Request, res: Response, next: NextFunc
 
       // 已看完的用 DONE，想看的用传入的 status
       const movieStatus = item._source === 'watched' ? RecordStatus.DONE : status;
-      // Trakt 评分 1-10，直接用
-      const rating = item.movie.rating ? Math.round(item.movie.rating * 2) : null;
-
       try {
         let posterUrl: string | null = null;
         if (ids.tmdb) {
@@ -161,7 +169,8 @@ router.post('/import/movies', async (req: Request, res: Response, next: NextFunc
             imdbId: ids.imdb || null,
             posterUrl,
             status: movieStatus,
-            rating,
+            // history/watchlist 不包含用户的个人评分，不将平台分写入个人评分
+            rating: null,
             shortReview: '',
           },
         });
@@ -178,15 +187,14 @@ router.post('/import/movies', async (req: Request, res: Response, next: NextFunc
   }
 });
 
-// POST /api/trakt/import/shows?accessToken=xxx&status=DONE
+// POST /api/trakt/import/shows?status=DONE
 router.post('/import/shows', async (req: Request, res: Response, next: NextFunction) => {
-  const accessToken = (req.query.accessToken as string) || config.trakt.accessToken;
+  const { status } = parseTraktImportParameters(req.query);
+  const accessToken = config.trakt.accessToken;
   if (!accessToken) {
-    res.status(400).json({ error: '需要 Trakt access_token，请先完成 OAuth 授权' });
+    res.status(400).json({ error: '需要 Trakt access_token，请先在设置中完成配置' });
     return;
   }
-
-  const status = parseRecordStatusParameter(req.query.status, RecordStatus.WANT);
 
   try {
     // 使用自动分页并发拉取所有页面的数据
@@ -248,8 +256,6 @@ router.post('/import/shows', async (req: Request, res: Response, next: NextFunct
 
       // 已看完的用 DONE，想看的用传入的 status
       const showStatus = item._source === 'watched' ? RecordStatus.DONE : status;
-      const rating = item.show.rating ? Math.round(item.show.rating * 2) : null;
-
       try {
         let posterUrl: string | null = null;
         if (ids.tmdb) {
@@ -267,7 +273,8 @@ router.post('/import/shows', async (req: Request, res: Response, next: NextFunct
             firstAirDate: item.show.year ? String(item.show.year) : null,
             overview: null,
             status: showStatus,
-            rating,
+            // history/watchlist 不包含用户的个人评分，不将平台分写入个人评分
+            rating: null,
             shortReview: '',
           },
         });
