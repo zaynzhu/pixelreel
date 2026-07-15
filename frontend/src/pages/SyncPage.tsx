@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, CircleOff, RefreshCw, Settings2, Square } from 'lucide-react'
 import { apiFetch } from '../api'
@@ -38,34 +38,47 @@ export default function SyncPage() {
   const [statusError, setStatusError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<string | null>(null)
+  const latestStatusRequest = useRef(0)
+  const latestHistoryRequest = useRef(0)
   const [directStatuses, setDirectStatuses] = useState<Record<DirectSource, RecordStatus>>({
     steam: 'WANT',
     trakt: 'WANT',
   })
 
   const loadStatus = useCallback(async () => {
+    const requestId = ++latestStatusRequest.current
     setLoading(true)
     setStatusError(null)
     try {
-      setStatus(await apiFetch<SyncSourceStatus>('/import/sources/status'))
+      const nextStatus = await apiFetch<SyncSourceStatus>('/import/sources/status')
+      if (requestId !== latestStatusRequest.current) return
+      setStatus(nextStatus)
     } catch (reason) {
+      if (requestId !== latestStatusRequest.current) return
       setStatusError(reason instanceof Error ? reason.message : t('sync.status_error'))
     } finally {
-      setLoading(false)
+      if (requestId === latestStatusRequest.current) setLoading(false)
     }
   }, [t])
 
   const loadHistory = useCallback(async () => {
+    const requestId = ++latestHistoryRequest.current
     setHistoryError(null)
     try {
-      setHistory(await apiFetch<SyncHistoryResponse>('/import/sources/history'))
+      const nextHistory = await apiFetch<SyncHistoryResponse>('/import/sources/history')
+      if (requestId !== latestHistoryRequest.current) return
+      setHistory(nextHistory)
     } catch (reason) {
+      if (requestId !== latestHistoryRequest.current) return
       setHistoryError(reason instanceof Error ? reason.message : t('sync.history.error'))
     }
   }, [t])
 
   useEffect(() => {
     void loadStatus()
+    return () => {
+      latestStatusRequest.current++
+    }
   }, [loadStatus])
 
   const sourceTasks = useMemo(() => tasks.filter(task =>
@@ -77,6 +90,9 @@ export default function SyncPage() {
 
   useEffect(() => {
     void loadHistory()
+    return () => {
+      latestHistoryRequest.current++
+    }
   }, [loadHistory, syncTaskVersion])
 
   const runningCount = sourceTasks.filter(task => task.status === 'running').length
