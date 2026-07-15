@@ -49,6 +49,7 @@ type TimelineState = {
 };
 
 let latestFetchRequest = 0;
+let latestYearsRequest = 0;
 
 export const useTimelineStore = create<TimelineState>((set, get) => ({
   records: [],
@@ -67,7 +68,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     const category = options?.category ?? get().filters.category;
     const year = options?.year ?? get().filters.year;
     const requestId = ++latestFetchRequest;
-    set({ loading: true, error: null, pageSize: limit, filters: { category, year } });
+    set({ loading: true, loadingMore: false, error: null, pageSize: limit, filters: { category, year } });
     try {
       const url = buildTimelineQuery({
         limit,
@@ -94,6 +95,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   fetchMore: async () => {
     const { nextCursor, loadingMore, loading, pageSize, filters } = get();
     if (!nextCursor || loadingMore || loading) return;
+    const requestId = latestFetchRequest;
     const cursor = nextCursor;
     set({ loadingMore: true, error: null });
     try {
@@ -105,10 +107,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
         includeTotals: false,
       });
       const payload = await apiFetch<TimelinePageResponse>(url);
-      if (get().nextCursor !== cursor) {
-        set({ loadingMore: false });
-        return;
-      }
+      if (requestId !== latestFetchRequest || get().nextCursor !== cursor) return;
       const seen = new Set(get().records.map(recordKey));
       const newRecords = payload.records.filter((record) => !seen.has(recordKey(record)));
       set({
@@ -117,6 +116,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
         loadingMore: false,
       });
     } catch (err) {
+      if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "加载更多时间线失败",
         loadingMore: false,
@@ -130,13 +130,16 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 
   fetchYears: async (category) => {
     const cat = category ?? get().filters.category;
+    const requestId = ++latestYearsRequest;
     set({ yearsLoading: true, yearsError: null });
     try {
       const search = new URLSearchParams();
       search.set("category", cat);
       const data = await apiFetch<{ years: number[] }>(`/timeline/years?${search.toString()}`);
+      if (requestId !== latestYearsRequest) return;
       set({ years: data.years, yearsLoading: false });
     } catch (err) {
+      if (requestId !== latestYearsRequest) return;
       set({
         yearsError: err instanceof Error ? err.message : "获取年份列表失败",
         yearsLoading: false,

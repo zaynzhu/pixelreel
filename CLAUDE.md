@@ -136,6 +136,7 @@ frontend/src/
 - **主机平台导入：** Xbox/PSN 当前是未通过真实账号链路验证的实验性代码。游戏搜索只提供 RAWG/Steam；同步中心仅标记 Xbox/PSN“实验性未接入”，不提供启动入口，也不计入正式可用来源。
 - **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。`GET /api/import/sources/history` 从 `data/sync-history.json` 返回每个正式来源最近一次终态摘要，不含凭据；当前任务优先展示，历史摘要作为次级信息并随任务状态变化刷新，历史读取失败不能阻断来源状态与同步入口。来源状态和历史记录读取必须采用最新请求获胜，依赖变化或页面卸载时使在途请求失效；全局 `taskStore` 的定时与手动轮询也必须采用最新请求获胜，停止轮询时使在途请求失效。Steam 使用 `/api/import/steam/owned/task`，Trakt 使用 `/api/trakt/import/{movies|shows}/task`，配置缺失时跳转到 Settings 对应分类。
 - **雷达列表：** `/radar` 与 `/popular` 的分类、平台和分页请求必须采用最新请求获胜，旧筛选响应不能覆盖当前列表；读取失败必须保留明确错误与重试入口，不能伪装成空结果。
+- **时间线：** `/timeline` 的主列表、分页与年份列表必须绑定当前分类/年份和最新请求；旧分页失败不能污染新筛选，读取失败必须显示错误和重试，不能同时伪装为空状态。
 - **命令抽屉：** 豆瓣、Trakt、Steam 快捷操作必须复用与同步中心相同的持久化任务端点，并由全局 `taskStore` 显示运行状态和冲突；不能调用旧同步接口或在抽屉内自行轮询。长时间数据修复统一跳转 `/data-health`，不在抽屉内直接执行。
 - **导入审核：** 历史记录和手动新增默认 `ACCEPTED`；豆瓣、Trakt、Steam 等外部导入的新记录显式写入 `PENDING`。`/sync/review` 可批量改为 `ACCEPTED` 或 `IGNORED`，忽略仅修改 `importReviewState`，不能删除记录或改写豆瓣原始字段。标签切换、分页和决定后的刷新必须同时校验当前标签与最新请求，不能让旧标签响应覆盖当前列表。
 - **主机游戏完整性：** PSNProfiles 按 `?ajax=1&page=N` 读取全部游戏页，直到页面声明 `nextPage = 0`，最多 100 页；Cloudflare 验证页会提示更新 Cookie。Xbox/PSN 原始记录缺封面时通过 RAWG 按标题回退查询，仍遵守同服务两秒限流。

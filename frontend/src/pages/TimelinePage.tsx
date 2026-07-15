@@ -203,9 +203,6 @@ export default function TimelinePage() {
         <div className="text-[10px] font-bold text-[var(--accent)] tracking-[0.2em] mt-4 mb-2 uppercase">
           [ YEAR ]
         </div>
-        {yearsError && (
-          <div className="text-[9px] text-red-400 mb-1 uppercase tracking-widest">{yearsError}</div>
-        )}
         <YearFilterBtn active={selectedYear === "ALL"} onClick={() => setSelectedYear("ALL")}>
           ALL_TIME
         </YearFilterBtn>
@@ -224,20 +221,41 @@ export default function TimelinePage() {
 
         {/* Global Loading / Error */}
         {error && (
-          <div className="border border-red-500/50 bg-red-500/10 p-4 mb-8 text-[10px] text-red-400 uppercase tracking-widest font-bold w-fit flex items-center gap-3">
-            <span className="animate-pulse">_ERR</span> 
-            {error}
+          <div role="alert" className="mb-4 flex w-fit flex-wrap items-center gap-4 border border-red-500/50 bg-red-500/10 p-4 text-[10px] text-red-400 uppercase tracking-widest font-bold">
+            <span className="animate-pulse">_ERR</span>
+            <div>
+              <p>{t("timeline.load_error")}</p>
+              <p className="mt-1 normal-case tracking-normal text-[var(--muted)]">{error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void fetchRecords({ limit: 96, category: selectedCategory, year: selectedYear })}
+              className="brutal-btn"
+            >
+              {t("timeline.retry")}
+            </button>
+          </div>
+        )}
+        {yearsError && (
+          <div role="alert" className="mb-8 flex w-fit flex-wrap items-center gap-4 border border-yellow-500/40 bg-yellow-500/10 p-4 text-[10px] text-yellow-300 uppercase tracking-widest font-bold">
+            <div>
+              <p>{t("timeline.years_error")}</p>
+              <p className="mt-1 normal-case tracking-normal text-[var(--muted)]">{yearsError}</p>
+            </div>
+            <button type="button" onClick={() => void fetchYears(selectedCategory)} className="brutal-btn">
+              {t("timeline.retry")}
+            </button>
           </div>
         )}
         {loading && records.length === 0 && (
           <div className="border border-[var(--line)] p-8 mb-8 text-center text-[10px] text-[var(--accent)] uppercase tracking-[0.3em] font-bold relative overflow-hidden group w-fit mx-auto">
             <div className="absolute inset-0 bg-[var(--accent)]/10 animate-pulse" />
-            <span className="relative z-10">FETCHING_TELEMETRY...</span>
+            <span className="relative z-10">{t("timeline.loading")}</span>
           </div>
         )}
-        {!loading && monthGroups.length === 0 && (
+        {!loading && !error && monthGroups.length === 0 && (
           <div className="text-[10px] text-[var(--muted)] uppercase tracking-widest p-8">
-            NO_DATA_AVAILABLE
+            {t("timeline.empty")}
           </div>
         )}
 
@@ -319,7 +337,7 @@ export default function TimelinePage() {
         )}
         {loadingMore && (
           <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-8">
-            LOADING_MORE...
+            {t("timeline.loading_more")}
           </div>
         )}
       </div>

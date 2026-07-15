@@ -455,6 +455,14 @@ const dictionaries = {
     "radar.headingPopular": "POPULAR",
     "radar.loadingSync": "SYNCING NEW RELEASES...",
 
+    // Timeline
+    "timeline.load_error": "UNABLE TO READ TIMELINE",
+    "timeline.years_error": "UNABLE TO READ AVAILABLE YEARS",
+    "timeline.retry": "RETRY",
+    "timeline.loading": "FETCHING_TELEMETRY...",
+    "timeline.loading_more": "LOADING_MORE...",
+    "timeline.empty": "NO_DATA_AVAILABLE",
+
     // Settings
     "nav.settings": "SETTINGS",
 
@@ -1103,6 +1111,14 @@ const dictionaries = {
     "radar.heading": "新片雷达",
     "radar.headingPopular": "热门",
     "radar.loadingSync": "同步新片中...",
+
+    // Timeline
+    "timeline.load_error": "无法读取时间线",
+    "timeline.years_error": "无法读取可用年份",
+    "timeline.retry": "重试",
+    "timeline.loading": "正在读取时间线...",
+    "timeline.loading_more": "正在加载更多...",
+    "timeline.empty": "暂无时间线记录",
 
     // Settings
     "nav.settings": "系统设置",
