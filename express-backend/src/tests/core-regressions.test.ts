@@ -42,6 +42,7 @@ import {
 } from '../routes/import';
 import {
   parseLibraryListParameters,
+  parseLibraryRandomParameters,
   parseLibraryRecordCategory,
 } from '../routes/library';
 import {
@@ -560,6 +561,8 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
     status: RecordStatus.IN_PROGRESS,
   });
   assert.equal(parseLibraryRecordCategory('TVSHOW'), 'tvshow');
+  assert.equal(parseLibraryRandomParameters({}), 1);
+  assert.equal(parseLibraryRandomParameters({ limit: '15', t: '1784040000000' }), 15);
   assert.equal(parseTimelineCategory(undefined), 'all');
   assert.equal(parseAnalyticsYear(undefined, 2026), 2026);
   assert.equal(parseAnalyticsYear('2025', 2026), 2025);
@@ -571,6 +574,9 @@ test('记录库、时间线和分析查询严格校验分页与筛选参数', ()
   assert.throws(() => parseLibraryListParameters({ category: 'unknown' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ year: '2026x' }), RequestValidationError);
   assert.throws(() => parseLibraryListParameters({ status: 'unknown' }), RequestValidationError);
+  assert.throws(() => parseLibraryListParameters({ verbose: 'true' }), RequestValidationError);
+  assert.throws(() => parseLibraryRandomParameters({ t: 'invalid' }), RequestValidationError);
+  assert.throws(() => parseLibraryRandomParameters({ verbose: 'true' }), RequestValidationError);
   assert.throws(() => parseTimelineCategory(['all']), RequestValidationError);
   assert.throws(() => parseAnalyticsYear('1899', 2026), RequestValidationError);
 });
