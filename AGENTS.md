@@ -117,7 +117,7 @@ frontend/src/
 - **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
 - **Settings 页面：** 敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值，输入新值才会覆盖。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
-- **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销；任务记录 `TASK_START|TASK_DONE|TASK_FAIL|TASK_CANCEL` 完整生命周期。“数据变更”筛选覆盖 `CREATE|UPDATE|DELETE|UNDO`，“任务”筛选按 `TASK` 实体查询全部任务事件。`/activity` 页面带筛选和无限滚动；全局与记录级读取失败必须显示错误和重试，不能伪装为空状态，撤销失败必须反馈原因。
+- **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销；任务记录 `TASK_START|TASK_DONE|TASK_FAIL|TASK_CANCEL` 完整生命周期。“数据变更”筛选覆盖 `CREATE|UPDATE|DELETE|UNDO`，“任务”筛选按 `TASK` 实体查询全部任务事件。`/activity` 页面带筛选和无限滚动，筛选与分页请求必须采用最新请求获胜，旧分页不能追加到新筛选；全局与记录级读取失败必须显示错误和重试，不能伪装为空状态，撤销失败必须反馈原因。
 - **数据健康：** `/data-health` 只读审计显示字段缺口，不自动修改记录；电影/剧集检查封面、简介、日期和外部 ID，游戏只检查封面和外部 ID，问题列表按 BigInt ID 游标分页。
 - **统一记录详情：** `/library/:category/:id` 展示个人状态、评分、短评、来源身份与原始字段、游戏指标和记录级操作历史，并可保存个人记录、重新匹配元数据或进入数据健康页。记录库、时间线、活动日志和 Showcase 均提供详情入口。
 - **仪表盘语义：** 首页统计按钮只重新读取 `/api/profile/summary`，必须标为“刷新统计”，不能伪装成同步操作；真实同步统一进入 `/sync`。最新入库记录直接链接统一详情页。

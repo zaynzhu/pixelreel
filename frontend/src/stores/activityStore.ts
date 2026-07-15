@@ -25,6 +25,8 @@ interface ActivityState {
   fetchEntityHistory: (entityType: string, entityId: string) => Promise<ActivityRecord[]>
 }
 
+let latestActivityRequest = 0
+
 export const useActivityStore = create<ActivityState>((set, get) => ({
   records: [],
   nextCursor: null,
@@ -34,7 +36,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   filters: {},
 
   fetchRecords: async () => {
-    set({ loading: true, error: null })
+    const requestId = ++latestActivityRequest
+    set({ loading: true, loadingMore: false, error: null })
     try {
       const { filters } = get()
       const params = new URLSearchParams()
@@ -46,8 +49,10 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       params.set('limit', '50')
 
       const data = await apiFetch<ActivityResponse>(`/activity?${params.toString()}`)
+      if (requestId !== latestActivityRequest) return
       set({ records: data.records, nextCursor: data.nextCursor, loading: false })
     } catch (err: any) {
+      if (requestId !== latestActivityRequest) return
       set({ error: err.message, loading: false })
     }
   },
@@ -56,6 +61,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     const { nextCursor, loadingMore, filters } = get()
     if (!nextCursor || loadingMore) return
 
+    const requestId = latestActivityRequest
     set({ loadingMore: true })
     try {
       const params = new URLSearchParams()
@@ -68,12 +74,14 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       if (filters.to) params.set('to', filters.to)
 
       const data = await apiFetch<ActivityResponse>(`/activity?${params.toString()}`)
+      if (requestId !== latestActivityRequest) return
       set((state) => ({
         records: [...state.records, ...data.records],
         nextCursor: data.nextCursor,
         loadingMore: false,
       }))
     } catch (err: any) {
+      if (requestId !== latestActivityRequest) return
       set({ error: err.message, loadingMore: false })
     }
   },
