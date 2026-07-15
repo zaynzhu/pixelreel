@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api';
+import { useI18nStore } from '../stores/i18nStore';
 import { toast } from '../stores/toastStore';
 
 type SyncTarget = 'douban-json' | 'douban-incremental' | 'douban-full' | 'trakt-movies' | 'trakt-shows' | 'steam-owned' | 'posters' | null;
@@ -8,6 +9,7 @@ export default function RightActionDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [syncing, setSyncing] = useState<SyncTarget>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const { t } = useI18nStore()
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeDrawer = useCallback(() => setIsOpen(false), [])
@@ -42,7 +44,7 @@ export default function RightActionDrawer() {
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className="group relative flex h-24 w-10 flex-col items-center justify-center border-y border-l border-[var(--line)] bg-[var(--surface)] text-white hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus:outline-none"
-          aria-label="Toggle Actions"
+          aria-label={t(isOpen ? 'drawer.close' : 'drawer.open')}
           aria-controls="command-drawer"
           aria-expanded={isOpen}
         >
@@ -50,7 +52,7 @@ export default function RightActionDrawer() {
           <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-b border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
 
           <span className="writing-vertical-rl rotate-180 text-[10px] font-bold tracking-widest text-[var(--muted)] group-hover:text-[var(--accent)] transition-colors">
-            {isOpen ? 'CLOSE' : 'CMD_CTR'}
+            {t(isOpen ? 'drawer.handle.open' : 'drawer.handle.closed')}
           </span>
         </button>
 
@@ -85,22 +87,22 @@ export default function RightActionDrawer() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 border-b border-[var(--line)] pb-2">
               <span className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider">01 //</span>
-              <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">豆瓣</span>
+              <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">{t('drawer.section.douban')}</span>
             </div>
             <ActionButton
-              label="导入已有数据"
+              label={t('drawer.action.douban_json')}
               onClick={() => handleDoubanImport('json', 'douban-json')}
               disabled={!!syncing}
               active={syncing === 'douban-json'}
             />
             <ActionButton
-              label="增量数据导入"
+              label={t('drawer.action.douban_incremental')}
               onClick={() => handleDoubanImport('incremental', 'douban-incremental')}
               disabled={!!syncing}
               active={syncing === 'douban-incremental'}
             />
             <ActionButton
-              label="全量数据同步"
+              label={t('drawer.action.douban_full')}
               onClick={() => handleDoubanImport('full', 'douban-full')}
               disabled={!!syncing}
               active={syncing === 'douban-full'}
@@ -114,13 +116,13 @@ export default function RightActionDrawer() {
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Trakt</span>
             </div>
             <ActionButton
-              label="拉取 Trakt 电影"
+              label={t('drawer.action.trakt_movies')}
               onClick={() => handleTraktSync('movies')}
               disabled={!!syncing}
               active={syncing === 'trakt-movies'}
             />
             <ActionButton
-              label="拉取 Trakt 剧集"
+              label={t('drawer.action.trakt_shows')}
               onClick={() => handleTraktSync('shows')}
               disabled={!!syncing}
               active={syncing === 'trakt-shows'}
@@ -134,7 +136,7 @@ export default function RightActionDrawer() {
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Steam</span>
             </div>
             <ActionButton
-              label="导入 Steam 已购"
+              label={t('drawer.action.steam_owned')}
               onClick={handleSteamImport}
               disabled={!!syncing}
               active={syncing === 'steam-owned'}
@@ -145,16 +147,16 @@ export default function RightActionDrawer() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 border-b border-[var(--line)] pb-2">
               <span className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider">04 //</span>
-              <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Library</span>
+              <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">{t('drawer.section.library')}</span>
             </div>
             <ActionButton
-              label="修复缺失海报"
+              label={t('drawer.action.posters')}
               onClick={handleFillPosters}
               disabled={!!syncing}
               active={syncing === 'posters'}
             />
             <button className="border border-[var(--line)] bg-transparent text-[var(--muted)] hover:text-white hover:border-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all text-left flex justify-between">
-              <span>批量编辑模式</span>
+              <span>{t('drawer.action.batch_edit')}</span>
               <span>_ALT</span>
             </button>
           </div>
@@ -164,7 +166,7 @@ export default function RightActionDrawer() {
             <button className="border border-red-900/50 bg-red-950/20 text-red-500 hover:bg-red-500 hover:text-black px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex justify-between items-center group">
               <span className="flex items-center gap-2">
                 <svg className="w-3 h-3 group-hover:animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                清空系统缓存
+                {t('drawer.action.clear_cache')}
               </span>
               <span className="opacity-0 transition-opacity group-hover:opacity-100">_DANGER</span>
             </button>
@@ -176,13 +178,13 @@ export default function RightActionDrawer() {
 
   async function handleDoubanImport(mode: string, target: SyncTarget) {
     setSyncing(target);
-    setStatusMsg('启动豆瓣导入...');
+    setStatusMsg(t('drawer.status.douban_starting'));
     try {
       const data = await apiFetch<{ taskId?: string }>(`/import/douban-harvest?mode=${mode}`, { method: 'POST' });
-      if (!data.taskId) { setStatusMsg('启动失败'); setSyncing(null); return; }
+      if (!data.taskId) { setStatusMsg(t('drawer.status.start_failed')); setSyncing(null); return; }
       pollDoubanTask(data.taskId);
     } catch {
-      toast('请求失败', 'error');
+      toast(t('drawer.status.request_failed'), 'error');
       setSyncing(null);
     }
   }
@@ -196,12 +198,12 @@ export default function RightActionDrawer() {
       }>(`/import/douban-harvest/status?taskId=${taskId}`);
       if (data.status === 'completed') {
         const r = data.result!;
-        setStatusMsg(`豆瓣: ${r.imported}导入, ${r.skipped}跳过`);
+        setStatusMsg(t('drawer.status.douban_completed', r.imported, r.skipped));
         setSyncing(null);
         return;
       }
       if (data.status === 'failed') {
-        toast(`豆瓣失败: ${data.error}`, 'error');
+        toast(t('drawer.status.douban_failed', data.error ?? ''), 'error');
         setSyncing(null);
         return;
       }
@@ -209,25 +211,26 @@ export default function RightActionDrawer() {
       const progressText = p.total && p.total > 0
         ? `${p.processed ?? 0}/${p.total}`
         : p.processed && p.processed > 0
-          ? `${p.processed}条`
+          ? t('drawer.status.items', p.processed)
           : '';
-      setStatusMsg(`豆瓣 ${progressText} ${p.currentTitle ?? ''}`.trim());
+      setStatusMsg(t('drawer.status.douban_progress', progressText, p.currentTitle ?? '').trim());
       setTimeout(() => pollDoubanTask(taskId), 2000);
     } catch {
-      toast('查询失败', 'error');
+      toast(t('drawer.status.query_failed'), 'error');
       setSyncing(null);
     }
   }
 
   async function handleTraktSync(type: 'movies' | 'shows') {
     const key: SyncTarget = type === 'movies' ? 'trakt-movies' : 'trakt-shows';
+    const typeLabel = t(type === 'movies' ? 'drawer.type.movies' : 'drawer.type.shows')
     setSyncing(key);
-    setStatusMsg(`Trakt ${type} 同步中...`);
+    setStatusMsg(t('drawer.status.trakt_syncing', typeLabel));
     try {
       const res = await apiFetch<any>(`/trakt/import/${type}`, { method: 'POST' });
-      setStatusMsg(`Trakt ${type}: 导入${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
+      setStatusMsg(t('drawer.status.trakt_completed', typeLabel, res.imported ?? 0, res.skipped ?? 0));
     } catch (err: any) {
-      toast(`Trakt 失败: ${err.message}`, 'error');
+      toast(t('drawer.status.trakt_failed', err.message), 'error');
     } finally {
       setSyncing(null);
     }
@@ -235,16 +238,16 @@ export default function RightActionDrawer() {
 
   async function handleSteamImport() {
     setSyncing('steam-owned');
-    setStatusMsg('Steam 已购导入中...');
+    setStatusMsg(t('drawer.status.steam_syncing'));
     try {
       const res = await apiFetch<{ imported?: number; skipped?: number; errors?: string[] }>('/import/steam/owned', { method: 'POST' });
       if (res.errors?.length) {
-        setStatusMsg(`Steam 失败: ${res.errors[0]}`);
+        setStatusMsg(t('drawer.status.steam_failed', res.errors[0]));
       } else {
-        setStatusMsg(`Steam: 导入${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
+        setStatusMsg(t('drawer.status.steam_completed', res.imported ?? 0, res.skipped ?? 0));
       }
     } catch (err: any) {
-      setStatusMsg(`Steam 失败: ${err.message}`);
+      setStatusMsg(t('drawer.status.steam_failed', err.message));
     } finally {
       setSyncing(null);
     }
@@ -252,12 +255,12 @@ export default function RightActionDrawer() {
 
   async function handleFillPosters() {
     setSyncing('posters');
-    setStatusMsg('修复海报中...');
+    setStatusMsg(t('drawer.status.posters_syncing'));
     try {
       const res = await apiFetch<any>('/import/tmdb-covers/fill', { method: 'POST' });
-      setStatusMsg(`海报: 修复${res.imported ?? 0}, 跳过${res.skipped ?? 0}`);
+      setStatusMsg(t('drawer.status.posters_completed', res.imported ?? 0, res.skipped ?? 0));
     } catch (err: any) {
-      toast(`修复失败: ${err.message}`, 'error');
+      toast(t('drawer.status.posters_failed', err.message), 'error');
     } finally {
       setSyncing(null);
     }
