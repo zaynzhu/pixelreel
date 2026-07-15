@@ -37,6 +37,22 @@ export interface SyncResult {
   errors: string[]
 }
 
+export type SyncHistoryStatus = 'completed' | 'failed' | 'cancelled'
+
+export interface SyncHistoryEntry {
+  source: Extract<SyncSourceKey, 'douban' | 'trakt' | 'steam'>
+  taskId: string
+  type: string
+  label: string
+  status: SyncHistoryStatus
+  result: SyncResult | null
+  error: string | null
+  startedAt: string
+  completedAt: string
+}
+
+export type SyncHistoryResponse = Record<'douban' | 'trakt' | 'steam', SyncHistoryEntry | null>
+
 export interface SyncTaskResponse {
   taskId: string
   status: 'running'

@@ -144,6 +144,7 @@ import {
   collectAvailableAnalyticsYears,
 } from '../services/AnalyticsService';
 import { resolveCompletionDate } from '../services/RecordDateService';
+import { SyncHistoryStore } from '../services/SyncHistoryService';
 import {
   buildDataHealthWhere,
   isDataHealthIssueApplicable,
@@ -1395,9 +1396,11 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
   const storagePath = path.join(tempDir, 'tasks.json');
   let now = new Date('2026-07-14T12:00:00.000Z');
   const activityLogger = async () => {};
+  const terminalTasks: Array<{ status: string }> = [];
+  const terminalTaskObserver = (task: { status: string }) => terminalTasks.push(task);
 
   try {
-    const firstManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    const firstManager = new TaskManager({ storagePath, now: () => now, activityLogger, terminalTaskObserver });
     assert.equal(firstManager.initialize(), 0);
     const runningTask = firstManager.createTask('test-import', '测试导入');
     assert.throws(
@@ -1408,7 +1411,7 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
     firstManager.flush();
 
     now = new Date('2026-07-14T12:01:00.000Z');
-    const recoveredManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    const recoveredManager = new TaskManager({ storagePath, now: () => now, activityLogger, terminalTaskObserver });
     assert.equal(recoveredManager.initialize(), 1);
     const recoveredTask = recoveredManager.getTask(runningTask.taskId);
     assert.equal(recoveredTask?.status, 'failed');
@@ -1416,24 +1419,72 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
     assert.equal(recoveredTask?.progress.processed, 3);
     assert.equal(recoveredTask?.progress.currentTitle, '');
     assert.equal(recoveredTask?.completedAt, now.toISOString());
+    assert.deepEqual(terminalTasks.map(task => task.status), ['failed']);
 
     recoveredManager.completeTask(runningTask.taskId, { total: 10, imported: 10, skipped: 0, errors: [] });
     assert.equal(recoveredManager.getTask(runningTask.taskId)?.status, 'failed');
 
     const cancelledTask = recoveredManager.createTask('test-import', '取消测试');
     assert.deepEqual(recoveredManager.cancelTask(cancelledTask.taskId), { ok: true });
+    assert.deepEqual(terminalTasks.map(task => task.status), ['failed', 'cancelled']);
     recoveredManager.failTask(cancelledTask.taskId, '取消后的异步异常');
     assert.equal(recoveredManager.getTask(cancelledTask.taskId)?.status, 'cancelled');
 
-    const reloadedManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    const reloadedManager = new TaskManager({ storagePath, now: () => now, activityLogger, terminalTaskObserver });
     assert.equal(reloadedManager.initialize(), 0);
     assert.equal(reloadedManager.getTask(runningTask.taskId)?.status, 'failed');
     assert.equal(reloadedManager.getTask(cancelledTask.taskId)?.status, 'cancelled');
 
     now = new Date('2026-07-14T12:32:00.001Z');
-    const expiredManager = new TaskManager({ storagePath, now: () => now, activityLogger });
+    const expiredManager = new TaskManager({ storagePath, now: () => now, activityLogger, terminalTaskObserver });
     assert.equal(expiredManager.initialize(), 0);
     assert.deepEqual(expiredManager.listTasks(), []);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('同步历史按来源持久化最近一次终态且忽略非同步任务', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-sync-history-'));
+  const storagePath = path.join(tempDir, 'sync-history.json');
+  const store = new SyncHistoryStore(storagePath);
+  const task = (overrides: Record<string, unknown> = {}) => ({
+    taskId: 'douban-2',
+    type: 'douban-harvest',
+    label: '豆瓣增量同步',
+    status: 'completed',
+    result: { total: 10, imported: 2, skipped: 8, errors: [] },
+    error: null,
+    startedAt: '2026-07-15T10:00:00.000Z',
+    completedAt: '2026-07-15T10:05:00.000Z',
+    ...overrides,
+  });
+
+  try {
+    store.record(task());
+    store.record(task({
+      taskId: 'douban-1',
+      status: 'failed',
+      result: null,
+      error: '旧错误',
+      completedAt: '2026-07-14T10:05:00.000Z',
+    }));
+    store.record(task({ taskId: 'other', type: 'tmdb-detail-backfill' }));
+    store.record(task({
+      taskId: 'trakt-1',
+      type: 'trakt-import',
+      label: 'Trakt 电影同步',
+      status: 'failed',
+      result: null,
+      error: '令牌失效',
+    }));
+
+    const history = new SyncHistoryStore(storagePath).list();
+    assert.equal(history.douban?.taskId, 'douban-2');
+    assert.deepEqual(history.douban?.result, { total: 10, imported: 2, skipped: 8, errors: [] });
+    assert.equal(history.trakt?.status, 'failed');
+    assert.equal(history.trakt?.error, '令牌失效');
+    assert.equal(history.steam, null);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

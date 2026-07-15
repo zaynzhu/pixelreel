@@ -15,6 +15,7 @@ import { startEnrichBackfillTask } from '../services/import/TmdbEnrichBackfillSe
 import { startTmdbDetailBackfillTask } from '../services/import/TmdbDetailBackfillService';
 import { startImportSummaryTask } from '../services/import/ImportSummaryTaskService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
+import { getSyncHistory } from '../services/SyncHistoryService';
 import { config } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
 import { runExclusiveImport } from '../services/import-operation-lock';
@@ -430,6 +431,12 @@ router.get('/platforms/status', (req: Request, res: Response) => {
 router.get('/sources/status', (req: Request, res: Response) => {
   assertKnownImportParameters(req.query, []);
   res.json(getCurrentImportSourceStatus());
+});
+
+// GET /api/import/sources/history — 各正式来源最近一次同步终态，不包含凭据
+router.get('/sources/history', (req: Request, res: Response) => {
+  assertKnownImportParameters(req.query, []);
+  res.json(getSyncHistory());
 });
 
 // DELETE /api/import/tasks/:taskId — 取消任务

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ImportSummary } from '../dto/import-summary';
 import { logActivity } from './activity-log';
+import { recordSyncHistory } from './SyncHistoryService';
 
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -33,6 +34,7 @@ interface TaskManagerOptions {
   now?: () => Date;
   ttlMs?: number;
   activityLogger?: ActivityLogger;
+  terminalTaskObserver?: (task: TaskSnapshot) => void;
 }
 
 const DEFAULT_TTL_MS = 30 * 60 * 1000;
@@ -79,6 +81,7 @@ export class TaskManager {
   private readonly now: () => Date;
   private readonly ttlMs: number;
   private readonly activityLogger: ActivityLogger;
+  private readonly terminalTaskObserver: (task: TaskSnapshot) => void;
   private initialized = false;
   private taskCounter = 0;
   private progressPersistTimer: NodeJS.Timeout | null = null;
@@ -89,6 +92,7 @@ export class TaskManager {
     this.now = options.now ?? (() => new Date());
     this.ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
     this.activityLogger = options.activityLogger ?? logActivity;
+    this.terminalTaskObserver = options.terminalTaskObserver ?? (() => {});
   }
 
   initialize(): number {
@@ -134,6 +138,7 @@ export class TaskManager {
       if (changed) this.persistNow();
 
       for (const task of recoveredTasks) {
+        this.notifyTerminalTask(task);
         this.logTaskActivity('TASK_FAIL', task, { error: task.error, recoveredAfterRestart: true });
       }
     } catch (error) {
@@ -206,6 +211,7 @@ export class TaskManager {
     task.progress.currentTitle = '';
     task.completedAt = this.now().toISOString();
     this.persistNow();
+    this.notifyTerminalTask(task);
     this.logTaskActivity('TASK_DONE', task, { result });
   }
 
@@ -218,6 +224,7 @@ export class TaskManager {
     task.progress.currentTitle = '';
     task.completedAt = this.now().toISOString();
     this.persistNow();
+    this.notifyTerminalTask(task);
     this.logTaskActivity('TASK_FAIL', task, { error });
   }
 
@@ -231,6 +238,7 @@ export class TaskManager {
     task.progress.currentTitle = '';
     task.completedAt = this.now().toISOString();
     this.persistNow();
+    this.notifyTerminalTask(task);
     return { ok: true };
   }
 
@@ -282,6 +290,14 @@ export class TaskManager {
     return snapshot;
   }
 
+  private notifyTerminalTask(task: Task): void {
+    try {
+      this.terminalTaskObserver(this.toSnapshot(task));
+    } catch (error) {
+      console.error('[TaskManager] 保存任务终态摘要失败:', error);
+    }
+  }
+
   private logTaskActivity(
     action: 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL',
     task: Task,
@@ -296,7 +312,10 @@ export class TaskManager {
   }
 }
 
-const taskManager = new TaskManager({ storagePath: TASK_STORAGE_PATH });
+const taskManager = new TaskManager({
+  storagePath: TASK_STORAGE_PATH,
+  terminalTaskObserver: recordSyncHistory,
+});
 
 export function initializeTaskManager(): number {
   return taskManager.initialize();

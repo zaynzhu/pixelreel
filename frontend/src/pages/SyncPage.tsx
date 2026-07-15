@@ -8,6 +8,8 @@ import { toast } from '../stores/toastStore'
 import type { RecordStatus } from '../types/library'
 import type {
   SyncAvailability,
+  SyncHistoryEntry,
+  SyncHistoryResponse,
   SyncResult,
   SyncSourceKey,
   SyncSourceStatus,
@@ -30,6 +32,7 @@ export default function SyncPage() {
   const cancelTask = useTaskStore(state => state.cancelTask)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const [status, setStatus] = useState<SyncSourceStatus | null>(null)
+  const [history, setHistory] = useState<SyncHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<string | null>(null)
@@ -42,7 +45,12 @@ export default function SyncPage() {
     setLoading(true)
     setStatusError(null)
     try {
-      setStatus(await apiFetch<SyncSourceStatus>('/import/sources/status'))
+      const [nextStatus, nextHistory] = await Promise.all([
+        apiFetch<SyncSourceStatus>('/import/sources/status'),
+        apiFetch<SyncHistoryResponse>('/import/sources/history'),
+      ])
+      setStatus(nextStatus)
+      setHistory(nextHistory)
     } catch (reason) {
       setStatusError(reason instanceof Error ? reason.message : t('sync.status_error'))
     } finally {
@@ -137,6 +145,7 @@ export default function SyncPage() {
             source="douban"
             availability={status.douban}
             task={latestTask('douban')}
+            history={history?.douban ?? null}
             settingsCategory="douban"
           >
             <div className="grid gap-2 sm:grid-cols-3">
@@ -157,6 +166,7 @@ export default function SyncPage() {
             source="trakt"
             availability={status.trakt}
             task={latestTask('trakt')}
+            history={history?.trakt ?? null}
             settingsCategory="trakt"
           >
             <StatusSelect
@@ -183,6 +193,7 @@ export default function SyncPage() {
             source="steam"
             availability={status.steam}
             task={latestTask('steam')}
+            history={history?.steam ?? null}
             settingsCategory="steam"
           >
             <StatusSelect
@@ -251,12 +262,14 @@ function SourceCard({
   source,
   availability,
   task,
+  history,
   settingsCategory,
   children,
 }: {
   source: SyncSourceKey
   availability: SyncAvailability
   task: Task | null
+  history: SyncHistoryEntry | null
   settingsCategory: string
   children: React.ReactNode
 }) {
@@ -288,8 +301,25 @@ function SourceCard({
         )}
         {children}
         {task && <TaskSummary task={task} />}
+        {history && history.taskId !== task?.taskId && <SyncHistorySummary entry={history} />}
+        {!history && <p className="mt-4 border-t border-dashed border-[var(--line)] pt-4 text-[10px] text-[var(--muted)]">{t('sync.history.empty')}</p>}
       </div>
     </section>
+  )
+}
+
+function SyncHistorySummary({ entry }: { entry: SyncHistoryEntry }) {
+  const { t, lang } = useI18nStore()
+  return (
+    <div className="mt-4 border-t border-dashed border-[var(--line)] pt-4 text-[10px] text-[var(--muted)]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-bold uppercase tracking-widest text-white">{t('sync.history.title')}</span>
+        <span>{taskStatusLabel(entry.status, t)}</span>
+      </div>
+      <p className="mt-2">{new Date(entry.completedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</p>
+      {entry.result && <ResultSummary result={entry.result} completedAt={null} compact />}
+      {entry.error && <p className="mt-2 text-red-400">{entry.error}</p>}
+    </div>
   )
 }
 
@@ -422,6 +452,6 @@ function reasonLabel(reason: SyncUnavailableReason, t: ReturnType<typeof useI18n
   return reason ? t(`sync.reason.${reason}`) : ''
 }
 
-function taskStatusLabel(status: Task['status'], t: ReturnType<typeof useI18nStore.getState>['t']) {
+function taskStatusLabel(status: Task['status'] | SyncHistoryEntry['status'], t: ReturnType<typeof useI18nStore.getState>['t']) {
   return t(`task.panel.status.${status === 'completed' ? 'done' : status}`)
 }
