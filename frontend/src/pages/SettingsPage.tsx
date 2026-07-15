@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useI18nStore } from '../stores/i18nStore';
 import { apiFetch } from '../api';
@@ -10,16 +10,22 @@ export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState<SettingsCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [originalValues, setOriginalValues] = useState<Record<string, string>>({});
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [restartRequired, setRestartRequired] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('general');
+  const latestSettingsRequest = useRef(0);
 
   const loadSettings = useCallback(async () => {
+    const requestId = ++latestSettingsRequest.current;
+    setLoading(true);
+    setLoadError(null);
     try {
       const data = await apiFetch<SettingsResponse>('/settings');
+      if (requestId !== latestSettingsRequest.current) return;
       setCategories(data.categories);
       const vals: Record<string, string> = {};
       for (const cat of data.categories) {
@@ -31,14 +37,20 @@ export default function SettingsPage() {
       setOriginalValues(vals);
       setRevealedKeys(new Set());
       setRestartRequired(false);
-    } catch {
-      toast(t('settings.load_failed'), 'error');
+    } catch (reason) {
+      if (requestId !== latestSettingsRequest.current) return;
+      setLoadError(reason instanceof Error ? reason.message : t('settings.load_failed'));
     } finally {
-      setLoading(false);
+      if (requestId === latestSettingsRequest.current) setLoading(false);
     }
   }, [t]);
 
-  useEffect(() => { loadSettings(); }, [loadSettings]);
+  useEffect(() => {
+    void loadSettings();
+    return () => {
+      latestSettingsRequest.current++;
+    };
+  }, [loadSettings]);
 
   useEffect(() => {
     const requestedCategory = searchParams.get('category');
@@ -99,7 +111,7 @@ export default function SettingsPage() {
     return (
       <div className="p-6">
         <div className="animate-pulse text-[var(--muted)] text-xs uppercase tracking-widest">
-          LOADING...
+          {t('settings.loading')}
         </div>
       </div>
     );
@@ -118,8 +130,21 @@ export default function SettingsPage() {
         <p className="mt-2 text-xs text-[var(--muted)]">{t('settings.desc')}</p>
       </div>
 
+      {loadError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border border-red-500/50 bg-red-500/10 p-5 text-xs text-red-300">
+          <div>
+            <p className="font-bold uppercase tracking-widest">{t('settings.load_failed')}</p>
+            <p className="mt-2 text-[10px] leading-5 text-[var(--muted)]">{loadError}</p>
+          </div>
+          <button type="button" onClick={() => void loadSettings()} className="brutal-btn">
+            {t('settings.retry')}
+          </button>
+        </div>
+      )}
+
       {/* Category tabs + content */}
-      <div className="flex gap-6">
+      {!loadError && (
+        <div className="flex gap-6">
         {/* Sidebar */}
         <div className="w-48 flex-shrink-0">
           <div className="border border-[var(--line)] bg-[var(--surface)]">
@@ -232,7 +257,8 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Restart notice */}
       {restartRequired && (

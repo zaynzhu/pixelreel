@@ -125,6 +125,7 @@ frontend/src/
 - **认证状态失败：** `GET /api/auth/status` 读取失败时必须显示连接错误与重试，不能静默当作“认证已开启”并把用户误导到登录页；并发初始化请求必须采用最新请求获胜。
 - **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
 - **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
+- **Settings 读取：** 配置读取必须采用最新请求获胜，页面卸载时使在途请求失效；读取失败必须持续显示错误与重试入口，不能只弹 Toast 后留下空白配置区。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销；任务记录 `TASK_START|TASK_DONE|TASK_FAIL|TASK_CANCEL` 完整生命周期。“数据变更”筛选覆盖 `CREATE|UPDATE|DELETE|UNDO`，“任务”筛选按 `TASK` 实体查询全部任务事件。`/activity` 页面带筛选和无限滚动，筛选与分页请求必须采用最新请求获胜，旧分页不能追加到新筛选；全局与记录级读取失败必须显示错误和重试，不能伪装为空状态，撤销失败必须反馈原因。
 - **数据健康：** `/data-health` 只读审计显示字段缺口，不自动修改记录；电影/剧集检查封面、简介、日期和外部 ID，游戏只检查封面和外部 ID，问题列表按 BigInt ID 游标分页。字段问题与重复候选的首屏、分页和操作后刷新必须绑定当前类别/筛选与最新请求，不能跨视图混入旧结果。
