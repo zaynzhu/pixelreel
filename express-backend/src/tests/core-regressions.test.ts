@@ -130,7 +130,7 @@ import {
   validateAuthSettingValues,
   validateSettingValues,
 } from '../routes/settings';
-import { isImportedGame } from '../services/ProfileSummaryService';
+import { buildNextUpQueue, isImportedGame } from '../services/ProfileSummaryService';
 import { buildGameStatusWhere, effectiveGameStatus } from '../services/GameStatusService';
 import {
   buildCrossPlatformRatings,
@@ -1789,6 +1789,34 @@ test('已游玩的想玩游戏按进行中统计', () => {
       { status: RecordStatus.WANT, playtimeMinutes: { gt: 0 } },
     ],
   });
+});
+
+test('首页行动队列优先继续高时长游戏并唤回等待最久记录', () => {
+  const item = (id: number, status: string, createdAt: string, extra = {}) => ({
+    id,
+    title: `条目 ${id}`,
+    posterUrl: null,
+    status,
+    rating: null,
+    createdAt: new Date(createdAt),
+    ...extra,
+  });
+  const queue = buildNextUpQueue(
+    [
+      item(1, RecordStatus.WANT, '2024-01-01T00:00:00.000Z'),
+      item(2, RecordStatus.DONE, '2023-01-01T00:00:00.000Z'),
+    ],
+    [
+      item(10, RecordStatus.WANT, '2025-01-01T00:00:00.000Z', { playtimeMinutes: 30 }),
+      item(11, RecordStatus.IN_PROGRESS, '2026-01-01T00:00:00.000Z', { playtimeMinutes: 120 }),
+      item(12, RecordStatus.WANT, '2022-01-01T00:00:00.000Z', { playtimeMinutes: 0 }),
+    ],
+    [item(20, RecordStatus.WANT, '2023-01-01T00:00:00.000Z')],
+  );
+
+  assert.deepEqual(queue.resume.map(record => record.id), [11, 10]);
+  assert.deepEqual(queue.backlog.map(record => record.id), [12, 20, 1]);
+  assert.equal(queue.resume[1].status, RecordStatus.IN_PROGRESS);
 });
 
 test('跨平台评分只聚合本年入库记录并按相同分数组合', () => {

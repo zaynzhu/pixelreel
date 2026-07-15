@@ -24,6 +24,10 @@ export interface ProfileSummaryResponse {
   movieSources: CountItem[];
   gamePlatforms: CountItem[];
   tvShowSources: CountItem[];
+  nextUp: {
+    resume: ActionQueueItem[];
+    backlog: ActionQueueItem[];
+  };
   recentItems: RecentRecordItem[];
   yearlyTimeline: YearlyTimelineItem[];
 }
@@ -48,4 +52,8 @@ export interface RecentRecordItem {
   status: string;
   rating: number | null;
   createdAt: string;
+}
+
+export interface ActionQueueItem extends RecentRecordItem {
+  playtimeMinutes: number | null;
 }

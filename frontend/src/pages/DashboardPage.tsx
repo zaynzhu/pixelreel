@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useProfileStore } from "../stores/profileStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
+import { NextUpQueue } from "../components/NextUpQueue";
 
 export default function DashboardPage() {
   const { summary, loading, error, fetchSummary } = useProfileStore();
@@ -143,6 +144,8 @@ export default function DashboardPage() {
           ))}
         </div>
       </section>
+
+      <NextUpQueue queue={summary?.nextUp} loading={loading} />
 
       <section className="dash-card">
         <div className="flex items-center justify-between gap-4">

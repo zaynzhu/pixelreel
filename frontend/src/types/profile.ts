@@ -17,6 +17,10 @@ export type RecentRecordItem = {
   createdAt: string;
 };
 
+export type ActionQueueItem = RecentRecordItem & {
+  playtimeMinutes: number | null;
+};
+
 export type YearlyTimelineItem = {
   year: string;
   count: number;
@@ -47,6 +51,10 @@ export type ProfileSummary = {
   movieSources: CountItem[];
   gamePlatforms: CountItem[];
   tvShowSources: CountItem[];
+  nextUp: {
+    resume: ActionQueueItem[];
+    backlog: ActionQueueItem[];
+  };
   recentItems: RecentRecordItem[];
   yearlyTimeline: YearlyTimelineItem[];
 };

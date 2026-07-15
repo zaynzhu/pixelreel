@@ -1,11 +1,18 @@
 import { getDb } from '../config/db';
-import { ProfileSummaryResponse, CountItem, RecentRecordItem, YearlyTimelineItem } from '../dto/profile';
+import {
+  ActionQueueItem,
+  ProfileSummaryResponse,
+  CountItem,
+  RecentRecordItem,
+  YearlyTimelineItem,
+} from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
 import { effectiveGameStatus } from './GameStatusService';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
 
 const RECENT_LIMIT = 15;
+const ACTION_QUEUE_LIMIT = 4;
 
 export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
   const db = getDb();
@@ -72,8 +79,63 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
     movieSources: buildMovieSourceCounts(movies),
     gamePlatforms: buildGamePlatformCounts(games),
     tvShowSources: buildTvShowSourceCounts(tvShows),
+    nextUp: buildNextUpQueue(movies, games, tvShows),
     recentItems: buildRecentItems(movies, games, tvShows),
     yearlyTimeline: buildYearlyTimeline(movies, games, tvShows),
+  };
+}
+
+export function buildNextUpQueue(movies: any[], games: any[], tvShows: any[]) {
+  const resume = games
+    .filter(game => effectiveGameStatus(game) === RecordStatus.IN_PROGRESS)
+    .map(game => toActionQueueItem('game', game))
+    .sort((left, right) => (
+      (right.playtimeMinutes ?? 0) - (left.playtimeMinutes ?? 0)
+      || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      || right.id - left.id
+    ))
+    .slice(0, ACTION_QUEUE_LIMIT);
+
+  const backlog = [
+    ...movies
+      .filter(movie => safeStatus(movie.status) === RecordStatus.WANT)
+      .map(movie => toActionQueueItem('movie', movie)),
+    ...tvShows
+      .filter(show => safeStatus(show.status) === RecordStatus.WANT)
+      .map(show => toActionQueueItem('tv_show', show)),
+    ...games
+      .filter(game => effectiveGameStatus(game) === RecordStatus.WANT)
+      .map(game => toActionQueueItem('game', game)),
+  ]
+    .sort((left, right) => (
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+      || left.category.localeCompare(right.category)
+      || left.id - right.id
+    ))
+    .slice(0, ACTION_QUEUE_LIMIT);
+
+  return { resume, backlog };
+}
+
+function toActionQueueItem(
+  category: ActionQueueItem['category'],
+  record: any,
+): ActionQueueItem {
+  const source = category === 'game'
+    ? platformLabel(inferGamePlatform(record))
+    : category === 'movie'
+      ? sourceLabel(inferMovieSource(record))
+      : tvShowSourceLabel(inferTvShowSource(record));
+  return {
+    category,
+    id: Number(record.id),
+    title: record.title,
+    subtitle: source,
+    posterUrl: record.posterUrl ?? null,
+    status: category === 'game' ? effectiveGameStatus(record) : safeStatus(record.status),
+    rating: record.rating ?? null,
+    playtimeMinutes: category === 'game' ? record.playtimeMinutes ?? null : null,
+    createdAt: record.createdAt,
   };
 }
 
