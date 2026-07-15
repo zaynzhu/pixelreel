@@ -143,6 +143,7 @@ const dictionaries = {
     // Rescrape
     "lib.rescrape.btn": "RESCRAPE",
     "lib.rescrape.title": "RESCRAPE METADATA",
+    "lib.rescrape.close": "CLOSE",
     "lib.rescrape.search_placeholder": "Enter search query...",
     "lib.rescrape.source": "SOURCE",
     "lib.rescrape.searching": "SEARCHING...",
@@ -488,6 +489,7 @@ const dictionaries = {
     // Rescrape
     "lib.rescrape.btn": "重新刮削",
     "lib.rescrape.title": "重新刮削元数据",
+    "lib.rescrape.close": "关闭",
     "lib.rescrape.search_placeholder": "输入搜索关键词...",
     "lib.rescrape.source": "来源",
     "lib.rescrape.searching": "搜索中...",

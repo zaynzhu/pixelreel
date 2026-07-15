@@ -293,7 +293,12 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="relative w-full max-w-2xl max-h-[80vh] border border-[var(--line)] bg-[var(--surface)] shadow-[0_0_60px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rescrape-modal-title"
+        className="relative w-full max-w-2xl max-h-[80vh] border border-[var(--line)] bg-[var(--surface)] shadow-[0_0_60px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden"
+      >
         {/* 角落装饰 */}
         <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[var(--accent)]" />
         <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[var(--accent)]" />
@@ -304,12 +309,14 @@ export default function RescrapeModal({ record, onClose, onUpdated }: RescrapeMo
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--line)]">
           <div className="flex items-center gap-2">
             <span className="text-[var(--accent)] text-sm">&#x21BB;</span>
-            <h2 className="font-display text-lg text-white uppercase tracking-wider">
+            <h2 id="rescrape-modal-title" className="font-display text-lg text-white uppercase tracking-wider">
               {t("lib.rescrape.title")}
             </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label={t("lib.rescrape.close")}
             className="p-1 text-[var(--muted)] hover:text-white transition-colors text-sm"
           >
             &#x2715;
