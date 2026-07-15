@@ -135,6 +135,7 @@ frontend/src/
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
 - **主机平台导入：** Xbox/PSN 当前是未通过真实账号链路验证的实验性代码，搜索 Provider 仍为占位。同步中心只标记“实验性未接入”，不提供启动入口，也不计入正式可用来源。
 - **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。Steam 使用 `/api/import/steam/owned/task`，Trakt 使用 `/api/trakt/import/{movies|shows}/task`，配置缺失时跳转到 Settings 对应分类。
+- **命令抽屉：** 豆瓣、Trakt、Steam 快捷操作必须复用与同步中心相同的持久化任务端点，并由全局 `taskStore` 显示运行状态和冲突；不能调用旧同步接口或在抽屉内自行轮询。长时间数据修复统一跳转 `/data-health`，不在抽屉内直接执行。
 - **导入审核：** 历史记录和手动新增默认 `ACCEPTED`；豆瓣、Trakt、Steam 等外部导入的新记录显式写入 `PENDING`。`/sync/review` 可批量改为 `ACCEPTED` 或 `IGNORED`，忽略仅修改 `importReviewState`，不能删除记录或改写豆瓣原始字段。
 - **主机游戏完整性：** PSNProfiles 按 `?ajax=1&page=N` 读取全部游戏页，直到页面声明 `nextPage = 0`，最多 100 页；Cloudflare 验证页会提示更新 Cookie。Xbox/PSN 原始记录缺封面时通过 RAWG 按标题回退查询，仍遵守同服务两秒限流。
 - **记录编辑：** 路径 `id` 必须是 JavaScript 安全范围内的正整数；Library PATCH 只接受 `status`、`rating`、`shortReview`，评分限定 1-5，短评最长 1000 字符，非法请求在写库前返回 400。

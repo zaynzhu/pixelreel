@@ -1,18 +1,31 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api';
 import { useI18nStore } from '../stores/i18nStore';
+import { useTaskStore } from '../stores/taskStore';
 import { toast } from '../stores/toastStore';
+import { Link } from 'react-router-dom';
 
-type SyncTarget = 'douban-json' | 'douban-incremental' | 'douban-full' | 'trakt-movies' | 'trakt-shows' | 'steam-owned' | 'posters' | null;
+type SyncTarget = 'douban-json' | 'douban-incremental' | 'douban-full' | 'trakt-movies' | 'trakt-shows' | 'steam-owned' | null;
 
 export default function RightActionDrawer() {
   const [isOpen, setIsOpen] = useState(false);
   const [syncing, setSyncing] = useState<SyncTarget>(null);
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const { t } = useI18nStore()
+  const tasks = useTaskStore(state => state.tasks)
+  const pollTasks = useTaskStore(state => state.pollTasks)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeDrawer = useCallback(() => setIsOpen(false), [])
+  const doubanRunning = tasks.some(task => task.type === 'douban-harvest' && task.status === 'running')
+  const traktRunning = tasks.some(task => task.type === 'trakt-import' && task.status === 'running')
+  const steamRunning = tasks.some(task => task.type === 'steam-owned' && task.status === 'running')
+  const runningTask = tasks.find(task => (
+    ['douban-harvest', 'trakt-import', 'steam-owned'].includes(task.type)
+    && task.status === 'running'
+  ))
+  const statusMsg = syncing
+    ? t('drawer.status.task_starting')
+    : runningTask ? t('drawer.status.task_running', runningTask.label) : null
 
   useLayoutEffect(() => {
     if (panelRef.current) panelRef.current.inert = !isOpen
@@ -70,7 +83,7 @@ export default function RightActionDrawer() {
           {/* Header */}
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className={`w-2 h-2 ${syncing ? 'bg-[var(--accent-deep)] animate-pulse' : 'bg-[var(--accent)] animate-pulse'}`} />
+              <div className={`w-2 h-2 ${syncing || runningTask ? 'bg-[var(--accent-deep)] animate-pulse' : 'bg-[var(--accent)] animate-pulse'}`} />
               <span className="section-kicker !mb-0">SYS.OP</span>
             </div>
             <h3 id="command-drawer-title" className="font-display text-2xl text-white">COMMAND<br/>CENTER</h3>
@@ -91,20 +104,20 @@ export default function RightActionDrawer() {
             </div>
             <ActionButton
               label={t('drawer.action.douban_json')}
-              onClick={() => handleDoubanImport('json', 'douban-json')}
-              disabled={!!syncing}
+              onClick={() => void startTask('douban-json', '/import/douban-harvest?mode=json')}
+              disabled={syncing != null || doubanRunning}
               active={syncing === 'douban-json'}
             />
             <ActionButton
               label={t('drawer.action.douban_incremental')}
-              onClick={() => handleDoubanImport('incremental', 'douban-incremental')}
-              disabled={!!syncing}
+              onClick={() => void startTask('douban-incremental', '/import/douban-harvest?mode=incremental')}
+              disabled={syncing != null || doubanRunning}
               active={syncing === 'douban-incremental'}
             />
             <ActionButton
               label={t('drawer.action.douban_full')}
-              onClick={() => handleDoubanImport('full', 'douban-full')}
-              disabled={!!syncing}
+              onClick={() => void startTask('douban-full', '/import/douban-harvest?mode=full')}
+              disabled={syncing != null || doubanRunning}
               active={syncing === 'douban-full'}
             />
           </div>
@@ -117,14 +130,14 @@ export default function RightActionDrawer() {
             </div>
             <ActionButton
               label={t('drawer.action.trakt_movies')}
-              onClick={() => handleTraktSync('movies')}
-              disabled={!!syncing}
+              onClick={() => void startTask('trakt-movies', '/trakt/import/movies/task?status=WANT')}
+              disabled={syncing != null || traktRunning}
               active={syncing === 'trakt-movies'}
             />
             <ActionButton
               label={t('drawer.action.trakt_shows')}
-              onClick={() => handleTraktSync('shows')}
-              disabled={!!syncing}
+              onClick={() => void startTask('trakt-shows', '/trakt/import/shows/task?status=WANT')}
+              disabled={syncing != null || traktRunning}
               active={syncing === 'trakt-shows'}
             />
           </div>
@@ -137,8 +150,8 @@ export default function RightActionDrawer() {
             </div>
             <ActionButton
               label={t('drawer.action.steam_owned')}
-              onClick={handleSteamImport}
-              disabled={!!syncing}
+              onClick={() => void startTask('steam-owned', '/import/steam/owned/task?status=WANT')}
+              disabled={syncing != null || steamRunning}
               active={syncing === 'steam-owned'}
             />
           </div>
@@ -149,130 +162,30 @@ export default function RightActionDrawer() {
               <span className="text-[10px] font-bold text-[var(--accent)] uppercase tracking-wider">04 //</span>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">{t('drawer.section.library')}</span>
             </div>
-            <ActionButton
-              label={t('drawer.action.posters')}
-              onClick={handleFillPosters}
-              disabled={!!syncing}
-              active={syncing === 'posters'}
-            />
-            <button
-              type="button"
-              disabled
-              title={t('drawer.unavailable')}
-              className="border border-[var(--line)] bg-transparent text-[var(--muted)] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-left flex justify-between opacity-40 cursor-not-allowed"
-            >
-              <span>{t('drawer.action.batch_edit')}</span>
-              <span>_N/A</span>
-            </button>
-          </div>
-
-          {/* 底部：危险操作 */}
-          <div className="mt-auto pt-6 border-t border-[var(--line)] flex flex-col gap-2">
-            <button
-              type="button"
-              disabled
-              title={t('drawer.unavailable')}
-              className="border border-red-900/50 bg-red-950/20 text-red-500 px-4 py-2 text-[10px] font-bold uppercase tracking-widest flex justify-between items-center opacity-40 cursor-not-allowed"
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                {t('drawer.action.clear_cache')}
-              </span>
-              <span>_N/A</span>
-            </button>
+            <Link to="/data-health" onClick={closeDrawer} className="brutal-btn justify-between">
+              <span>{t('drawer.action.data_health')}</span>
+              <span>→</span>
+            </Link>
+            <Link to="/sync" onClick={closeDrawer} className="brutal-btn justify-between">
+              <span>{t('drawer.action.sync_center')}</span>
+              <span>→</span>
+            </Link>
           </div>
         </div>
       </div>
     </>
   );
 
-  async function handleDoubanImport(mode: string, target: SyncTarget) {
-    setSyncing(target);
-    setStatusMsg(t('drawer.status.douban_starting'));
+  async function startTask(target: Exclude<SyncTarget, null>, path: string) {
+    setSyncing(target)
     try {
-      const data = await apiFetch<{ taskId?: string }>(`/import/douban-harvest?mode=${mode}`, { method: 'POST' });
-      if (!data.taskId) { setStatusMsg(t('drawer.status.start_failed')); setSyncing(null); return; }
-      pollDoubanTask(data.taskId);
-    } catch {
-      toast(t('drawer.status.request_failed'), 'error');
-      setSyncing(null);
-    }
-  }
-
-  async function pollDoubanTask(taskId: string) {
-    try {
-      const data = await apiFetch<{
-        status: string; error?: string;
-        progress?: { processed?: number; total?: number; currentTitle?: string };
-        result?: { imported: number; skipped: number };
-      }>(`/import/douban-harvest/status?taskId=${taskId}`);
-      if (data.status === 'completed') {
-        const r = data.result!;
-        setStatusMsg(t('drawer.status.douban_completed', r.imported, r.skipped));
-        setSyncing(null);
-        return;
-      }
-      if (data.status === 'failed') {
-        toast(t('drawer.status.douban_failed', data.error ?? ''), 'error');
-        setSyncing(null);
-        return;
-      }
-      const p = data.progress!;
-      const progressText = p.total && p.total > 0
-        ? `${p.processed ?? 0}/${p.total}`
-        : p.processed && p.processed > 0
-          ? t('drawer.status.items', p.processed)
-          : '';
-      setStatusMsg(t('drawer.status.douban_progress', progressText, p.currentTitle ?? '').trim());
-      setTimeout(() => pollDoubanTask(taskId), 2000);
-    } catch {
-      toast(t('drawer.status.query_failed'), 'error');
-      setSyncing(null);
-    }
-  }
-
-  async function handleTraktSync(type: 'movies' | 'shows') {
-    const key: SyncTarget = type === 'movies' ? 'trakt-movies' : 'trakt-shows';
-    const typeLabel = t(type === 'movies' ? 'drawer.type.movies' : 'drawer.type.shows')
-    setSyncing(key);
-    setStatusMsg(t('drawer.status.trakt_syncing', typeLabel));
-    try {
-      const res = await apiFetch<any>(`/trakt/import/${type}`, { method: 'POST' });
-      setStatusMsg(t('drawer.status.trakt_completed', typeLabel, res.imported ?? 0, res.skipped ?? 0));
-    } catch (err: any) {
-      toast(t('drawer.status.trakt_failed', err.message), 'error');
+      await apiFetch<{ taskId: string }>(path, { method: 'POST' })
+      await pollTasks()
+      toast(t('drawer.status.task_started'))
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t('drawer.status.task_failed'), 'error')
     } finally {
-      setSyncing(null);
-    }
-  }
-
-  async function handleSteamImport() {
-    setSyncing('steam-owned');
-    setStatusMsg(t('drawer.status.steam_syncing'));
-    try {
-      const res = await apiFetch<{ imported?: number; skipped?: number; errors?: string[] }>('/import/steam/owned', { method: 'POST' });
-      if (res.errors?.length) {
-        setStatusMsg(t('drawer.status.steam_failed', res.errors[0]));
-      } else {
-        setStatusMsg(t('drawer.status.steam_completed', res.imported ?? 0, res.skipped ?? 0));
-      }
-    } catch (err: any) {
-      setStatusMsg(t('drawer.status.steam_failed', err.message));
-    } finally {
-      setSyncing(null);
-    }
-  }
-
-  async function handleFillPosters() {
-    setSyncing('posters');
-    setStatusMsg(t('drawer.status.posters_syncing'));
-    try {
-      const res = await apiFetch<any>('/import/tmdb-covers/fill', { method: 'POST' });
-      setStatusMsg(t('drawer.status.posters_completed', res.imported ?? 0, res.skipped ?? 0));
-    } catch (err: any) {
-      toast(t('drawer.status.posters_failed', err.message), 'error');
-    } finally {
-      setSyncing(null);
+      setSyncing(null)
     }
   }
 }
