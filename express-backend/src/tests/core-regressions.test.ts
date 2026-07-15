@@ -150,6 +150,7 @@ import {
   parseSteamOwnedGamesResponse,
   resolveSteamImportStatus,
 } from '../services/import/SteamOwnedGamesImportService';
+import { assertTaskActive } from '../services/import/ImportSummaryTaskService';
 import {
   getExternalServiceKey,
   RateLimiter,
@@ -1749,6 +1750,13 @@ test('Steam 导入在写库前规范响应并去重', () => {
     () => parseSteamOwnedGamesResponse(null),
     /Steam API 返回的 response 不是对象/,
   );
+});
+
+test('统一同步任务在取消后阻止继续调用外部服务或写库', () => {
+  const controller = new AbortController();
+  controller.abort();
+  assert.throws(() => assertTaskActive(controller.signal), /任务已取消/);
+  assert.doesNotThrow(() => assertTaskActive(new AbortController().signal));
 });
 
 test('外部平台标识可识别历史导入游戏', () => {

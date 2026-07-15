@@ -125,7 +125,7 @@ frontend/src/
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
 - **主机平台导入：** Xbox/PSN 导入先通过 `GET /api/import/platforms/status` 检查配置；可用时 `POST /api/import/xbox/owned`、`POST /api/import/psn/owned` 创建持久化异步任务并返回 `taskId`，进度与取消统一走任务面板。
-- **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam、Xbox、PSN 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。豆瓣、Xbox、PSN 复用持久化任务与取消能力，Steam、Trakt 当前直接返回本次结果；配置缺失时跳转到 Settings 对应分类。
+- **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam、Xbox、PSN 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。五类来源均通过持久化任务展示进度、结果和取消状态；Steam 使用 `/api/import/steam/owned/task`，Trakt 使用 `/api/trakt/import/{movies|shows}/task`，旧同步接口继续保留；配置缺失时跳转到 Settings 对应分类。
 - **主机游戏完整性：** PSNProfiles 按 `?ajax=1&page=N` 读取全部游戏页，直到页面声明 `nextPage = 0`，最多 100 页；Cloudflare 验证页会提示更新 Cookie。Xbox/PSN 原始记录缺封面时通过 RAWG 按标题回退查询，仍遵守同服务两秒限流。
 - **记录编辑：** 路径 `id` 必须是 JavaScript 安全范围内的正整数；Library PATCH 只接受 `status`、`rating`、`shortReview`，评分限定 1-5，短评最长 1000 字符，非法请求在写库前返回 400。
 - **HTTP 错误边界：** 路由内部异常统一交给 `errorHandler`；4xx 保留可操作提示且只记录单行警告，5xx 客户端固定返回“内部服务器错误”，详细堆栈只写服务端日志。Express 框架指纹响应头已关闭。

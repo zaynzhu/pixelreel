@@ -3,6 +3,7 @@ import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
+import { assertTaskActive } from './ImportSummaryTaskService';
 
 interface SteamOwnedGame {
   appId: number;
@@ -95,7 +96,13 @@ export function resolveSteamImportStatus(status: string | null | undefined, play
 }
 
 // Steam 已购游戏导入服务，与 Java 端 SteamOwnedGamesImportService 完全对齐
-export async function importSteamOwnedGames(steamId?: string | null, status?: string | null): Promise<ImportSummary> {
+export async function importSteamOwnedGames(
+  steamId?: string | null,
+  status?: string | null,
+  onProgress?: (processed: number, total: number, currentTitle: string) => void,
+  signal?: AbortSignal,
+): Promise<ImportSummary> {
+  assertTaskActive(signal);
   const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
 
   if (!config.steam.apiKey) {
@@ -111,14 +118,17 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
 
   let response: any;
   try {
+    assertTaskActive(signal);
     response = await axios.get(`${config.steam.baseUrl}/IPlayerService/GetOwnedGames/v0001/`, {
       params: {
         key: config.steam.apiKey,
         steamid: effectiveSteamId,
         include_appinfo: 1,
       },
+      signal,
     });
   } catch (ex: any) {
+    if (signal?.aborted) throw new Error('任务已取消');
     summary.errors.push(`Steam API 调用失败: ${ex.message}`);
     return summary;
   }
@@ -142,7 +152,9 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
     : new Map<any, any>();
 
   const toSave: any[] = [];
-  for (const owned of games) {
+  for (const [index, owned] of games.entries()) {
+    assertTaskActive(signal);
+    onProgress?.(index + 1, games.length, owned.title);
     if (existingMap.has(owned.appId)) {
       summary.skipped++;
       continue;
@@ -161,6 +173,7 @@ export async function importSteamOwnedGames(steamId?: string | null, status?: st
   }
 
   if (toSave.length > 0) {
+    assertTaskActive(signal);
     await getDb().game.createMany({ data: toSave });
     summary.imported = toSave.length;
   }

@@ -19,12 +19,13 @@ import type {
 const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam', 'xbox', 'psn']
 const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
   douban: 'douban-harvest',
+  trakt: 'trakt-import',
+  steam: 'steam-owned',
   xbox: 'xbox-owned',
   psn: 'psn-owned',
 }
 
 type DirectSource = 'steam' | 'trakt'
-type DirectResult = { source: DirectSource; result: SyncResult; completedAt: string }
 
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
@@ -35,7 +36,6 @@ export default function SyncPage() {
   const [loading, setLoading] = useState(true)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<string | null>(null)
-  const [directResults, setDirectResults] = useState<Partial<Record<DirectSource, DirectResult>>>({})
   const [forms, setForms] = useState<Record<'xbox' | 'psn', SyncSourceForm>>({
     xbox: { accountId: '', status: 'UNSET' },
     psn: { accountId: '', status: 'UNSET' },
@@ -107,19 +107,12 @@ export default function SyncPage() {
     }
   }
 
-  const runDirect = async (source: DirectSource, path: string, actionKey: string) => {
+  const startSourceTask = async (path: string, actionKey: string) => {
     setActiveAction(actionKey)
     try {
-      const result = await apiFetch<SyncResult>(path, { method: 'POST' })
-      setDirectResults(current => ({
-        ...current,
-        [source]: { source, result, completedAt: new Date().toISOString() },
-      }))
-      if (result.errors.length) {
-        toast(t('sync.completed_with_errors', String(result.errors.length)), 'error')
-      } else {
-        toast(t('sync.completed'))
-      }
+      await apiFetch<SyncTaskResponse>(path, { method: 'POST' })
+      await pollTasks()
+      toast(t('sync.task_started'))
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : t('sync.start_error'), 'error')
     } finally {
@@ -189,8 +182,7 @@ export default function SyncPage() {
           <SourceCard
             source="trakt"
             availability={status.trakt}
-            task={null}
-            directResult={directResults.trakt}
+            task={latestTask('trakt')}
             settingsCategory="trakt"
           >
             <StatusSelect
@@ -200,14 +192,14 @@ export default function SyncPage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <SyncButton
                 label={t('sync.trakt.movies')}
-                onClick={() => void runDirect('trakt', `/trakt/import/movies?status=${directStatuses.trakt}`, 'trakt-movies')}
-                disabled={!status.trakt.available || activeAction != null}
+                onClick={() => void startSourceTask(`/trakt/import/movies/task?status=${directStatuses.trakt}`, 'trakt-movies')}
+                disabled={!status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
                 active={activeAction === 'trakt-movies'}
               />
               <SyncButton
                 label={t('sync.trakt.shows')}
-                onClick={() => void runDirect('trakt', `/trakt/import/shows?status=${directStatuses.trakt}`, 'trakt-shows')}
-                disabled={!status.trakt.available || activeAction != null}
+                onClick={() => void startSourceTask(`/trakt/import/shows/task?status=${directStatuses.trakt}`, 'trakt-shows')}
+                disabled={!status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
                 active={activeAction === 'trakt-shows'}
               />
             </div>
@@ -216,8 +208,7 @@ export default function SyncPage() {
           <SourceCard
             source="steam"
             availability={status.steam}
-            task={null}
-            directResult={directResults.steam}
+            task={latestTask('steam')}
             settingsCategory="steam"
           >
             <StatusSelect
@@ -226,8 +217,8 @@ export default function SyncPage() {
             />
             <SyncButton
               label={t('sync.steam.owned')}
-              onClick={() => void runDirect('steam', `/import/steam/owned?status=${directStatuses.steam}`, 'steam-owned')}
-              disabled={!status.steam.available || activeAction != null}
+              onClick={() => void startSourceTask(`/import/steam/owned/task?status=${directStatuses.steam}`, 'steam-owned')}
+              disabled={!status.steam.available || activeAction != null || latestTask('steam')?.status === 'running'}
               active={activeAction === 'steam-owned'}
               className="mt-3 w-full"
             />
@@ -314,14 +305,12 @@ function SourceCard({
   source,
   availability,
   task,
-  directResult,
   settingsCategory,
   children,
 }: {
   source: SyncSourceKey
   availability: SyncAvailability
   task: Task | null
-  directResult?: DirectResult
   settingsCategory: string
   children: React.ReactNode
 }) {
@@ -353,7 +342,6 @@ function SourceCard({
         )}
         {children}
         {task && <TaskSummary task={task} />}
-        {directResult && <ResultSummary result={directResult.result} completedAt={directResult.completedAt} />}
       </div>
     </section>
   )

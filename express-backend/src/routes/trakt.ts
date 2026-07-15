@@ -3,8 +3,10 @@ import axios from 'axios';
 import { randomBytes } from 'node:crypto';
 import { config } from '../config';
 import { getDb } from '../config/db';
+import type { ImportSummary } from '../dto/import-summary';
 import { RecordStatus } from '../enums/RecordStatus';
 import { fetchTmdbPosterUrl, delay } from '../services/import/TmdbCoverFillService';
+import { assertTaskActive, startImportSummaryTask } from '../services/import/ImportSummaryTaskService';
 import { runExclusiveImport } from '../services/import-operation-lock';
 import {
   assertNoQueryParameters,
@@ -190,7 +192,7 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
 });
 
 // 分页辅助函数，自动处理 Trakt 的分页拉取
-async function fetchAllTraktPages(endpoint: string, accessToken: string) {
+async function fetchAllTraktPages(endpoint: string, accessToken: string, signal?: AbortSignal) {
   const headers = {
     'trakt-api-key': config.trakt.clientId,
     'trakt-api-version': '2',
@@ -201,7 +203,8 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
   let allData: any[] = [];
   
   while (true) {
-    const res = await axios.get(`${config.trakt.baseUrl}${endpoint}?page=${page}&limit=${TRAKT_PAGE_LIMIT}`, { headers });
+    assertTaskActive(signal);
+    const res = await axios.get(`${config.trakt.baseUrl}${endpoint}?page=${page}&limit=${TRAKT_PAGE_LIMIT}`, { headers, signal });
     const data = parseTraktPageData(res.data);
     allData = allData.concat(data);
     
@@ -216,21 +219,22 @@ async function fetchAllTraktPages(endpoint: string, accessToken: string) {
   return allData;
 }
 
-// POST /api/trakt/import/movies?status=DONE
-router.post('/import/movies', withTraktImportLock(async (req, res, next) => {
-  const { status } = parseTraktImportParameters(req.query);
+export async function importTraktMovies(
+  status: RecordStatus,
+  onProgress?: (processed: number, total: number, currentTitle: string) => void,
+  signal?: AbortSignal,
+): Promise<ImportSummary> {
   const accessToken = config.trakt.accessToken;
   if (!accessToken) {
-    res.status(400).json({ error: '需要 Trakt access_token，请先在设置中完成配置' });
-    return;
+    throw Object.assign(new Error('需要 Trakt access_token，请先在设置中完成配置'), { status: 400 });
   }
 
-  try {
-    // 使用自动分页并发拉取所有页面的数据
-    const [watched, watchlist] = await Promise.all([
-      fetchAllTraktPages('/sync/history/movies', accessToken),
-      fetchAllTraktPages('/sync/watchlist/movies', accessToken)
-    ]);
+  onProgress?.(0, 0, '正在读取 Trakt 电影...');
+  // 使用自动分页并发拉取所有页面的数据
+  const [watched, watchlist] = await Promise.all([
+    fetchAllTraktPages('/sync/history/movies', accessToken, signal),
+    fetchAllTraktPages('/sync/watchlist/movies', accessToken, signal)
+  ]);
 
     // 用 traktId 去重合并
     const seen = new Set<number>();
@@ -270,7 +274,9 @@ router.post('/import/movies', withTraktImportLock(async (req, res, next) => {
     let skipped = 0;
     const errors: string[] = [];
 
-    for (const item of allMovies) {
+    for (const [index, item] of allMovies.entries()) {
+      assertTaskActive(signal);
+      onProgress?.(index + 1, allMovies.length, item.movie?.title ?? '');
       if (!item.movie) { skipped++; continue; }
       const ids = item.movie.ids || {};
       const title = item.movie.title;
@@ -312,27 +318,25 @@ router.post('/import/movies', withTraktImportLock(async (req, res, next) => {
       }
     }
 
-    res.json({ total: allMovies.length, imported, skipped, errors });
-  } catch (err) {
-    next(err);
-  }
-}));
+  return { total: allMovies.length, imported, skipped, errors };
+}
 
-// POST /api/trakt/import/shows?status=DONE
-router.post('/import/shows', withTraktImportLock(async (req, res, next) => {
-  const { status } = parseTraktImportParameters(req.query);
+export async function importTraktShows(
+  status: RecordStatus,
+  onProgress?: (processed: number, total: number, currentTitle: string) => void,
+  signal?: AbortSignal,
+): Promise<ImportSummary> {
   const accessToken = config.trakt.accessToken;
   if (!accessToken) {
-    res.status(400).json({ error: '需要 Trakt access_token，请先在设置中完成配置' });
-    return;
+    throw Object.assign(new Error('需要 Trakt access_token，请先在设置中完成配置'), { status: 400 });
   }
 
-  try {
-    // 使用自动分页并发拉取所有页面的数据
-    const [watched, watchlist] = await Promise.all([
-      fetchAllTraktPages('/sync/history/shows', accessToken),
-      fetchAllTraktPages('/sync/watchlist/shows', accessToken)
-    ]);
+  onProgress?.(0, 0, '正在读取 Trakt 剧集...');
+  // 使用自动分页并发拉取所有页面的数据
+  const [watched, watchlist] = await Promise.all([
+    fetchAllTraktPages('/sync/history/shows', accessToken, signal),
+    fetchAllTraktPages('/sync/watchlist/shows', accessToken, signal)
+  ]);
 
     // 用 traktId 去重合并
     const seen = new Set<number>();
@@ -372,7 +376,9 @@ router.post('/import/shows', withTraktImportLock(async (req, res, next) => {
     let skipped = 0;
     const errors: string[] = [];
 
-    for (const item of allShows) {
+    for (const [index, item] of allShows.entries()) {
+      assertTaskActive(signal);
+      onProgress?.(index + 1, allShows.length, item.show?.title ?? '');
       if (!item.show) { skipped++; continue; }
       const ids = item.show.ids || {};
       const title = item.show.title;
@@ -416,10 +422,61 @@ router.post('/import/shows', withTraktImportLock(async (req, res, next) => {
       }
     }
 
-    res.json({ total: allShows.length, imported, skipped, errors });
-  } catch (err) {
-    next(err);
+  return { total: allShows.length, imported, skipped, errors };
+}
+
+function assertTraktImportConfigured() {
+  if (!config.trakt.accessToken) {
+    throw Object.assign(new Error('需要 Trakt access_token，请先在设置中完成配置'), { status: 400 });
   }
+}
+
+function taskResponse(task: ReturnType<typeof startImportSummaryTask>) {
+  return { taskId: task.taskId, status: task.status, type: task.type, label: task.label };
+}
+
+// 兼容原有同步接口，直接返回本次结果
+router.post('/import/movies', withTraktImportLock(async (req, res) => {
+  const { status } = parseTraktImportParameters(req.query);
+  res.json(await importTraktMovies(status));
 }));
+
+router.post('/import/shows', withTraktImportLock(async (req, res) => {
+  const { status } = parseTraktImportParameters(req.query);
+  res.json(await importTraktShows(status));
+}));
+
+// 同步中心使用统一的持久化任务，电影和剧集共享类型以避免并发导入
+router.post('/import/movies/task', (req: Request, res: Response) => {
+  assertEmptyTraktImportBody(req.body);
+  const { status } = parseTraktImportParameters(req.query);
+  assertTraktImportConfigured();
+  const task = startImportSummaryTask(
+    'trakt-import',
+    'Trakt 电影导入',
+    (onProgress, signal) => runExclusiveImport(
+      'trakt',
+      'Trakt 导入',
+      () => importTraktMovies(status, onProgress, signal),
+    ),
+  );
+  res.json(taskResponse(task));
+});
+
+router.post('/import/shows/task', (req: Request, res: Response) => {
+  assertEmptyTraktImportBody(req.body);
+  const { status } = parseTraktImportParameters(req.query);
+  assertTraktImportConfigured();
+  const task = startImportSummaryTask(
+    'trakt-import',
+    'Trakt 剧集导入',
+    (onProgress, signal) => runExclusiveImport(
+      'trakt',
+      'Trakt 导入',
+      () => importTraktShows(status, onProgress, signal),
+    ),
+  );
+  res.json(taskResponse(task));
+});
 
 export default router;

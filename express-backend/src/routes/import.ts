@@ -13,6 +13,7 @@ import { fillTmdbCovers } from '../services/import/TmdbCoverFillService';
 import { startJsonImportTask, startFullHarvestTask, startIncrementalHarvestTask } from '../services/douban-harvester/import-service';
 import { startEnrichBackfillTask } from '../services/import/TmdbEnrichBackfillService';
 import { startTmdbDetailBackfillTask } from '../services/import/TmdbDetailBackfillService';
+import { startImportSummaryTask } from '../services/import/ImportSummaryTaskService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { config } from '../config';
 import { RecordStatus } from '../enums/RecordStatus';
@@ -260,6 +261,22 @@ router.post('/steam/owned', async (req: Request, res: Response) => {
     () => importSteamOwnedGames(steamId, status),
   );
   res.json(result);
+});
+
+// POST /api/import/steam/owned/task — 同步中心使用的可取消持久化任务
+router.post('/steam/owned/task', (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
+  const { steamId, status } = parseSteamOwnedImportParameters(req.query);
+  const task = startImportSummaryTask(
+    'steam-owned',
+    'Steam 导入',
+    (onProgress, signal) => runExclusiveImport(
+      'steam',
+      'Steam 导入或回填',
+      () => importSteamOwnedGames(steamId, status, onProgress, signal),
+    ),
+  );
+  res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 
 // POST /api/import/steam/backfill — 回填已有 Steam 游戏的海报和游玩时间
