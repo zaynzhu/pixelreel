@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { apiFetch } from "../../api"
 import { confirmDialog } from "../Toast"
@@ -32,6 +32,10 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
+  const duplicateViewKey = `${category}:${review}`
+  const duplicateViewRef = useRef(duplicateViewKey)
+  const latestDuplicateRequest = useRef(0)
+  duplicateViewRef.current = duplicateViewKey
 
   const fetchGroups = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ category, limit: "20", review })
@@ -50,66 +54,97 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
 
   useEffect(() => {
     let active = true
+    const requestId = ++latestDuplicateRequest.current
+    const requestViewKey = duplicateViewKey
     setLoading(true)
+    setLoadingMore(false)
     setError(null)
+    setRescrapeRecord(null)
+    setOpeningRecordId(null)
+    setReviewingGroupKey(null)
     fetchGroups()
       .then(data => {
-        if (!active) return
+        if (!active || requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
         applyResponse(data)
       })
       .catch(reason => {
-        if (active) setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+        if (active && requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
+          setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+        }
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active && requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
+          setLoading(false)
+        }
       })
     return () => {
       active = false
     }
-  }, [fetchGroups, t])
+  }, [duplicateViewKey, fetchGroups, t])
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return
+    const requestId = latestDuplicateRequest.current
+    const requestViewKey = duplicateViewKey
     setLoadingMore(true)
     try {
       const data = await fetchGroups(nextCursor)
+      if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
       setGroups(current => [...current, ...data.groups])
       setNextCursor(data.nextCursor)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+      if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
+        setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+      }
     } finally {
-      setLoadingMore(false)
+      if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
+        setLoadingMore(false)
+      }
     }
   }
 
   const refreshGroups = async () => {
+    const requestViewKey = duplicateViewKey
+    if (requestViewKey !== duplicateViewRef.current) return
+    const requestId = ++latestDuplicateRequest.current
     setLoading(true)
+    setLoadingMore(false)
     setError(null)
     try {
       const data = await fetchGroups()
+      if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
       applyResponse(data)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+      if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
+        setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+      }
     } finally {
-      setLoading(false)
+      if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
+        setLoading(false)
+      }
     }
   }
 
   const openRescrape = async (recordId: number) => {
+    const requestViewKey = duplicateViewKey
     setOpeningRecordId(recordId)
     setError(null)
     try {
       const record = await apiFetch<LibraryRecord>(`/library/${category}/${recordId}`)
+      if (requestViewKey !== duplicateViewRef.current) return
       setRescrapeRecord(record)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t("health.duplicates.open_error"))
+      if (requestViewKey === duplicateViewRef.current) {
+        setError(reason instanceof Error ? reason.message : t("health.duplicates.open_error"))
+      }
     } finally {
-      setOpeningRecordId(null)
+      if (requestViewKey === duplicateViewRef.current) setOpeningRecordId(null)
     }
   }
 
   const markAsDistinct = async (group: DuplicateGroup) => {
     if (!(await confirmDialog(t("health.duplicates.distinct_confirm")))) return
+    const actionViewKey = duplicateViewKey
     setReviewingGroupKey(group.key)
     try {
       await apiFetch("/data-health/duplicates/review", {
@@ -117,25 +152,26 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
         body: JSON.stringify({ category, groupKey: group.key }),
       })
       toast(t("health.duplicates.distinct_success"))
-      await refreshGroups()
+      if (actionViewKey === duplicateViewRef.current) await refreshGroups()
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : t("health.duplicates.review_error"), "error")
     } finally {
-      setReviewingGroupKey(null)
+      if (actionViewKey === duplicateViewRef.current) setReviewingGroupKey(null)
     }
   }
 
   const restoreReview = async (group: DuplicateGroup) => {
     if (group.reviewId == null) return
+    const actionViewKey = duplicateViewKey
     setReviewingGroupKey(group.key)
     try {
       await apiFetch(`/data-health/duplicates/review/${group.reviewId}`, { method: "DELETE" })
       toast(t("health.duplicates.restore_success"))
-      await refreshGroups()
+      if (actionViewKey === duplicateViewRef.current) await refreshGroups()
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : t("health.duplicates.review_error"), "error")
     } finally {
-      setReviewingGroupKey(null)
+      if (actionViewKey === duplicateViewRef.current) setReviewingGroupKey(null)
     }
   }
 

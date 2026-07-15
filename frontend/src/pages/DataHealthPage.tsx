@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
@@ -49,6 +49,10 @@ export default function DataHealthPage() {
   const [repairTaskId, setRepairTaskId] = useState<string | null>(null)
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [view, setView] = useState<"fields" | "duplicates">("fields")
+  const issueViewKey = `${category}:${issue}`
+  const issueViewRef = useRef(issueViewKey)
+  const latestIssueRequest = useRef(0)
+  issueViewRef.current = issueViewKey
 
   useEffect(() => {
     let active = true
@@ -76,25 +80,32 @@ export default function DataHealthPage() {
 
   useEffect(() => {
     let active = true
+    const requestId = ++latestIssueRequest.current
+    const requestViewKey = issueViewKey
     setLoadingIssues(true)
+    setLoadingMore(false)
     setError(null)
     loadIssues()
       .then(data => {
-        if (!active) return
+        if (!active || requestId !== latestIssueRequest.current || requestViewKey !== issueViewRef.current) return
         setItems(data.items)
         setTotal(data.total)
         setNextCursor(data.nextCursor)
       })
       .catch(reason => {
-        if (active) setError(reason instanceof Error ? reason.message : t("health.error"))
+        if (active && requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
+          setError(reason instanceof Error ? reason.message : t("health.error"))
+        }
       })
       .finally(() => {
-        if (active) setLoadingIssues(false)
+        if (active && requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
+          setLoadingIssues(false)
+        }
       })
     return () => {
       active = false
     }
-  }, [loadIssues, refreshVersion, t])
+  }, [issueViewKey, loadIssues, refreshVersion, t])
 
   useEffect(() => {
     if (!repairTaskId) return
@@ -137,15 +148,22 @@ export default function DataHealthPage() {
 
   const handleLoadMore = async () => {
     if (!nextCursor || loadingMore) return
+    const requestId = latestIssueRequest.current
+    const requestViewKey = issueViewKey
     setLoadingMore(true)
     try {
       const data = await loadIssues(nextCursor)
+      if (requestId !== latestIssueRequest.current || requestViewKey !== issueViewRef.current) return
       setItems(current => [...current, ...data.items])
       setNextCursor(data.nextCursor)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t("health.error"))
+      if (requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
+        setError(reason instanceof Error ? reason.message : t("health.error"))
+      }
     } finally {
-      setLoadingMore(false)
+      if (requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
+        setLoadingMore(false)
+      }
     }
   }
 
