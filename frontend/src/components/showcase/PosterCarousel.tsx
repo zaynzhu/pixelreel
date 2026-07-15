@@ -47,19 +47,21 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
 
   useEffect(() => {
     let cancelled = false
+    let latestBatchRequest = 0
 
     const fetchRandomBatch = async () => {
+      const requestId = ++latestBatchRequest
       try {
         const data = await apiFetch<LibraryRecord[] | LibraryRecord>(
           `/library/random?limit=${POSTER_BATCH_SIZE}&t=${Date.now()}`,
           { cache: "no-store" },
         )
-        if (cancelled) return
+        if (cancelled || requestId !== latestBatchRequest) return
         const records = Array.isArray(data) ? data : [data]
         setDisplayItems(records.map(toRecentItem))
         setTransitionKey((k) => k + 1)
       } catch {
-        if (cancelled) return
+        if (cancelled || requestId !== latestBatchRequest) return
         setDisplayItems(items.slice(0, POSTER_BATCH_SIZE))
       }
     }
