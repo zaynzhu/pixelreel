@@ -20,9 +20,18 @@ class TraktApiResponseError extends Error {
 
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
+export function assertEmptyTraktImportBody(value: unknown) {
+  if (value === undefined) return;
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value as Record<string, unknown>).length > 0) {
+    throw new RequestValidationError('请求体必须为空');
+  }
+}
+
 function withTraktImportLock(handler: AsyncRouteHandler): AsyncRouteHandler {
   return async (req, res, next) => {
     try {
+      assertEmptyTraktImportBody(req.body);
       await runExclusiveImport('trakt', 'Trakt 导入', () => handler(req, res, next));
     } catch (error) {
       next(error);

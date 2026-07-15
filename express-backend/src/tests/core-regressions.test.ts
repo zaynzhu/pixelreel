@@ -64,6 +64,7 @@ import {
   parseTimelineYearsParameters,
 } from '../routes/timeline';
 import {
+  assertEmptyTraktImportBody,
   parseTraktImportParameters,
   parseTraktPageCount,
   parseTraktPageData,
@@ -879,6 +880,10 @@ test('登录失败达到上限后限流并支持到期和成功重置', () => {
 });
 
 test('Trakt 导入仅接受状态参数且拒绝通过 URL 传递凭据', () => {
+  assert.doesNotThrow(() => assertEmptyTraktImportBody(undefined));
+  assert.doesNotThrow(() => assertEmptyTraktImportBody({}));
+  assert.throws(() => assertEmptyTraktImportBody({ accessToken: 'secret' }), RequestValidationError);
+  assert.throws(() => assertEmptyTraktImportBody([]), RequestValidationError);
   assert.deepEqual(parseTraktImportParameters({}), { status: RecordStatus.WANT });
   assert.deepEqual(parseTraktImportParameters({ status: 'DONE' }), { status: RecordStatus.DONE });
   assert.throws(
