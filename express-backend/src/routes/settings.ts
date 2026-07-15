@@ -8,6 +8,8 @@ const router = Router();
 const ENV_PATH = path.resolve(__dirname, '../../.env');
 const ENV_BACKUP_PATH = path.resolve(__dirname, '../../.env.backup.local');
 const ENV_TEMP_PATH = path.resolve(__dirname, '../../.env.tmp.local');
+const MAX_TIMER_MILLISECONDS = 2_147_483_647;
+const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MILLISECONDS / 1000);
 
 // ── 分类定义 ──
 interface FieldDef {
@@ -16,6 +18,9 @@ interface FieldDef {
   labelEn: string;
   sensitive: boolean;
   type: 'text' | 'boolean' | 'password' | 'number';
+  min?: number;
+  max?: number;
+  integer?: boolean;
 }
 
 interface CategoryDef {
@@ -44,10 +49,10 @@ const CATEGORIES: CategoryDef[] = [
     fields: [
       { key: 'DATABASE_URL', labelZh: '数据库连接', labelEn: 'Database URL', sensitive: true, type: 'text' },
       { key: 'HOST', labelZh: '监听地址', labelEn: 'Listen Host', sensitive: false, type: 'text' },
-      { key: 'PORT', labelZh: '端口', labelEn: 'Port', sensitive: false, type: 'number' },
+      { key: 'PORT', labelZh: '端口', labelEn: 'Port', sensitive: false, type: 'number', min: 1, max: 65535, integer: true },
       { key: 'CORS_ALLOWED_ORIGINS', labelZh: '允许的前端来源', labelEn: 'Allowed Frontend Origins', sensitive: false, type: 'text' },
-      { key: 'IMAGE_PROXY_MAX_BYTES', labelZh: '图片代理最大字节', labelEn: 'Image Proxy Max Bytes', sensitive: false, type: 'number' },
-      { key: 'IMAGE_PROXY_CACHE_SECONDS', labelZh: '图片代理缓存(秒)', labelEn: 'Image Proxy Cache (s)', sensitive: false, type: 'number' },
+      { key: 'IMAGE_PROXY_MAX_BYTES', labelZh: '图片代理最大字节', labelEn: 'Image Proxy Max Bytes', sensitive: false, type: 'number', min: 1, integer: true },
+      { key: 'IMAGE_PROXY_CACHE_SECONDS', labelZh: '图片代理缓存(秒)', labelEn: 'Image Proxy Cache (s)', sensitive: false, type: 'number', min: 0, max: MAX_TIMER_MILLISECONDS, integer: true },
     ],
   },
   {
@@ -100,12 +105,12 @@ const CATEGORIES: CategoryDef[] = [
       { key: 'DOUBAN_DATA_DIR', labelZh: '数据目录', labelEn: 'Data Directory', sensitive: false, type: 'text' },
       { key: 'DOUBAN_HARVEST_ENABLED', labelZh: '启用收割', labelEn: 'Harvest Enabled', sensitive: false, type: 'boolean' },
       { key: 'DOUBAN_HARVEST_HEADLESS', labelZh: '无头模式', labelEn: 'Headless Mode', sensitive: false, type: 'boolean' },
-      { key: 'DOUBAN_HARVEST_MAX_PAGES_PER_RUN', labelZh: '单次最大页数', labelEn: 'Max Pages Per Run', sensitive: false, type: 'number' },
-      { key: 'DOUBAN_HARVEST_SLEEP_MIN', labelZh: '最小等待(秒)', labelEn: 'Min Sleep (s)', sensitive: false, type: 'number' },
-      { key: 'DOUBAN_HARVEST_SLEEP_MAX', labelZh: '最大等待(秒)', labelEn: 'Max Sleep (s)', sensitive: false, type: 'number' },
-      { key: 'DOUBAN_HARVEST_LONG_BREAK_EVERY', labelZh: '长休息间隔(页)', labelEn: 'Long Break Every (pages)', sensitive: false, type: 'number' },
-      { key: 'DOUBAN_HARVEST_LONG_BREAK_SECONDS', labelZh: '长休息时长(秒)', labelEn: 'Long Break (s)', sensitive: false, type: 'number' },
-      { key: 'DOUBAN_HARVEST_NAVIGATION_TIMEOUT_MS', labelZh: '导航超时(ms)', labelEn: 'Navigation Timeout (ms)', sensitive: false, type: 'number' },
+      { key: 'DOUBAN_HARVEST_MAX_PAGES_PER_RUN', labelZh: '单次最大页数', labelEn: 'Max Pages Per Run', sensitive: false, type: 'number', min: 1, max: 1000, integer: true },
+      { key: 'DOUBAN_HARVEST_SLEEP_MIN', labelZh: '最小等待(秒)', labelEn: 'Min Sleep (s)', sensitive: false, type: 'number', min: 2, max: MAX_TIMER_SECONDS },
+      { key: 'DOUBAN_HARVEST_SLEEP_MAX', labelZh: '最大等待(秒)', labelEn: 'Max Sleep (s)', sensitive: false, type: 'number', min: 2, max: MAX_TIMER_SECONDS },
+      { key: 'DOUBAN_HARVEST_LONG_BREAK_EVERY', labelZh: '长休息间隔(页)', labelEn: 'Long Break Every (pages)', sensitive: false, type: 'number', min: 1, integer: true },
+      { key: 'DOUBAN_HARVEST_LONG_BREAK_SECONDS', labelZh: '长休息时长(秒)', labelEn: 'Long Break (s)', sensitive: false, type: 'number', min: 2, max: MAX_TIMER_SECONDS },
+      { key: 'DOUBAN_HARVEST_NAVIGATION_TIMEOUT_MS', labelZh: '导航超时(ms)', labelEn: 'Navigation Timeout (ms)', sensitive: false, type: 'number', min: 1, max: MAX_TIMER_MILLISECONDS, integer: true },
     ],
   },
   {
@@ -119,7 +124,7 @@ const CATEGORIES: CategoryDef[] = [
       { key: 'RADAR_PLAYWRIGHT_HEADLESS', labelZh: 'Playwright 无头模式', labelEn: 'Playwright Headless', sensitive: false, type: 'boolean' },
       { key: 'RADAR_SYNC_CORE_CRON', labelZh: '核心源同步 Cron', labelEn: 'Core Sync Cron', sensitive: false, type: 'text' },
       { key: 'RADAR_SYNC_SCRAPER_CRON', labelZh: '附加源同步 Cron', labelEn: 'Scraper Sync Cron', sensitive: false, type: 'text' },
-      { key: 'RADAR_REQUEST_TIMEOUT_MS', labelZh: '请求超时(ms)', labelEn: 'Request Timeout (ms)', sensitive: false, type: 'number' },
+      { key: 'RADAR_REQUEST_TIMEOUT_MS', labelZh: '请求超时(ms)', labelEn: 'Request Timeout (ms)', sensitive: false, type: 'number', min: 1, max: MAX_TIMER_MILLISECONDS, integer: true },
       { key: 'RADAR_WATCH_REGION', labelZh: '流媒体地区', labelEn: 'Watch Region', sensitive: false, type: 'text' },
     ],
   },
@@ -183,8 +188,20 @@ export function validateSettingValues(values: Record<string, unknown>): string |
       if (value.trim() === '' || !Number.isFinite(numberValue) || numberValue < 0) {
         return `${key} 必须是非负数字`;
       }
-      if (key === 'PORT' && (!Number.isInteger(numberValue) || numberValue < 1 || numberValue > 65535)) {
-        return 'PORT 必须是 1 到 65535 之间的整数';
+      if (field.integer && !Number.isSafeInteger(numberValue)) {
+        if (key === 'PORT') return 'PORT 必须是 1 到 65535 之间的整数';
+        return `${key} 必须是安全整数`;
+      }
+      if (field.min !== undefined && field.max !== undefined
+        && (numberValue < field.min || numberValue > field.max)) {
+        if (key === 'PORT') return 'PORT 必须是 1 到 65535 之间的整数';
+        return `${key} 必须在 ${field.min} 到 ${field.max} 之间`;
+      }
+      if (field.min !== undefined && numberValue < field.min) {
+        return `${key} 必须大于等于 ${field.min}`;
+      }
+      if (field.max !== undefined && numberValue > field.max) {
+        return `${key} 必须小于等于 ${field.max}`;
       }
     }
   }

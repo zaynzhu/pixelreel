@@ -113,6 +113,11 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ AUTH_ENABLED: 'yes' }), 'AUTH_ENABLED 必须是 true 或 false');
   assert.equal(validateSettingValues({ PORT: '70000' }), 'PORT 必须是 1 到 65535 之间的整数');
   assert.equal(validateSettingValues({ IMAGE_PROXY_MAX_BYTES: '-1' }), 'IMAGE_PROXY_MAX_BYTES 必须是非负数字');
+  assert.equal(validateSettingValues({ IMAGE_PROXY_MAX_BYTES: '1.5' }), 'IMAGE_PROXY_MAX_BYTES 必须是安全整数');
+  assert.equal(validateSettingValues({ DOUBAN_HARVEST_MAX_PAGES_PER_RUN: '0' }), 'DOUBAN_HARVEST_MAX_PAGES_PER_RUN 必须在 1 到 1000 之间');
+  assert.equal(validateSettingValues({ DOUBAN_HARVEST_LONG_BREAK_EVERY: '0' }), 'DOUBAN_HARVEST_LONG_BREAK_EVERY 必须大于等于 1');
+  assert.equal(validateSettingValues({ DOUBAN_HARVEST_SLEEP_MIN: '1.5' }), 'DOUBAN_HARVEST_SLEEP_MIN 必须在 2 到 2147483 之间');
+  assert.equal(validateSettingValues({ RADAR_REQUEST_TIMEOUT_MS: '2147483648' }), 'RADAR_REQUEST_TIMEOUT_MS 必须在 1 到 2147483647 之间');
   assert.equal(validateSettingValues({ HOST: '127.0.0.1\nINJECTED=true' }), 'HOST 不能包含换行');
   assert.equal(validateSettingValues({ HOST: '"127.0.0.1"' }), 'HOST 不能包含引号');
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');
