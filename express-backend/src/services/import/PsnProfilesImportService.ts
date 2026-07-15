@@ -4,8 +4,15 @@ import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
+import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 
 type ImportProgress = (processed: number, total: number, currentTitle: string) => void;
+const MAX_PROFILE_PAGES = 100;
+
+export interface PsnProfilePage {
+  html: string;
+  hasNext: boolean;
+}
 
 // PSNProfile 爬取导入服务，与 Java 端 PsnProfilesImportService 完全对齐
 export async function importPsnOwnedGames(
@@ -25,25 +32,12 @@ export async function importPsnOwnedGames(
     return summary;
   }
 
-  let html: string | null = null;
-  onProgress?.(0, 0, '读取 PSNProfiles 游戏库');
+  let html: string;
   try {
-    const response = await axios.get(`${config.psnProfiles.baseUrl}/${encodeURIComponent(psnId.trim())}`, {
-      headers: {
-        'User-Agent': config.psnProfiles.userAgent,
-        ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
-      },
-      signal,
-    });
-    html = response.data;
+    html = await fetchPsnProfileHtml(psnId.trim(), onProgress, signal);
   } catch (ex: any) {
     if (signal?.aborted) return summary;
     summary.errors.push(`无法获取 PSNProfiles 页面: ${ex.message}`);
-    return summary;
-  }
-
-  if (!html) {
-    summary.errors.push('无法获取 PSNProfiles 页面内容');
     return summary;
   }
 
@@ -77,10 +71,14 @@ export async function importPsnOwnedGames(
       continue;
     }
 
+    const posterUrl = game.posterUrl
+      ?? await lookupRawgPosterUrl(game.title, signal);
+    if (signal?.aborted) return summary;
+
     toSave.push({
       psnId: game.psnId,
       title: game.title,
-      posterUrl: game.posterUrl || null,
+      posterUrl,
       platform: 'PSN',
       achievementTotal: game.achievementTotal,
       achievementUnlocked: game.achievementUnlocked,
@@ -101,7 +99,7 @@ export async function importPsnOwnedGames(
   return summary;
 }
 
-interface PsnGame {
+export interface PsnGame {
   psnId: string | null;
   title: string | null;
   posterUrl: string | null;
@@ -109,7 +107,71 @@ interface PsnGame {
   achievementUnlocked: number | null;
 }
 
-function parsePsnGames(html: string): PsnGame[] {
+async function fetchPsnProfileHtml(
+  psnId: string,
+  onProgress?: ImportProgress,
+  signal?: AbortSignal,
+): Promise<string> {
+  const baseUrl = config.psnProfiles.baseUrl.replace(/\/+$/, '');
+  return collectPsnProfilePages(async (page) => {
+    const response = await axios.get(`${baseUrl}/${encodeURIComponent(psnId)}`, {
+      params: { ajax: 1, page },
+      headers: {
+        'User-Agent': config.psnProfiles.userAgent,
+        ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
+      },
+      signal,
+    });
+    return response.data;
+  }, MAX_PROFILE_PAGES, (page) => {
+    onProgress?.(0, 0, `读取 PSNProfiles 第 ${page} 页`);
+  });
+}
+
+export async function collectPsnProfilePages(
+  fetchPage: (page: number) => Promise<unknown>,
+  maxPages: number,
+  onPage?: (page: number) => void,
+): Promise<string> {
+  const chunks: string[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    onPage?.(page);
+    const parsed = parsePsnProfilePage(await fetchPage(page));
+    if (!parsed.html.trim()) throw new Error('PSNProfiles 返回空页面');
+    if (isPsnProfilesChallengePage(parsed.html)) {
+      throw new Error('PSNProfiles 访问被验证页面拦截，请更新 Cookie');
+    }
+    chunks.push(parsed.html);
+    if (!parsed.hasNext) return chunks.join('\n');
+  }
+
+  throw new Error(`PSNProfiles 分页超过 ${maxPages} 页，已停止导入`);
+}
+
+export function parsePsnProfilePage(data: unknown): PsnProfilePage {
+  const record = data && typeof data === 'object'
+    ? data as Record<string, unknown>
+    : null;
+  const html = typeof data === 'string'
+    ? data
+    : typeof record?.html === 'string' ? record.html : '';
+  const explicitNextPage = Number(record?.nextPage);
+  if (Number.isSafeInteger(explicitNextPage) && explicitNextPage >= 0) {
+    return { html, hasNext: explicitNextPage > 0 };
+  }
+  const marker = html.match(/\bnextPage\s*=\s*(\d+)/);
+  return {
+    html,
+    hasNext: marker ? Number(marker[1]) > 0 : record != null,
+  };
+}
+
+export function isPsnProfilesChallengePage(html: string): boolean {
+  return /<title>\s*(just a moment|attention required)/i.test(html)
+    || /\bcf-chl-/i.test(html);
+}
+
+export function parsePsnGames(html: string): PsnGame[] {
   const $ = cheerio.load(html);
   const results: PsnGame[] = [];
   const seenIds = new Set<string>();
@@ -149,7 +211,9 @@ function extractPsnGameId(href: string): string | null {
 }
 
 function extractTitle($: any, link: any, row: any): string | null {
-  let title = link.text().trim() || null;
+  const titleLink = row.find('a.title').first();
+  let title = titleLink.length ? titleLink.text().trim() || null : null;
+  if (!title) title = link.text().trim() || null;
   if (!title) title = link.attr('title') || null;
   if (!title && row.length) {
     const titleEl = row.find('.title, .game-title, .title a, .title span').first();
@@ -164,7 +228,8 @@ function extractTitle($: any, link: any, row: any): string | null {
 
 function extractPosterUrl($: any, row: any): string | null {
   if (!row.length) return null;
-  const img = row.find('img').first();
+  const gameImage = row.find('picture.game img').first();
+  const img = gameImage.length ? gameImage : row.find('img').first();
   if (!img.length) return null;
   const url = img.attr('data-src') || img.attr('data-lazy-src') || img.attr('src');
   if (!url) return null;
@@ -175,8 +240,19 @@ function extractPosterUrl($: any, row: any): string | null {
 function extractTrophyProgress($: any, row: any): { total: number | null; unlocked: number | null } {
   if (!row.length) return { total: null, unlocked: null };
 
+  const trophyInfo = row.find('div.small-info').first();
+  if (trophyInfo.length) {
+    const values = trophyInfo.find('b').toArray()
+      .map((element: any) => parseInt($(element).text().trim(), 10))
+      .filter((value: number) => !Number.isNaN(value));
+    if (values.length >= 2) return { unlocked: values[0], total: values[1] };
+    if (values.length === 1) return { unlocked: values[0], total: values[0] };
+  }
+
   // 尝试 data-earned/data-total 属性
-  const dataNode = row.find('[data-earned][data-total]').first();
+  const dataNode = row.is('[data-earned][data-total]')
+    ? row
+    : row.find('[data-earned][data-total]').first();
   if (dataNode.length) {
     const earned = parseInt(dataNode.attr('data-earned') || '');
     const total = parseInt(dataNode.attr('data-total') || '');

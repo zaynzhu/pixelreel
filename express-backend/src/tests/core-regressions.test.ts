@@ -46,6 +46,13 @@ import {
 } from '../routes/import';
 import { extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
 import {
+  collectPsnProfilePages,
+  isPsnProfilesChallengePage,
+  parsePsnGames,
+  parsePsnProfilePage,
+} from '../services/import/PsnProfilesImportService';
+import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
+import {
   parseLibraryListParameters,
   parseLibraryRandomParameters,
   parseLibraryRecordCategory,
@@ -329,6 +336,76 @@ test('主机平台导入状态不暴露密钥并准确标记配置缺失', () =>
     xbox: { available: true, reason: null },
     psn: { available: true, reason: null },
   });
+});
+
+test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async () => {
+  const firstPage = parsePsnProfilePage({
+    html: '<table>第一页</table><script>nextPage = 2;</script>',
+  });
+  assert.deepEqual(firstPage, {
+    html: '<table>第一页</table><script>nextPage = 2;</script>',
+    hasNext: true,
+  });
+  assert.deepEqual(parsePsnProfilePage({ html: '<script>nextPage = 0;</script>' }), {
+    html: '<script>nextPage = 0;</script>',
+    hasNext: false,
+  });
+  assert.equal(parsePsnProfilePage({ html: '<tr>无分页标记</tr>' }).hasNext, true);
+  assert.equal(parsePsnProfilePage('<html>普通单页</html>').hasNext, false);
+  assert.equal(isPsnProfilesChallengePage('<title>Just a moment...</title>'), true);
+  const requestedPages: number[] = [];
+  const combinedHtml = await collectPsnProfilePages(async (page) => {
+    requestedPages.push(page);
+    return page === 1
+      ? { html: '<tr>第一页</tr>', nextPage: 2 }
+      : { html: '<tr>第二页</tr>', nextPage: 0 };
+  }, 10);
+  assert.deepEqual(requestedPages, [1, 2]);
+  assert.equal(combinedHtml, '<tr>第一页</tr>\n<tr>第二页</tr>');
+  await assert.rejects(
+    collectPsnProfilePages(async () => ({ html: '<tr>仍有下一页</tr>', nextPage: 2 }), 1),
+    /分页超过 1 页/,
+  );
+
+  const games = parsePsnGames(`
+    <table>
+      <tr>
+        <td><picture class="game"><img src="//cdn.example/cover.jpg" alt="FoxyLand"></picture></td>
+        <td>
+          <a class="title" href="/trophies/10034-foxyland/TestPlayer">FoxyLand</a>
+          <a href="/trophies/10034-foxyland/TestPlayer">奖杯详情</a>
+          <div class="small-info"><b>12</b> of <b>15</b> Trophies</div>
+        </td>
+      </tr>
+      <tr data-earned="3" data-total="20">
+        <td><a class="title" href="/trophies/20000-second-game/TestPlayer">Second Game</a></td>
+      </tr>
+    </table>
+  `);
+  assert.deepEqual(games, [
+    {
+      psnId: '10034-foxyland',
+      title: 'FoxyLand',
+      posterUrl: 'https://cdn.example/cover.jpg',
+      achievementTotal: 15,
+      achievementUnlocked: 12,
+    },
+    {
+      psnId: '20000-second-game',
+      title: 'Second Game',
+      posterUrl: null,
+      achievementTotal: 20,
+      achievementUnlocked: 3,
+    },
+  ]);
+});
+
+test('RAWG 封面响应只接受非空图片地址并补全协议', () => {
+  assert.equal(parseRawgPosterUrl({
+    results: [{ background_image: '//media.rawg.io/game.jpg' }],
+  }), 'https://media.rawg.io/game.jpg');
+  assert.equal(parseRawgPosterUrl({ results: [] }), null);
+  assert.equal(parseRawgPosterUrl({ results: [{ background_image: '' }] }), null);
 });
 
 test('同步导入和任务查询拒绝未知或超长参数', () => {

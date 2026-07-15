@@ -107,6 +107,7 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
   3. `.env` 中 `PSN_PROFILES_ENABLED` 改为 `true`，`PSN_PROFILES_COOKIE` 填 Cookie
 - **调用方式**: `POST /api/import/psn/owned?psnId=你的PSN ID&status=UNSET`
 - **备注**: Cookie 有时效，长期用需定期更新
+- **分页**: 导入会自动读取全部 AJAX 游戏页（最多 100 页）；遇到 Cloudflare 验证页时会提示更新 Cookie
 
 前端游戏检索页会读取 `GET /api/import/platforms/status`；配置不完整时会明确显示原因并禁用导入按钮。两个 POST 接口都会立即返回 `taskId`，实际导入在后台执行，进度和取消统一通过任务面板或 `GET /api/import/tasks` 管理。
 
@@ -117,6 +118,7 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 - 使用上面配置的 `RAWG_API_KEY`
 - **调用方式**: `POST /api/import/covers/fill?limit=50`
 - 自动对没有封面图的游戏调用 RAWG 搜索补全
+- Xbox/PSN 导入遇到原始平台缺图时也会自动使用同一 RAWG 查询回退
 
 ## 豆瓣 CSV 导入
 

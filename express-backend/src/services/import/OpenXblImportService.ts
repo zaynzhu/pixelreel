@@ -3,6 +3,7 @@ import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
+import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 
 export interface XboxImportedTitle {
   titleId: string;
@@ -102,10 +103,14 @@ export async function importXboxOwnedGames(
       continue;
     }
 
+    const posterUrl = title.posterUrl
+      ?? await lookupRawgPosterUrl(title.name, signal);
+    if (signal?.aborted) return summary;
+
     toSave.push({
       xboxId: title.titleId,
       title: title.name,
-      posterUrl: title.posterUrl || null,
+      posterUrl,
       platform: 'XBOX',
       playtimeMinutes: title.playtimeMinutes,
       achievementTotal: title.achievementTotal,

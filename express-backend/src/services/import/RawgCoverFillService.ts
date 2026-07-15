@@ -1,7 +1,7 @@
-import axios from 'axios';
 import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
+import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 
 // RAWG 封面补全服务，与 Java 端 RawgCoverFillService 完全对齐
 export async function fillMissingCovers(limit?: number | null): Promise<ImportSummary> {
@@ -28,7 +28,7 @@ export async function fillMissingCovers(limit?: number | null): Promise<ImportSu
     }
 
     try {
-      const posterUrl = await fetchPosterUrl(game.title);
+      const posterUrl = await lookupRawgPosterUrl(game.title);
       if (!posterUrl) {
         summary.skipped++;
         continue;
@@ -46,22 +46,4 @@ export async function fillMissingCovers(limit?: number | null): Promise<ImportSu
   }
 
   return summary;
-}
-
-async function fetchPosterUrl(title: string): Promise<string | null> {
-  try {
-    const response = await axios.get(`${config.rawg.baseUrl}/games`, {
-      params: { search: title, key: config.rawg.apiKey, page_size: 1 },
-    });
-
-    const results = response.data?.results;
-    if (!results || results.length === 0) return null;
-
-    const backgroundImage = results[0]?.background_image;
-    if (!backgroundImage) return null;
-
-    return backgroundImage.startsWith('//') ? 'https:' + backgroundImage : backgroundImage;
-  } catch {
-    return null;
-  }
 }
