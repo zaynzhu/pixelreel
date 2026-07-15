@@ -5,6 +5,23 @@ function getToken(): string | null {
 
 const API_BASE = "/api";
 
+export async function getApiErrorMessage(response: Response): Promise<string> {
+  const fallback = `请求失败 (${response.status})`;
+  const text = await response.text().catch(() => "");
+  if (!text) return fallback;
+
+  try {
+    const payload: unknown = JSON.parse(text);
+    if (payload && typeof payload === "object" && "error" in payload) {
+      const error = (payload as { error?: unknown }).error;
+      if (typeof error === "string" && error.trim()) return error;
+    }
+  } catch {
+    // 非 JSON 响应保留原文
+  }
+  return text;
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {},
@@ -34,8 +51,7 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(text || `请求失败 (${response.status})`);
+    throw new Error(await getApiErrorMessage(response));
   }
 
   const contentType = response.headers.get("content-type") || "";
