@@ -10,7 +10,6 @@
 
 <div align="center">
 
-![License](https://img.shields.io/github/license/zaynzhu/pixelreel?style=for-the-badge)
 ![Stars](https://img.shields.io/github/stars/zaynzhu/pixelreel?style=for-the-badge)
 ![Forks](https://img.shields.io/github/forks/zaynzhu/pixelreel?style=for-the-badge)
 ![Issues](https://img.shields.io/github/issues/zaynzhu/pixelreel?style=for-the-badge)
@@ -22,13 +21,13 @@
 
 > [!TIP]
 > PixelReel is a self-hosted personal media tracking platform that unifies movies, TV shows, and games in one place.
-> Import data from Douban, Trakt, Steam, Xbox, and PSN. Aggregate metadata from TMDB, OMDb, RAWG, and more.
+> Import data from Douban, Trakt, and Steam. Xbox and PSN remain disabled-by-default experimental integrations.
 > Enjoy rich visualizations including timelines, analytics dashboards, and showcase displays.
 
 ## ✨ Features
 
 - **Multi-Source Search** -- Search TMDB, OMDb, Douban, IMDb, Trakt, RAWG, and Steam from a single interface
-- **One-Click Import** -- Bulk import from Douban, Trakt, Steam, Xbox, and PSN with auto poster and detail fetching
+- **One-Click Import** -- Bulk import from Douban, Trakt, and Steam with automatic poster and detail fetching; Xbox and PSN remain experimental
 - **Unified Library** -- Movies, TV shows, and games in one list with category/year/status filters and ratings
 - **Timeline Poster Wall** -- Monthly grouped poster gallery with year switching and detail popups
 - **Radar Discovery** -- Browse TMDB now-playing/trending + Youku/Tencent listings, add to wishlist instantly
@@ -96,16 +95,20 @@ Enter keywords on the search page — supports mixed Chinese/English queries. Cl
 
 ### Import from Existing Platforms
 
+For daily use, open `/sync`. For automation, use the same persistent and cancellable task endpoints:
+
 ```bash
 # Full Douban import (requires Playwright)
 curl -X POST http://localhost:18889/api/import/douban-harvest?mode=full
 
-# Trakt movie import
-curl -X POST http://localhost:18889/api/trakt/import/movies
+# Trakt movie import task
+curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 
-# Steam owned games import
-curl -X POST http://localhost:18889/api/import/steam/owned
+# Steam owned games import task
+curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
 ```
+
+Xbox and PSN currently expose only disabled-by-default experimental backend code and status indicators; they are not part of the supported sync workflow.
 
 ### Discover with Radar
 
@@ -123,7 +126,8 @@ Visit the `/radar` page to browse TMDB now-playing, upcoming, and trending title
 | Self-hosted | ✅ | ❌ | ❌ | ❌ |
 | Multi-source aggregation | ✅ | ❌ | ⚠️ | ❌ |
 | Douban data import | ✅ | ❌ | ❌ | -- |
-| Steam/Xbox/PSN import | ✅ | ❌ | ❌ | ❌ |
+| Steam import | ✅ | ❌ | ❌ | ❌ |
+| Xbox/PSN import | ⚠️ | ❌ | ❌ | ❌ |
 | Analytics reports | ✅ | ⚠️ | ✅ | ❌ |
 | Radar discovery | ✅ | ❌ | ✅ | ✅ |
 | Operation undo | ✅ | ❌ | ❌ | ❌ |
@@ -151,6 +155,9 @@ Visit the `/radar` page to browse TMDB now-playing, upcoming, and trending title
 | `/activity` | Activity log (filter, infinite scroll, undo) |
 | `/showcase` | Showcase display (grid + fullscreen carousel) |
 | `/analytics` | Analytics (annual report + insights) |
+| `/sync` | Sync center for source readiness, task progress, and results |
+| `/sync/review` | Review queue for newly imported records |
+| `/data-health` | Missing-field and duplicate-candidate audit |
 | `/settings` | System settings (env config) |
 | `/radar` | Radar discovery (TMDB + Youku + Tencent) |
 | `/login` | Login page |
@@ -193,12 +200,14 @@ GET   /api/timeline/years?category=
 ```text
 POST   /api/import/douban-harvest?mode=json|full|incremental
 GET    /api/import/douban-harvest/status?taskId=xxx
-GET    /api/import/platforms/status
-POST   /api/trakt/import/movies
-POST   /api/trakt/import/shows
-POST   /api/import/steam/owned
-POST   /api/import/xbox/owned
-POST   /api/import/psn/owned
+GET    /api/import/sources/status
+GET    /api/import/sources/history
+GET    /api/import/tasks
+DELETE /api/import/tasks/:taskId
+POST   /api/trakt/import/movies/task?status=WANT
+POST   /api/trakt/import/shows/task?status=WANT
+POST   /api/import/steam/owned/task?status=WANT
+GET    /api/import/platforms/status  # Xbox/PSN experimental status; not supported sync
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
 POST   /api/import/steam/backfill
@@ -360,9 +369,3 @@ cd frontend && npm install && npm run dev
 <a href="https://github.com/zaynzhu/pixelreel/graphs/contributors">
  <img src="https://contrib.rocks/image?repo=zaynzhu/pixelreel" />
 </a>
-
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE) -- see the [LICENSE](LICENSE) file for details.

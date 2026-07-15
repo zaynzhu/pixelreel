@@ -10,7 +10,6 @@
 
 <div align="center">
 
-![License](https://img.shields.io/github/license/zaynzhu/pixelreel?style=for-the-badge)
 ![Stars](https://img.shields.io/github/stars/zaynzhu/pixelreel?style=for-the-badge)
 ![Forks](https://img.shields.io/github/forks/zaynzhu/pixelreel?style=for-the-badge)
 ![Issues](https://img.shields.io/github/issues/zaynzhu/pixelreel?style=for-the-badge)
@@ -99,16 +98,20 @@ HTTPS_PROXY="http://127.0.0.1:7897"      # TMDB 国内必需
 
 ### 从已有平台导入
 
+日常同步推荐直接访问 `/sync`；如需自动化，请使用同一套可持久化、可取消的任务接口：
+
 ```bash
 # 豆瓣全量导入（需要 Playwright）
 curl -X POST http://localhost:18889/api/import/douban-harvest?mode=full
 
-# Trakt 电影导入
-curl -X POST http://localhost:18889/api/trakt/import/movies
+# Trakt 电影导入任务
+curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 
-# Steam 已购游戏导入
-curl -X POST http://localhost:18889/api/import/steam/owned
+# Steam 已购游戏导入任务
+curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
 ```
+
+Xbox、PSN 目前仅保留默认关闭的实验性后端代码和状态展示，尚未接入正式同步流程。
 
 ### 雷达发现新片
 
@@ -127,7 +130,7 @@ curl -X POST http://localhost:18889/api/import/steam/owned
 | 多平台数据聚合 | ✅ | ❌ | ⚠️ | ❌ |
 | 豆瓣数据导入 | ✅ | ❌ | ❌ | -- |
 | Steam 导入 | ✅ | ❌ | ❌ | ❌ |
-| Xbox/PSN 导入 | 🧪 | ❌ | ❌ | ❌ |
+| Xbox/PSN 导入 | ⚠️ | ❌ | ❌ | ❌ |
 | 数据分析报告 | ✅ | ⚠️ | ✅ | ❌ |
 | 雷达发现 | ✅ | ❌ | ✅ | ✅ |
 | 操作撤销 | ✅ | ❌ | ❌ | ❌ |
@@ -202,12 +205,14 @@ GET   /api/timeline/years?category=
 ```text
 POST   /api/import/douban-harvest?mode=json|full|incremental
 GET    /api/import/douban-harvest/status?taskId=xxx
-GET    /api/import/platforms/status
-POST   /api/trakt/import/movies
-POST   /api/trakt/import/shows
-POST   /api/import/steam/owned
-POST   /api/import/xbox/owned        # 实验性，未通过真实账号链路验证
-POST   /api/import/psn/owned         # 实验性，未通过真实账号链路验证
+GET    /api/import/sources/status
+GET    /api/import/sources/history
+GET    /api/import/tasks
+DELETE /api/import/tasks/:taskId
+POST   /api/trakt/import/movies/task?status=WANT
+POST   /api/trakt/import/shows/task?status=WANT
+POST   /api/import/steam/owned/task?status=WANT
+GET    /api/import/platforms/status  # Xbox/PSN 实验代码状态，不代表正式接入
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
 POST   /api/import/steam/backfill
@@ -384,9 +389,3 @@ cd frontend && npm install && npm run dev
 <a href="https://github.com/zaynzhu/pixelreel/graphs/contributors">
  <img src="https://contrib.rocks/image?repo=zaynzhu/pixelreel" />
 </a>
-
----
-
-## 📄 License
-
-本项目基于 [MIT License](LICENSE) 开源 -- 详见 [LICENSE](LICENSE) 文件。
