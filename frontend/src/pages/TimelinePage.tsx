@@ -86,18 +86,12 @@ export default function TimelinePage() {
   const GROUP_INCREMENT = 4;
   const [visibleGroupCount, setVisibleGroupCount] = useState(INITIAL_VISIBLE_GROUPS);
 
-  // Fetch new records when category changes
+  // 分类变化时刷新可用年份
   useEffect(() => {
-    void fetchRecords({
-      limit: 96,
-      category: selectedCategory,
-      year: selectedYear,
-    });
     void fetchYears(selectedCategory);
-    setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
-  }, [selectedCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchYears, selectedCategory]);
 
-  // Fetch new records when year changes
+  // 分类或年份变化时统一刷新主列表
   useEffect(() => {
     void fetchRecords({
       limit: 96,
@@ -105,7 +99,7 @@ export default function TimelinePage() {
       year: selectedYear,
     });
     setVisibleGroupCount(INITIAL_VISIBLE_GROUPS);
-  }, [selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchRecords, selectedCategory, selectedYear]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const groupSentinelRef = useRef<HTMLDivElement>(null);
