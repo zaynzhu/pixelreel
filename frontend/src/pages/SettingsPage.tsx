@@ -39,11 +39,11 @@ export default function SettingsPage() {
       setRestartRequired(false);
     } catch (reason) {
       if (requestId !== latestSettingsRequest.current) return;
-      setLoadError(reason instanceof Error ? reason.message : t('settings.load_failed'));
+      setLoadError(reason instanceof Error ? reason.message : 'CONFIG_LOAD_FAILED');
     } finally {
       if (requestId === latestSettingsRequest.current) setLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void loadSettings();
@@ -107,7 +107,7 @@ export default function SettingsPage() {
     });
   };
 
-  if (loading) {
+  if (loading && categories.length === 0) {
     return (
       <div className="p-6">
         <div className="animate-pulse text-[var(--muted)] text-xs uppercase tracking-widest">
@@ -135,16 +135,29 @@ export default function SettingsPage() {
           <div>
             <p className="font-bold uppercase tracking-widest">{t('settings.load_failed')}</p>
             <p className="mt-2 text-[10px] leading-5 text-[var(--muted)]">{loadError}</p>
+            {hasChanges && (
+              <p className="mt-2 text-[10px] leading-5 text-amber-300">
+                {t('settings.retry_unsaved_hint')}
+              </p>
+            )}
           </div>
-          <button type="button" onClick={() => void loadSettings()} className="brutal-btn">
+          <button
+            type="button"
+            onClick={() => void loadSettings()}
+            disabled={loading || hasChanges}
+            className="brutal-btn disabled:cursor-not-allowed disabled:opacity-50"
+          >
             {t('settings.retry')}
           </button>
         </div>
       )}
 
       {/* Category tabs + content */}
-      {!loadError && (
-        <div className="flex gap-6">
+      {categories.length > 0 && (
+        <div
+          aria-busy={loading}
+          className={`flex gap-6 ${loading ? 'pointer-events-none opacity-60' : ''}`}
+        >
         {/* Sidebar */}
         <div className="w-48 flex-shrink-0">
           <div className="border border-[var(--line)] bg-[var(--surface)]">
