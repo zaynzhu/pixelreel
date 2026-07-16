@@ -39,9 +39,11 @@ export default function ToolsPage() {
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
   const latestSearchRequest = useRef(0);
+  const conversionRequestActive = useRef(false);
 
   useEffect(() => () => {
     latestSearchRequest.current++;
+    conversionRequestActive.current = false;
   }, []);
 
   const handleExport = async () => {
@@ -93,13 +95,14 @@ export default function ToolsPage() {
   };
 
   const handleConvert = async (record: SearchResult) => {
+    if (conversionRequestActive.current) return;
+    conversionRequestActive.current = true;
     const targetCategory = record.category === 'movie' ? 'tv_show' : 'movie';
     const confirmMsg = t('tools.convert.confirm');
-    if (!(await confirmDialog(confirmMsg))) return;
-
     const recordKey = `${record.category}:${record.id}`;
-    setConverting(recordKey);
     try {
+      if (!(await confirmDialog(confirmMsg))) return;
+      setConverting(recordKey);
       const data = await apiFetch<ConvertResponse>('/tools/convert-category', {
         method: 'POST',
         body: JSON.stringify({
@@ -119,6 +122,7 @@ export default function ToolsPage() {
     } catch (e: any) {
       toast(`${t('tools.convert.failed')}: ${e.message}`, 'error');
     } finally {
+      conversionRequestActive.current = false;
       setConverting(null);
     }
   };

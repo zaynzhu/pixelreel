@@ -38,6 +38,12 @@ export function parseConvertCategoryBody(value: unknown) {
   return { id, from, to }
 }
 
+export function assertConvertedSourceDeleted(deletedCount: number) {
+  if (deletedCount !== 1) {
+    throw Object.assign(new Error('记录已被其他操作转换，请重新搜索'), { status: 409 })
+  }
+}
+
 // 导出完整资料库快照，只读，不包含环境变量或凭据
 router.get('/export-library', async (req: Request, res: Response) => {
   assertNoQueryParameters(req.query)
@@ -187,11 +193,13 @@ router.post('/convert-category', async (req: Request, res: Response, next: NextF
       }
 
       // 类型转换已在同一事务创建完整目标记录，使用原始删除避免被豆瓣数据删除保护误判
+      let deletedCount: number
       if (from === 'movie') {
-        await tx.$executeRaw`DELETE FROM movie WHERE id = ${numericId}`
+        deletedCount = await tx.$executeRaw`DELETE FROM movie WHERE id = ${numericId}`
       } else {
-        await tx.$executeRaw`DELETE FROM tv_show WHERE id = ${numericId}`
+        deletedCount = await tx.$executeRaw`DELETE FROM tv_show WHERE id = ${numericId}`
       }
+      assertConvertedSourceDeleted(deletedCount)
 
       return newRecord
     })

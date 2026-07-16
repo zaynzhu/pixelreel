@@ -95,7 +95,11 @@ import {
   parseTraktPageData,
   TraktOAuthStateStore,
 } from '../routes/trakt';
-import { parseConvertCategoryBody, parseToolSearchParameters } from '../routes/tools';
+import {
+  assertConvertedSourceDeleted,
+  parseConvertCategoryBody,
+  parseToolSearchParameters,
+} from '../routes/tools';
 import {
   buildLibraryExportSnapshot,
   libraryExportFilename,
@@ -1723,6 +1727,14 @@ test('工具页在查询和转换前严格校验参数', () => {
   assert.throws(
     () => parseConvertCategoryBody({ id: '42', from: 'movie', to: 'tv_show', force: true }),
     RequestValidationError,
+  );
+});
+
+test('分类转换在源记录已被并发处理时中止事务', () => {
+  assert.doesNotThrow(() => assertConvertedSourceDeleted(1));
+  assert.throws(
+    () => assertConvertedSourceDeleted(0),
+    (error: any) => error.status === 409 && error.message === '记录已被其他操作转换，请重新搜索',
   );
 });
 
