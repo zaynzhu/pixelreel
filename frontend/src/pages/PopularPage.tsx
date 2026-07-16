@@ -22,6 +22,7 @@ function formatSyncTime(iso: string | null) {
 export default function PopularPage() {
   const { items, total, page, category, platform, loading, syncing, syncTaskId, addingIds, error, failedRequest, lastSyncedAt, fetchItems, retryFetch, setCategory, setPlatform, triggerSync, finishSync, addToLibrary } = useRadarStore();
   const tasks = useTaskStore(state => state.tasks);
+  const taskStateReady = useTaskStore(state => state.initialized && state.pollError === null);
   const { t } = useI18nStore();
   const runningSyncTask = tasks.some(task => task.type === 'radar-sync' && task.status === 'running');
   const syncInProgress = syncing || runningSyncTask;
@@ -72,7 +73,7 @@ export default function PopularPage() {
             <span>{t('radar.lastSync')}: {formatSyncTime(lastSyncedAt)}</span>
             <button
               onClick={() => triggerSync()}
-              disabled={syncInProgress}
+              disabled={!taskStateReady || syncInProgress}
               className="brutal-btn-accent px-3 py-1 text-xs"
             >
               {syncInProgress ? t('radar.syncing') : t('radar.refresh')}

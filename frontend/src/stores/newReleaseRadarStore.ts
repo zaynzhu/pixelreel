@@ -3,6 +3,7 @@ import type { RadarItem, RadarListResponse } from '../types/radar';
 import { apiFetch } from '../api';
 import { toast } from './toastStore';
 import { useTaskStore } from './taskStore';
+import { useI18nStore } from './i18nStore';
 
 type RadarCategory = 'now_playing' | 'upcoming' | 'on_the_air';
 type RadarType = 'movie' | 'tv';
@@ -112,6 +113,11 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
 
   triggerSync: async (source) => {
     if (get().syncing) return;
+    const taskState = useTaskStore.getState();
+    if (!taskState.initialized || taskState.pollError !== null) {
+      toast(useI18nStore.getState().t('task.panel.unavailable_hint'), 'error');
+      return;
+    }
     set({ syncing: true, error: null, failedRequest: null });
     try {
       const url = source ? `/radar/sync-new-releases/${source}` : '/radar/sync-new-releases';

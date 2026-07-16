@@ -34,6 +34,7 @@ interface RepairTaskResponse {
 export default function DataHealthPage() {
   const { lang, t } = useI18nStore()
   const tasks = useTaskStore(state => state.tasks)
+  const taskStateReady = useTaskStore(state => state.initialized && state.pollError === null)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const [summary, setSummary] = useState<DataHealthSummary | null>(null)
   const [category, setCategory] = useState<DataHealthCategory>("movie")
@@ -193,6 +194,10 @@ export default function DataHealthPage() {
 
   const handleRepair = async () => {
     if (!repairSupported || total === 0 || repairing) return
+    if (!useTaskStore.getState().initialized || useTaskStore.getState().pollError !== null) {
+      toast(t("task.panel.unavailable_hint"), "error")
+      return
+    }
     const limit = Math.min(50, total)
     if (!(await confirmDialog(t("health.repair.confirm", String(limit))))) return
     setStartingRepair(true)
@@ -344,7 +349,7 @@ export default function DataHealthPage() {
               <button
                 type="button"
                 onClick={handleRepair}
-                disabled={repairing}
+                disabled={!taskStateReady || repairing}
                 className="brutal-btn-accent px-4 text-[10px] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {repairing

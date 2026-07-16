@@ -15,6 +15,7 @@ export interface Task {
 
 interface TaskState {
   tasks: Task[];
+  initialized: boolean;
   pollError: string | null;
   pollTasks: () => Promise<void>;
   cancelTask: (taskId: string) => Promise<void>;
@@ -27,6 +28,7 @@ let taskPollQueued = false;
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  initialized: false,
   pollError: null,
   pollTasks: async () => {
     if (activeTaskPollPromise) {
@@ -42,7 +44,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         try {
           const tasks = await apiFetch<Task[]>('/import/tasks');
           if (requestId !== latestTaskPollRequest) continue;
-          set({ tasks, pollError: null });
+          set({ tasks, initialized: true, pollError: null });
         } catch (reason) {
           if (requestId !== latestTaskPollRequest) continue;
           set({ pollError: reason instanceof Error ? reason.message : '' });
@@ -74,6 +76,7 @@ export function startPolling() {
 export function stopPolling() {
   latestTaskPollRequest++;
   taskPollQueued = false;
+  useTaskStore.setState({ initialized: false });
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;

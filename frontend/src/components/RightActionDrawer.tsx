@@ -12,11 +12,13 @@ export default function RightActionDrawer() {
   const [syncing, setSyncing] = useState<SyncTarget>(null);
   const { t } = useI18nStore()
   const tasks = useTaskStore(state => state.tasks)
+  const tasksInitialized = useTaskStore(state => state.initialized)
   const taskPollError = useTaskStore(state => state.pollError)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeDrawer = useCallback(() => setIsOpen(false), [])
+  const taskStateReady = tasksInitialized && taskPollError === null
   const doubanRunning = tasks.some(task => task.type === 'douban-harvest' && task.status === 'running')
   const traktRunning = tasks.some(task => task.type === 'trakt-import' && task.status === 'running')
   const steamRunning = tasks.some(task => task.type === 'steam-owned' && task.status === 'running')
@@ -105,6 +107,11 @@ export default function RightActionDrawer() {
               </button>
             </div>
           )}
+          {!tasksInitialized && taskPollError === null && (
+            <div className="border-l-2 border-[var(--line)] bg-black/20 px-3 py-2 text-[10px] text-[var(--muted)]">
+              {t('task.panel.initializing')}
+            </div>
+          )}
 
           {/* 01: 豆瓣 */}
           <div className="flex flex-col gap-3">
@@ -115,19 +122,19 @@ export default function RightActionDrawer() {
             <ActionButton
               label={t('drawer.action.douban_json')}
               onClick={() => void startTask('douban-json', '/import/douban-harvest?mode=json')}
-              disabled={taskPollError !== null || syncing != null || doubanRunning}
+              disabled={!taskStateReady || syncing != null || doubanRunning}
               active={syncing === 'douban-json'}
             />
             <ActionButton
               label={t('drawer.action.douban_incremental')}
               onClick={() => void startTask('douban-incremental', '/import/douban-harvest?mode=incremental')}
-              disabled={taskPollError !== null || syncing != null || doubanRunning}
+              disabled={!taskStateReady || syncing != null || doubanRunning}
               active={syncing === 'douban-incremental'}
             />
             <ActionButton
               label={t('drawer.action.douban_full')}
               onClick={() => void startTask('douban-full', '/import/douban-harvest?mode=full')}
-              disabled={taskPollError !== null || syncing != null || doubanRunning}
+              disabled={!taskStateReady || syncing != null || doubanRunning}
               active={syncing === 'douban-full'}
             />
           </div>
@@ -141,13 +148,13 @@ export default function RightActionDrawer() {
             <ActionButton
               label={t('drawer.action.trakt_movies')}
               onClick={() => void startTask('trakt-movies', '/trakt/import/movies/task?status=WANT')}
-              disabled={taskPollError !== null || syncing != null || traktRunning}
+              disabled={!taskStateReady || syncing != null || traktRunning}
               active={syncing === 'trakt-movies'}
             />
             <ActionButton
               label={t('drawer.action.trakt_shows')}
               onClick={() => void startTask('trakt-shows', '/trakt/import/shows/task?status=WANT')}
-              disabled={taskPollError !== null || syncing != null || traktRunning}
+              disabled={!taskStateReady || syncing != null || traktRunning}
               active={syncing === 'trakt-shows'}
             />
           </div>
@@ -161,7 +168,7 @@ export default function RightActionDrawer() {
             <ActionButton
               label={t('drawer.action.steam_owned')}
               onClick={() => void startTask('steam-owned', '/import/steam/owned/task?status=WANT')}
-              disabled={taskPollError !== null || syncing != null || steamRunning}
+              disabled={!taskStateReady || syncing != null || steamRunning}
               active={syncing === 'steam-owned'}
             />
           </div>
@@ -187,8 +194,9 @@ export default function RightActionDrawer() {
   );
 
   async function startTask(target: Exclude<SyncTarget, null>, path: string) {
-    if (useTaskStore.getState().pollError !== null) {
-      toast(t('task.panel.stale_hint'), 'error')
+    const taskState = useTaskStore.getState()
+    if (!taskState.initialized || taskState.pollError !== null) {
+      toast(t('task.panel.unavailable_hint'), 'error')
       return
     }
     setSyncing(target)

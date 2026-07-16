@@ -29,6 +29,7 @@ type DirectSource = 'steam' | 'trakt'
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
   const tasks = useTaskStore(state => state.tasks)
+  const tasksInitialized = useTaskStore(state => state.initialized)
   const taskPollError = useTaskStore(state => state.pollError)
   const cancelTask = useTaskStore(state => state.cancelTask)
   const pollTasks = useTaskStore(state => state.pollTasks)
@@ -44,6 +45,7 @@ export default function SyncPage() {
     steam: 'WANT',
     trakt: 'WANT',
   })
+  const taskStateReady = tasksInitialized && taskPollError === null
 
   const loadStatus = useCallback(async () => {
     const requestId = ++latestStatusRequest.current
@@ -106,8 +108,9 @@ export default function SyncPage() {
   }
 
   const startDouban = async (mode: 'json' | 'incremental' | 'full') => {
-    if (useTaskStore.getState().pollError !== null) {
-      toast(t('task.panel.stale_hint'), 'error')
+    const taskState = useTaskStore.getState()
+    if (!taskState.initialized || taskState.pollError !== null) {
+      toast(t('task.panel.unavailable_hint'), 'error')
       return
     }
     const actionKey = `douban-${mode}`
@@ -124,8 +127,9 @@ export default function SyncPage() {
   }
 
   const startSourceTask = async (path: string, actionKey: string) => {
-    if (useTaskStore.getState().pollError !== null) {
-      toast(t('task.panel.stale_hint'), 'error')
+    const taskState = useTaskStore.getState()
+    if (!taskState.initialized || taskState.pollError !== null) {
+      toast(t('task.panel.unavailable_hint'), 'error')
       return
     }
     setActiveAction(actionKey)
@@ -198,6 +202,11 @@ export default function SyncPage() {
           <button type="button" onClick={() => void pollTasks()} className="brutal-btn">{t('sync.retry')}</button>
         </div>
       )}
+      {!tasksInitialized && taskPollError === null && (
+        <div className="border border-[var(--line)] bg-black/20 p-4 text-xs text-[var(--muted)]">
+          {t('task.panel.initializing')}
+        </div>
+      )}
 
       {status && (
         <div className="grid gap-5 xl:grid-cols-2">
@@ -214,7 +223,7 @@ export default function SyncPage() {
                   key={mode}
                   label={t(`sync.douban.${mode}`)}
                   onClick={() => void startDouban(mode)}
-                  disabled={statusError != null || taskPollError !== null || !status.douban.modes[mode].available || activeAction != null || latestTask('douban')?.status === 'running'}
+                  disabled={statusError != null || !taskStateReady || !status.douban.modes[mode].available || activeAction != null || latestTask('douban')?.status === 'running'}
                   active={activeAction === `douban-${mode}`}
                   title={reasonLabel(status.douban.modes[mode].reason, t)}
                 />
@@ -237,13 +246,13 @@ export default function SyncPage() {
               <SyncButton
                 label={t('sync.trakt.movies')}
                 onClick={() => void startSourceTask(`/trakt/import/movies/task?status=${directStatuses.trakt}`, 'trakt-movies')}
-                disabled={statusError != null || taskPollError !== null || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
+                disabled={statusError != null || !taskStateReady || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
                 active={activeAction === 'trakt-movies'}
               />
               <SyncButton
                 label={t('sync.trakt.shows')}
                 onClick={() => void startSourceTask(`/trakt/import/shows/task?status=${directStatuses.trakt}`, 'trakt-shows')}
-                disabled={statusError != null || taskPollError !== null || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
+                disabled={statusError != null || !taskStateReady || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
                 active={activeAction === 'trakt-shows'}
               />
             </div>
@@ -263,7 +272,7 @@ export default function SyncPage() {
             <SyncButton
               label={t('sync.steam.owned')}
               onClick={() => void startSourceTask(`/import/steam/owned/task?status=${directStatuses.steam}`, 'steam-owned')}
-              disabled={statusError != null || taskPollError !== null || !status.steam.available || activeAction != null || latestTask('steam')?.status === 'running'}
+              disabled={statusError != null || !taskStateReady || !status.steam.available || activeAction != null || latestTask('steam')?.status === 'running'}
               active={activeAction === 'steam-owned'}
               className="mt-3 w-full"
             />

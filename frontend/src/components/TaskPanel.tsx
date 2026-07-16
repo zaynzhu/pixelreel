@@ -5,6 +5,7 @@ import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
+  const initialized = useTaskStore((s) => s.initialized);
   const pollError = useTaskStore((s) => s.pollError);
   const pollTasks = useTaskStore((s) => s.pollTasks);
   const { t } = useI18nStore();
@@ -88,7 +89,11 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
               </button>
             </div>
           )}
-          {tasks.length === 0 ? (
+          {!initialized && pollError === null ? (
+            <div className="py-16 text-center text-[10px] uppercase tracking-widest text-[var(--muted)]">
+              {t('task.panel.initializing')}
+            </div>
+          ) : tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-[var(--muted)]">
               <svg className="w-8 h-8 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
