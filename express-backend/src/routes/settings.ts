@@ -146,23 +146,6 @@ const CATEGORIES: CategoryDef[] = [
       { key: 'STEAM_WEB_API_BASE_URL', labelZh: 'API 地址', labelEn: 'API Base URL', sensitive: false, type: 'text' },
     ],
   },
-  {
-    key: 'openxbl', labelZh: 'OpenXBL', labelEn: 'OpenXBL',
-    fields: [
-      { key: 'OPENXBL_API_KEY', labelZh: 'API 密钥', labelEn: 'API Key', sensitive: true, type: 'text' },
-      { key: 'OPENXBL_BASE_URL', labelZh: 'API 地址', labelEn: 'API Base URL', sensitive: false, type: 'text' },
-      { key: 'OPENXBL_ENABLED', labelZh: '启用', labelEn: 'Enabled', sensitive: false, type: 'boolean' },
-    ],
-  },
-  {
-    key: 'psn', labelZh: 'PSN', labelEn: 'PSN',
-    fields: [
-      { key: 'PSN_PROFILES_BASE_URL', labelZh: '基础地址', labelEn: 'Base URL', sensitive: false, type: 'text' },
-      { key: 'PSN_PROFILES_USER_AGENT', labelZh: 'User Agent', labelEn: 'User Agent', sensitive: false, type: 'text' },
-      { key: 'PSN_PROFILES_COOKIE', labelZh: 'Cookie', labelEn: 'Cookie', sensitive: true, type: 'text' },
-      { key: 'PSN_PROFILES_ENABLED', labelZh: '启用', labelEn: 'Enabled', sensitive: false, type: 'boolean' },
-    ],
-  },
 ];
 
 const FIELD_BY_KEY = new Map(CATEGORIES.flatMap(c => c.fields.map(f => [f.key, f] as const)));

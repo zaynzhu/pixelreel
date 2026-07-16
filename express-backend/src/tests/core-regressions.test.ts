@@ -231,6 +231,8 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ RADAR_SYNC_SCRAPER_CRON: '0 0 */6 * * *' }), null);
   assert.equal(validateSettingValues({ HOST: '127.0.0.1\nINJECTED=true' }), 'HOST 不能包含换行');
   assert.equal(validateSettingValues({ HOST: '"127.0.0.1"' }), 'HOST 不能包含引号');
+  assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'true' }), '未知配置项: OPENXBL_ENABLED');
+  assert.equal(validateSettingValues({ PSN_PROFILES_COOKIE: 'secret' }), '未知配置项: PSN_PROFILES_COOKIE');
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');
   assert.equal(validateSettingValues({ AUTH_ENABLED: 'false', PORT: '18889' }), null);
 });
@@ -370,22 +372,10 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏条目', () => 
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
 });
 
-test('主机平台导入状态不暴露密钥并准确标记配置缺失', () => {
-  assert.deepEqual(buildPlatformImportStatus({
-    openxblEnabled: true,
-    openxblApiKey: '',
-    psnProfilesEnabled: false,
-  }), {
-    xbox: { available: false, reason: 'missing_api_key' },
-    psn: { available: false, reason: 'disabled' },
-  });
-  assert.deepEqual(buildPlatformImportStatus({
-    openxblEnabled: true,
-    openxblApiKey: 'secret',
-    psnProfilesEnabled: true,
-  }), {
-    xbox: { available: true, reason: null },
-    psn: { available: true, reason: null },
+test('主机平台导入状态固定标记为实验性未接入', () => {
+  assert.deepEqual(buildPlatformImportStatus(), {
+    xbox: { available: false, reason: 'experimental_not_connected' },
+    psn: { available: false, reason: 'experimental_not_connected' },
   });
 });
 
@@ -398,16 +388,13 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     doubanHarvestEnabled: false,
     doubanUserId: '',
     doubanCollectExists: false,
-    openxblEnabled: true,
-    openxblApiKey: '',
-    psnProfilesEnabled: false,
   });
   assert.deepEqual(unavailable.steam, { available: false, reason: 'missing_api_key' });
   assert.deepEqual(unavailable.trakt, { available: false, reason: 'missing_access_token' });
   assert.deepEqual(unavailable.douban.modes.json, { available: false, reason: 'missing_data' });
   assert.deepEqual(unavailable.douban.modes.full, { available: false, reason: 'disabled' });
-  assert.deepEqual(unavailable.xbox, { available: false, reason: 'missing_api_key' });
-  assert.deepEqual(unavailable.psn, { available: false, reason: 'disabled' });
+  assert.deepEqual(unavailable.xbox, { available: false, reason: 'experimental_not_connected' });
+  assert.deepEqual(unavailable.psn, { available: false, reason: 'experimental_not_connected' });
 
   const available = buildImportSourceStatus({
     steamApiKey: 'configured',
@@ -417,11 +404,12 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     doubanHarvestEnabled: true,
     doubanUserId: 'user',
     doubanCollectExists: true,
-    openxblEnabled: true,
-    openxblApiKey: 'configured',
-    psnProfilesEnabled: true,
   });
-  assert.equal(Object.values(available).every(source => source.available), true);
+  assert.equal(available.steam.available, true);
+  assert.equal(available.trakt.available, true);
+  assert.equal(available.douban.available, true);
+  assert.deepEqual(available.xbox, { available: false, reason: 'experimental_not_connected' });
+  assert.deepEqual(available.psn, { available: false, reason: 'experimental_not_connected' });
   assert.equal(available.douban.modes.incremental.available, true);
 });
 

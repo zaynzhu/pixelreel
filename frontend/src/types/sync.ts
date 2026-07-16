@@ -9,6 +9,7 @@ export type SyncUnavailableReason =
   | 'missing_access_token'
   | 'missing_data'
   | 'disabled'
+  | 'experimental_not_connected'
   | null
 
 export interface SyncAvailability {

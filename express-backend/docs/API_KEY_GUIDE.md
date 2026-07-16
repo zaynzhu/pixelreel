@@ -82,34 +82,11 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
   4. `STEAM_WEB_API_KEY` 填 API Key，`STEAM_DEFAULT_STEAM_ID` 填你的 SteamID64
 - **调用方式**: `POST /api/import/steam/owned?steamId=你的SteamID&status=WANT`
 
-## Xbox 已玩游戏导入
+## Xbox / PSN
 
-### OpenXBL
+OpenXBL 与 PSNProfiles 目前仅保留实验性实现，尚未通过真实账号导入链路验收。同步中心只展示“实验性未接入”状态，后端不注册 Xbox 或 PSN 的启动导入接口。
 
-- **变量**: `OPENXBL_API_KEY` + `OPENXBL_ENABLED=true`
-- **用途**: 导入 Xbox 已玩游戏
-- **获取步骤**:
-  1. 访问 https://xbl.io/ 注册账号
-  2. 登录后在 https://xbl.io/dashboard 获取 API Key
-  3. `.env` 中 `OPENXBL_API_KEY` 填 Key，`OPENXBL_ENABLED` 改为 `true`
-- **调用方式**: `POST /api/import/xbox/owned?gamertag=你的Xbox昵称&status=UNSET`
-- **API 地址**: 默认 `https://api.xbl.io/v2`，通常不需要修改
-
-## PSN 已玩游戏导入
-
-### PSNProfiles
-
-- **变量**: `PSN_PROFILES_ENABLED=true` + `PSN_PROFILES_COOKIE`
-- **用途**: 通过爬取 PSNProfiles 导入 PSN 奖杯列表
-- **获取步骤**:
-  1. 浏览器登录 https://psnprofiles.com/
-  2. F12 → Network → 随便点个页面 → 复制请求头中的完整 Cookie
-  3. `.env` 中 `PSN_PROFILES_ENABLED` 改为 `true`，`PSN_PROFILES_COOKIE` 填 Cookie
-- **调用方式**: `POST /api/import/psn/owned?psnId=你的PSN ID&status=UNSET`
-- **备注**: Cookie 有时效，长期用需定期更新
-- **分页**: 导入会自动读取全部 AJAX 游戏页（最多 100 页）；遇到 Cloudflare 验证页时会提示更新 Cookie
-
-前端游戏检索页会读取 `GET /api/import/platforms/status`；配置不完整时会明确显示原因并禁用导入按钮。两个 POST 接口都会立即返回 `taskId`，实际导入在后台执行，进度和取消统一通过任务面板或 `GET /api/import/tasks` 管理。
+`GET /api/import/platforms/status` 固定返回 `experimental_not_connected`，即使环境变量中存在历史配置也不会启用导入。待真实账号验收、限流和数据核对全部完成后，再单独开放配置与启动流程。
 
 ## RAWG 封面补全
 

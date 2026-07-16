@@ -72,7 +72,7 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/import/douban-harvest?mode=json\|full\|incremental` | 豆瓣数据导入/爬取 |
 | GET | `/api/import/douban-harvest/status?taskId=xxx` | 任务进度 |
 | GET | `/api/import/tasks` | 所有任务列表 |
-| GET | `/api/import/platforms/status` | Xbox/PSN 导入可用性（不返回敏感配置） |
+| GET | `/api/import/platforms/status` | Xbox/PSN 实验性未接入状态（不返回敏感配置） |
 | DELETE | `/api/import/tasks/:taskId` | 取消任务 |
 | POST | `/api/import/tmdb-enrich/backfill?limit=50` | 批量补充 TMDB 数据 |
 | POST | `/api/import/tmdb-detail/backfill?limit=50` | 按 tmdbId 回填详情 |
@@ -80,10 +80,10 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/trakt/import/movies` | Trakt 电影导入 |
 | POST | `/api/trakt/import/shows` | Trakt 电视剧导入 |
 | POST | `/api/import/steam/owned` | Steam 已购导入 |
-| POST | `/api/import/xbox/owned` | 启动 Xbox 已玩导入任务 |
-| POST | `/api/import/psn/owned` | 启动 PSN 已玩导入任务 |
 | POST | `/api/import/covers/fill` | RAWG 封面补全 |
 | POST | `/api/import/tmdb-covers/fill` | TMDB 封面补全 |
+
+Xbox/OpenXBL 与 PSN/PSNProfiles 目前仅保留实验实现和状态展示，尚未通过真实账号链路验收，因此不注册启动导入的 HTTP 路由。
 
 ### 数据健康
 

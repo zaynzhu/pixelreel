@@ -300,6 +300,7 @@ const dictionaries = {
     "sync.reason.missing_access_token": "Access token is not configured.",
     "sync.reason.missing_data": "No local collection snapshot was found.",
     "sync.reason.disabled": "This source is disabled.",
+    "sync.reason.experimental_not_connected": "This experimental source is not connected.",
 
     // Import review
     "review.kicker": "IMPORT // INBOX",
@@ -1011,6 +1012,7 @@ const dictionaries = {
     "sync.reason.missing_access_token": "尚未配置 Access Token。",
     "sync.reason.missing_data": "没有找到本地收藏快照。",
     "sync.reason.disabled": "该来源当前未启用。",
+    "sync.reason.experimental_not_connected": "该实验性来源尚未接入。",
 
     // 导入审核
     "review.kicker": "导入 // 收件箱",
