@@ -13,7 +13,7 @@ export function ImgWithFallback({ src, alt, className, loading = "lazy", fallbac
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const resolvedSrc = proxiedImageUrl(src) ?? src;
 
-  if (failedSrc === resolvedSrc) return <>{fallback}</>;
+  if (!resolvedSrc || failedSrc === resolvedSrc) return <>{fallback}</>;
 
   return (
     <img
