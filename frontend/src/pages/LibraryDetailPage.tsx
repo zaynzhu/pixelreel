@@ -306,7 +306,11 @@ export default function LibraryDetailPage() {
       <section className="border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
         <div className="section-kicker">{t("detail.history_kicker")}</div>
         <h2 className="mt-2 mb-5 text-2xl text-white">{t("detail.history_title")}</h2>
-        <ActivityTimeline entityType={entityType} entityId={String(record.id)} />
+        <ActivityTimeline
+          key={`${entityType}:${record.id}:${record.updatedAt}`}
+          entityType={entityType}
+          entityId={String(record.id)}
+        />
       </section>
 
       {rescraping && (

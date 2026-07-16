@@ -552,6 +552,7 @@ export default function LibraryPage() {
               {showHistory && selectedRecord && (
                 <div className="mt-3 border border-[var(--line)] max-h-[300px] overflow-y-auto">
                   <ActivityTimeline
+                    key={`${buildRecordKey(selectedRecord)}:${selectedRecord.updatedAt}`}
                     entityType={selectedRecord.category === 'tv_show' ? 'TV_SHOW' : selectedRecord.category.toUpperCase()}
                     entityId={String(selectedRecord.id)}
                     compact
