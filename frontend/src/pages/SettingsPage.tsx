@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [restartRequired, setRestartRequired] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('general');
   const latestSettingsRequest = useRef(0);
+  const latestSaveRequest = useRef(0);
+  const saveRequestActive = useRef(false);
 
   const loadSettings = useCallback(async () => {
     const requestId = ++latestSettingsRequest.current;
@@ -49,6 +51,8 @@ export default function SettingsPage() {
     void loadSettings();
     return () => {
       latestSettingsRequest.current++;
+      latestSaveRequest.current++;
+      saveRequestActive.current = false;
     };
   }, [loadSettings]);
 
@@ -75,26 +79,58 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!hasChanges) return;
+    if (!hasChanges || loading || saveRequestActive.current) return;
+    const requestId = ++latestSaveRequest.current;
+    const values = Object.fromEntries(
+      Object.entries(editValues).filter(([key, value]) => value !== originalValues[key])
+    );
+    const sensitiveKeys = new Set(
+      categories.flatMap(category =>
+        category.fields.filter(field => field.sensitive && field.key in values).map(field => field.key)
+      )
+    );
+    saveRequestActive.current = true;
     setSaving(true);
     try {
-      const changedEntries = Object.entries(editValues).filter(
-        ([k, v]) => v !== originalValues[k]
-      );
-      const values = Object.fromEntries(changedEntries);
       const data = await apiFetch<SettingsSaveResponse>('/settings', {
         method: 'PUT',
         body: JSON.stringify({ values }),
       });
+      if (requestId !== latestSaveRequest.current) return;
       if (data.success) {
         toast(t('settings.saved'));
         setRestartRequired(data.restartRequired);
-        setOriginalValues({ ...editValues });
+        setEditValues(current => {
+          const next = { ...current };
+          for (const key of sensitiveKeys) next[key] = '';
+          return next;
+        });
+        setOriginalValues(current => {
+          const next = { ...current, ...values };
+          for (const key of sensitiveKeys) next[key] = '';
+          return next;
+        });
+        setCategories(current => current.map(category => ({
+          ...category,
+          fields: category.fields.map(field => (
+            sensitiveKeys.has(field.key) ? { ...field, configured: true } : field
+          )),
+        })));
+        setRevealedKeys(current => {
+          const next = new Set(current);
+          for (const key of sensitiveKeys) next.delete(key);
+          return next;
+        });
       }
-    } catch (e: any) {
-      toast(`${t('settings.save_failed')}: ${e.message}`, 'error');
+    } catch (reason) {
+      if (requestId !== latestSaveRequest.current) return;
+      const message = reason instanceof Error ? reason.message : t('settings.save_failed');
+      toast(`${t('settings.save_failed')}: ${message}`, 'error');
     } finally {
-      setSaving(false);
+      if (requestId === latestSaveRequest.current) {
+        saveRequestActive.current = false;
+        setSaving(false);
+      }
     }
   };
 
@@ -154,9 +190,10 @@ export default function SettingsPage() {
 
       {/* Category tabs + content */}
       {categories.length > 0 && (
-        <div
-          aria-busy={loading}
-          className={`flex gap-6 ${loading ? 'pointer-events-none opacity-60' : ''}`}
+        <fieldset
+          aria-busy={loading || saving}
+          disabled={loading || saving}
+          className={`flex gap-6 ${loading || saving ? 'opacity-60' : ''}`}
         >
         {/* Sidebar */}
         <div className="w-48 flex-shrink-0">
@@ -179,9 +216,9 @@ export default function SettingsPage() {
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!hasChanges || saving}
+            disabled={!hasChanges || loading || saving}
             className={`w-full mt-4 px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all border ${
-              !hasChanges || saving
+              !hasChanges || loading || saving
                 ? 'border-[var(--line)] text-[var(--muted)] cursor-not-allowed'
                 : 'border-[var(--accent)] bg-[var(--accent)] text-black hover:bg-white'
             }`}
@@ -270,7 +307,7 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-        </div>
+        </fieldset>
       )}
 
       {/* Restart notice */}
