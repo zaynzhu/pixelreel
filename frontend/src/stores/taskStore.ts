@@ -22,24 +22,40 @@ interface TaskState {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let latestTaskPollRequest = 0;
-let activeTaskPollRequest: number | null = null;
+let activeTaskPollPromise: Promise<void> | null = null;
+let taskPollQueued = false;
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   pollError: null,
   pollTasks: async () => {
-    if (activeTaskPollRequest !== null) return;
-    const requestId = ++latestTaskPollRequest;
-    activeTaskPollRequest = requestId;
+    if (activeTaskPollPromise) {
+      taskPollQueued = true;
+      await activeTaskPollPromise;
+      return;
+    }
+
+    const pollUntilCurrent = async () => {
+      do {
+        taskPollQueued = false;
+        const requestId = ++latestTaskPollRequest;
+        try {
+          const tasks = await apiFetch<Task[]>('/import/tasks');
+          if (requestId !== latestTaskPollRequest) continue;
+          set({ tasks, pollError: null });
+        } catch (reason) {
+          if (requestId !== latestTaskPollRequest) continue;
+          set({ pollError: reason instanceof Error ? reason.message : '' });
+        }
+      } while (taskPollQueued);
+    };
+
+    const pollPromise = pollUntilCurrent();
+    activeTaskPollPromise = pollPromise;
     try {
-      const tasks = await apiFetch<Task[]>('/import/tasks');
-      if (requestId !== latestTaskPollRequest) return;
-      set({ tasks, pollError: null });
-    } catch (reason) {
-      if (requestId !== latestTaskPollRequest) return;
-      set({ pollError: reason instanceof Error ? reason.message : '' });
+      await pollPromise;
     } finally {
-      if (activeTaskPollRequest === requestId) activeTaskPollRequest = null;
+      if (activeTaskPollPromise === pollPromise) activeTaskPollPromise = null;
     }
   },
   cancelTask: async (taskId: string) => {
@@ -57,7 +73,7 @@ export function startPolling() {
 
 export function stopPolling() {
   latestTaskPollRequest++;
-  activeTaskPollRequest = null;
+  taskPollQueued = false;
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
