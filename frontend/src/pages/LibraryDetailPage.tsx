@@ -22,6 +22,8 @@ export default function LibraryDetailPage() {
   const [saving, setSaving] = useState(false)
   const [rescraping, setRescraping] = useState(false)
   const latestLoadRequest = useRef(0)
+  const latestSaveRequest = useRef(0)
+  const saveRequestActive = useRef(false)
   const [form, setForm] = useState<LibraryRecordUpdateInput>({
     status: "UNSET",
     rating: null,
@@ -31,7 +33,11 @@ export default function LibraryDetailPage() {
   const validCategory = CATEGORIES.includes(category as LibraryCategory)
     ? category as LibraryCategory
     : null
-  const validId = id && /^\d+$/.test(id) && Number(id) > 0 ? id : null
+  const numericId = id && /^[1-9]\d*$/.test(id) ? Number(id) : Number.NaN
+  const validId = Number.isSafeInteger(numericId) && numericId > 0 ? String(numericId) : null
+  const routeKey = validCategory && validId ? `${validCategory}:${validId}` : null
+  const routeKeyRef = useRef(routeKey)
+  routeKeyRef.current = routeKey
 
   const loadRecord = useCallback(async () => {
     const requestId = ++latestLoadRequest.current
@@ -65,11 +71,20 @@ export default function LibraryDetailPage() {
     void loadRecord()
     return () => {
       latestLoadRequest.current += 1
+      latestSaveRequest.current += 1
+      saveRequestActive.current = false
     }
   }, [loadRecord])
 
+  useEffect(() => {
+    setSaving(false)
+  }, [routeKey])
+
   const saveRecord = async () => {
-    if (!record || saving) return
+    if (!record || saveRequestActive.current) return
+    const requestId = ++latestSaveRequest.current
+    const recordKey = `${record.category}:${record.id}`
+    saveRequestActive.current = true
     setSaving(true)
     try {
       const updated = await apiFetch<LibraryRecord>(`/library/${record.category}/${record.id}`, {
@@ -80,6 +95,7 @@ export default function LibraryDetailPage() {
           shortReview: form.shortReview?.trim() || null,
         }),
       })
+      if (requestId !== latestSaveRequest.current || routeKeyRef.current !== recordKey) return
       setRecord(updated)
       setForm({
         status: updated.status,
@@ -88,9 +104,13 @@ export default function LibraryDetailPage() {
       })
       toast(t("detail.saved"))
     } catch (reason) {
+      if (requestId !== latestSaveRequest.current || routeKeyRef.current !== recordKey) return
       toast(reason instanceof Error ? reason.message : t("detail.save_error"), "error")
     } finally {
-      setSaving(false)
+      if (requestId === latestSaveRequest.current && routeKeyRef.current === recordKey) {
+        saveRequestActive.current = false
+        setSaving(false)
+      }
     }
   }
 
