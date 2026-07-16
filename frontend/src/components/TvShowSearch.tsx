@@ -127,8 +127,10 @@ export default function TvShowSearch() {
           <input
             value={query}
             onChange={(event) => {
+              latestSearchRequest.current++;
               addContextVersion.current++;
               setQuery(event.target.value);
+              setLoading(false);
               setError(null);
             }}
             placeholder="INPUT QUERY"

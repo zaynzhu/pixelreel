@@ -196,9 +196,16 @@ export default function GameSearch() {
           <input
             value={query}
             onChange={(event) => {
+              latestSearchRequest.current++;
+              latestDetailRequest.current++;
               addContextVersion.current++;
               setQuery(event.target.value);
+              setLoading(false);
               setError(null);
+              setExpandedKey(null);
+              setDetail(null);
+              setDetailLoading(false);
+              setDetailError(null);
             }}
             placeholder={activeProviderConfig.placeholder}
             className="tech-input flex-1"

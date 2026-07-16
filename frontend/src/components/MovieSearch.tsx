@@ -191,9 +191,16 @@ export default function MovieSearch() {
           <input
             value={query}
             onChange={(event) => {
+              latestSearchRequest.current++;
+              latestDetailRequest.current++;
               addContextVersion.current++;
               setQuery(event.target.value);
+              setLoading(false);
               setError(null);
+              setExpandedKey(null);
+              setDetail(null);
+              setDetailLoading(false);
+              setDetailError(null);
             }}
             placeholder="INPUT QUERY"
             className="tech-input flex-1"
