@@ -67,6 +67,8 @@ export type ImdbDetail = {
   country: string;
   awards: string;
   posterUrl: string | null;
+  rating?: number | null;
+  ratingSource?: "douban" | "imdb" | "tmdb";
   imdbRating: string;
   tmdbPopularity?: number | null;
   tmdbGenreIds?: string | null;

@@ -51,6 +51,18 @@ export function mapTmdbIdentityMetadata(detail: any, isTv: boolean) {
   };
 }
 
+export function mapDetailRating(value: unknown, ratingSource: 'douban' | 'imdb' | 'tmdb') {
+  const rating = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : NaN;
+  return {
+    rating: Number.isFinite(rating) && rating >= 0 && rating <= 10 ? rating : null,
+    ratingSource,
+  };
+}
+
 // GET /api/search/movies?query=xxx&page=1&providers=tmdb,omdb
 router.get('/movies', async (req: Request, res: Response) => {
   const { query, page, providers } = parseExternalSearchParameters(
@@ -100,6 +112,7 @@ router.get('/douban/:doubanId', async (req: Request, res: Response, next: NextFu
       country: s.region ?? '',
       awards: '',
       posterUrl: null,
+      ...mapDetailRating(s.rate, 'douban'),
       imdbRating: s.rate ?? '',
       imdbVotes: '',
       boxOffice: '',
@@ -141,6 +154,7 @@ router.get('/imdb/:imdbId', async (req: Request, res: Response, next: NextFuncti
       country: d.Country,
       awards: d.Awards,
       posterUrl: d.Poster === 'N/A' ? null : d.Poster,
+      ...mapDetailRating(d.imdbRating, 'imdb'),
       imdbRating: d.imdbRating,
       imdbVotes: d.imdbVotes,
       boxOffice: d.BoxOffice,
@@ -226,6 +240,7 @@ router.get('/tmdb/:tmdbId', async (req: Request, res: Response, next: NextFuncti
       country: (isTv ? d.origin_countries : d.production_countries?.map((c: any) => c.name))?.join(', ') ?? '',
       awards: '',
       posterUrl: d.poster_path ? config.tmdb.imageBaseUrl + d.poster_path : null,
+      ...mapDetailRating(d.vote_average, 'tmdb'),
       imdbRating: d.vote_average ? String(d.vote_average) : '',
       imdbVotes: d.vote_count ? String(d.vote_count) : '',
       boxOffice: d.revenue ? `$${d.revenue.toLocaleString()}` : '',

@@ -280,6 +280,7 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
     const movieDetail = detail as ImdbDetail | null
     const isTv = rec.category === "tv_show"
     const dateField = isTv ? "firstAirDate" : "releaseDate"
+    const matchedRating = movieDetail?.rating ?? null
 
     const preservesDoubanIdentity = rec.sourceKey === "douban"
 
@@ -299,11 +300,10 @@ export default function RescrapeModal({ record, onClose, onUpdated, contextNote 
       tmdbPosterUrl: result.tmdbId ? (movieDetail?.posterUrl || result.posterUrl || null) : null,
       tmdbReleaseDate: result.tmdbId ? result.releaseDate : null,
       tmdbOverview: result.tmdbId ? (movieDetail?.plot || result.overview || null) : null,
-      tmdbVoteAverage: result.tmdbId && movieDetail?.imdbRating
-        ? parseFloat(movieDetail.imdbRating) || null
-        : null,
+      tmdbVoteAverage: result.tmdbId && movieDetail?.ratingSource === "tmdb" ? matchedRating : null,
       tmdbPopularity: result.tmdbId ? movieDetail?.tmdbPopularity ?? null : null,
       tmdbGenreIds: result.tmdbId ? movieDetail?.tmdbGenreIds ?? null : null,
+      imdbRating: result.imdbId && movieDetail?.ratingSource === "imdb" ? matchedRating : null,
     }
   }
 

@@ -76,6 +76,7 @@ import {
   assertAllowedImageProxyUrl,
   assertKnownSearchQueryParameters,
   GAME_SEARCH_PROVIDERS,
+  mapDetailRating,
   mapTmdbIdentityMetadata,
   parseImageProxyParameters,
   parseTmdbDetailParameters,
@@ -670,6 +671,10 @@ test('TMDB 详情返回可用于纠正重复候选的身份和原始字段', () 
     tmdbPopularity: null,
     tmdbGenreIds: '',
   });
+  assert.deepEqual(mapDetailRating(8.4, 'tmdb'), { rating: 8.4, ratingSource: 'tmdb' });
+  assert.deepEqual(mapDetailRating('7.9', 'imdb'), { rating: 7.9, ratingSource: 'imdb' });
+  assert.deepEqual(mapDetailRating('', 'tmdb'), { rating: null, ratingSource: 'tmdb' });
+  assert.deepEqual(mapDetailRating('not-rated', 'douban'), { rating: null, ratingSource: 'douban' });
 });
 
 test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async () => {
