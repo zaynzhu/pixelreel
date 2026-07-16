@@ -457,9 +457,9 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
   const badge = categoryBadge(record.category);
   const status = statusBadge(record.status, t);
   const hasRating = record.rating != null;
-  const [imgError, setImgError] = useState(false);
+  const [failedPosterUrl, setFailedPosterUrl] = useState<string | null>(null);
   const resolvedPosterUrl = proxiedImageUrl(record.posterUrl);
-  const showPlaceholder = !resolvedPosterUrl || imgError;
+  const showPlaceholder = !resolvedPosterUrl || failedPosterUrl === resolvedPosterUrl;
 
   return (
     <button
@@ -473,7 +473,7 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
           alt={record.title}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          onError={() => setImgError(true)}
+          onError={() => setFailedPosterUrl(resolvedPosterUrl)}
           className="absolute inset-0 h-full w-full object-cover grayscale-[20%] opacity-80 transition-all duration-700 ease-out group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100"
         />
       ) : (
