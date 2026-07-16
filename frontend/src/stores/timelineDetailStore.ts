@@ -20,10 +20,7 @@ export const useTimelineDetailStore = create<DetailState>((set, get) => ({
 
   fetchDetail: async (category: string, id: number) => {
     const key = detailKey(category, id);
-    const { cache, loading } = get();
-
-    // Return cached if available
-    if (cache[key]) return cache[key];
+    const { loading } = get();
 
     // Skip if already loading
     if (loading[key]) return null;
