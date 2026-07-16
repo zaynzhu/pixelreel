@@ -392,11 +392,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function buildMovieKey(movie: ExternalMovieSearchResult) {
-  return (
-    movie.tmdbId?.toString() ||
-    movie.doubanId ||
-    movie.imdbId ||
-    movie.traktId ||
-    movie.title
-  );
+  if (movie.tmdbId != null) return `tmdb:${movie.tmdbId}`;
+  if (movie.doubanId) return `douban:${movie.doubanId}`;
+  if (movie.imdbId) return `imdb:${movie.imdbId}`;
+  if (movie.traktId) return `trakt:${movie.traktId}`;
+  return `${movie.provider}:title:${movie.title}`;
 }

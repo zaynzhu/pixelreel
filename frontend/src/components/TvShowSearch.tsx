@@ -247,11 +247,9 @@ export default function TvShowSearch() {
 }
 
 function buildTvShowKey(show: ExternalTvShowSearchResult) {
-  return (
-    show.tmdbId?.toString() ||
-    show.doubanId ||
-    show.imdbId ||
-    show.traktId ||
-    show.title
-  );
+  if (show.tmdbId != null) return `tmdb:${show.tmdbId}`;
+  if (show.doubanId) return `douban:${show.doubanId}`;
+  if (show.imdbId) return `imdb:${show.imdbId}`;
+  if (show.traktId) return `trakt:${show.traktId}`;
+  return `${show.provider}:title:${show.title}`;
 }

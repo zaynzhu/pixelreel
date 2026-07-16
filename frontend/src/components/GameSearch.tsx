@@ -420,11 +420,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function buildGameKey(game: ExternalGameSearchResult) {
-  return (
-    game.rawgId?.toString() ||
-    game.steamAppId?.toString() ||
-    game.xboxId ||
-    game.psnId ||
-    game.title
-  );
+  if (game.rawgId != null) return `rawg:${game.rawgId}`;
+  if (game.steamAppId != null) return `steam:${game.steamAppId}`;
+  if (game.xboxId) return `xbox:${game.xboxId}`;
+  if (game.psnId) return `psn:${game.psnId}`;
+  return `${game.provider}:title:${game.title}`;
 }
