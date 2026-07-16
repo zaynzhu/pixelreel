@@ -90,19 +90,6 @@ export default function ActivityFilters() {
   const timeTabs = useTimeTabs()
   const currentActionValue = filters.entityType === 'TASK' ? 'TASK' : filters.action
 
-  // 从 filters.from 反推出 time tab 值
-  const currentTimeValue = (() => {
-    if (!filters.from) return undefined
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-    if (filters.from === today) return 'today'
-    const d7 = new Date(now.getTime() - 7 * 86400000).toISOString()
-    if (Math.abs(new Date(filters.from).getTime() - new Date(d7).getTime()) < 1000) return '7d'
-    const d30 = new Date(now.getTime() - 30 * 86400000).toISOString()
-    if (Math.abs(new Date(filters.from).getTime() - new Date(d30).getTime()) < 1000) return '30d'
-    return undefined
-  })()
-
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-[var(--line)] px-4 py-2.5">
       <TabGroup
@@ -125,8 +112,8 @@ export default function ActivityFilters() {
       <div className="h-4 w-px bg-[var(--line)]" />
       <TabGroup
         options={timeTabs}
-        activeValue={currentTimeValue}
-        onChange={(value) => setFilters({ ...filters, from: toFromTime(value) })}
+        activeValue={filters.timeRange}
+        onChange={(value) => setFilters({ ...filters, from: toFromTime(value), timeRange: value })}
       />
     </div>
   )

@@ -8,6 +8,7 @@ interface ActivityFilters {
   entityId?: string
   from?: string
   to?: string
+  timeRange?: string
 }
 
 interface ActivityState {
@@ -36,6 +37,7 @@ function filtersEqual(left: ActivityFilters, right: ActivityFilters) {
     && left.entityId === right.entityId
     && left.from === right.from
     && left.to === right.to
+    && left.timeRange === right.timeRange
 }
 
 function buildActivityQuery(filters: ActivityFilters, cursor?: string | null) {
