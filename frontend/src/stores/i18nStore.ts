@@ -37,6 +37,10 @@ const dictionaries = {
     "auth.unavailable_desc": "The server authentication policy could not be read. Retry after the backend connection is restored.",
     "auth.retry": "RETRY CONNECTION",
     "auth.retrying": "RETRYING...",
+    "route.loading": "LOADING ROUTE MODULE...",
+    "route.error_title": "UNABLE TO LOAD THIS PAGE",
+    "route.error_desc": "The page module could not be loaded. Reload to fetch the current application files.",
+    "route.retry": "RELOAD PAGE",
 
     // Dashboard
     "dash.telemetry": "PROFILE // TELEMETRY",
@@ -727,6 +731,10 @@ const dictionaries = {
     "auth.unavailable_desc": "当前无法确认服务端认证策略。后端连接恢复后请重试，不需要反复输入账号密码。",
     "auth.retry": "重试连接",
     "auth.retrying": "正在重试...",
+    "route.loading": "正在加载页面模块...",
+    "route.error_title": "无法加载这个页面",
+    "route.error_desc": "页面模块未能加载。请重新加载以获取当前版本的应用文件。",
+    "route.retry": "重新加载页面",
 
     // Dashboard
     "dash.telemetry": "档案 // 遥测",

@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect } from "react"
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { Component, lazy, Suspense, useEffect } from "react"
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import AppShell from "./components/AppShell"
 import { useAuthStore } from "./stores/authStore"
 import { useI18nStore } from "./stores/i18nStore"
@@ -24,6 +24,52 @@ const ToolsPage = lazy(() => import("./pages/ToolsPage"))
 const DataHealthPage = lazy(() => import("./pages/DataHealthPage"))
 const SyncPage = lazy(() => import("./pages/SyncPage"))
 const ImportReviewPage = lazy(() => import("./pages/ImportReviewPage"))
+
+interface RouteErrorBoundaryProps {
+  children: React.ReactNode
+  resetKey: string
+  title: string
+  description: string
+  retryLabel: string
+}
+
+interface RouteErrorBoundaryState {
+  error: Error | null
+}
+
+class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBoundaryState> {
+  state: RouteErrorBoundaryState = { error: null }
+
+  static getDerivedStateFromError(error: Error): RouteErrorBoundaryState {
+    return { error }
+  }
+
+  componentDidUpdate(previousProps: RouteErrorBoundaryProps) {
+    if (this.state.error && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null })
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--page-bg)" }}>
+        <div className="dash-card w-full max-w-lg" role="alert">
+          <span className="section-kicker">ROUTE // MODULE</span>
+          <h1 className="font-display mt-2 text-3xl text-white">{this.props.title}</h1>
+          <p className="mt-4 text-xs leading-6 text-[var(--muted)]">{this.props.description}</p>
+          <p className="mt-4 break-words border-l-2 border-red-500 pl-3 font-mono text-[10px] text-red-300">
+            {this.state.error.message}
+          </p>
+          <button type="button" onClick={() => window.location.reload()} className="brutal-btn-accent mt-6 w-full">
+            {this.props.retryLabel}
+          </button>
+        </div>
+      </div>
+    )
+  }
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const initialized = useAuthStore((s) => s.initialized)
@@ -79,16 +125,30 @@ function AuthInitializationState({ loading, error }: { loading: boolean; error: 
   )
 }
 
-export default function App() {
-  const initializeAuth = useAuthStore((s) => s.initialize)
+function RouteLoadingState() {
+  const { t } = useI18nStore()
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--page-bg)" }} role="status">
+      <div className="dash-card w-full max-w-lg">
+        <span className="section-kicker">ROUTE // MODULE</span>
+        <p className="font-display mt-2 text-xl text-white">{t("route.loading")}</p>
+      </div>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    void initializeAuth()
-  }, [initializeAuth])
+function AppRoutes() {
+  const location = useLocation()
+  const { t } = useI18nStore()
 
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <Suspense fallback={<div className="p-6 text-xs text-[var(--muted)]">LOADING...</div>}>
+    <RouteErrorBoundary
+      resetKey={`${location.pathname}${location.search}`}
+      title={t("route.error_title")}
+      description={t("route.error_desc")}
+      retryLabel={t("route.retry")}
+    >
+      <Suspense fallback={<RouteLoadingState />}>
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
           <Route
@@ -120,6 +180,20 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+    </RouteErrorBoundary>
+  )
+}
+
+export default function App() {
+  const initializeAuth = useAuthStore((s) => s.initialize)
+
+  useEffect(() => {
+    void initializeAuth()
+  }, [initializeAuth])
+
+  return (
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppRoutes />
     </BrowserRouter>
   )
 }
