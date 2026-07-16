@@ -29,6 +29,7 @@ type DirectSource = 'steam' | 'trakt'
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
   const tasks = useTaskStore(state => state.tasks)
+  const cancellingTaskIds = useTaskStore(state => state.cancellingTaskIds)
   const tasksInitialized = useTaskStore(state => state.initialized)
   const taskPollError = useTaskStore(state => state.pollError)
   const cancelTask = useTaskStore(state => state.cancelTask)
@@ -315,6 +316,7 @@ export default function SyncPage() {
                 key={task.taskId}
                 task={task}
                 lang={lang}
+                cancelling={cancellingTaskIds.includes(task.taskId)}
                 onCancel={() => {
                   void cancelTask(task.taskId).catch(reason => {
                     toast(reason instanceof Error ? reason.message : t('task.panel.cancel_failed'), 'error')
@@ -477,7 +479,12 @@ function ResultSummary({ result, completedAt, compact = false }: { result: SyncR
   )
 }
 
-function TaskRow({ task, lang, onCancel }: { task: Task; lang: string; onCancel: () => void }) {
+function TaskRow({ task, lang, cancelling, onCancel }: {
+  task: Task;
+  lang: string;
+  cancelling: boolean;
+  onCancel: () => void;
+}) {
   const { t } = useI18nStore()
   return (
     <div className="grid gap-3 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6">
@@ -492,8 +499,8 @@ function TaskRow({ task, lang, onCancel }: { task: Task; lang: string; onCancel:
         {task.error && <p className="mt-2 text-[10px] text-red-400">{task.error}</p>}
       </div>
       {task.status === 'running' ? (
-        <button type="button" onClick={onCancel} className="brutal-btn text-red-300">
-          <Square className="h-3 w-3" /> {t('sync.cancel')}
+        <button type="button" onClick={onCancel} disabled={cancelling} className="brutal-btn text-red-300">
+          <Square className="h-3 w-3" /> {cancelling ? t('task.panel.cancelling') : t('sync.cancel')}
         </button>
       ) : task.result ? (
         <div className="flex gap-3 font-mono text-[9px] text-[var(--muted)]">

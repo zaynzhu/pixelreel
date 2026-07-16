@@ -15,6 +15,7 @@ export interface Task {
 
 interface TaskState {
   tasks: Task[];
+  cancellingTaskIds: string[];
   initialized: boolean;
   pollError: string | null;
   pollTasks: () => Promise<void>;
@@ -28,6 +29,7 @@ let taskPollQueued = false;
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  cancellingTaskIds: [],
   initialized: false,
   pollError: null,
   pollTasks: async () => {
@@ -61,8 +63,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
   cancelTask: async (taskId: string) => {
-    await apiFetch(`/import/tasks/${taskId}`, { method: 'DELETE' });
-    await get().pollTasks();
+    if (get().cancellingTaskIds.includes(taskId)) return;
+    set(state => ({ cancellingTaskIds: [...state.cancellingTaskIds, taskId] }));
+    try {
+      await apiFetch(`/import/tasks/${taskId}`, { method: 'DELETE' });
+      await get().pollTasks();
+    } finally {
+      set(state => ({
+        cancellingTaskIds: state.cancellingTaskIds.filter(id => id !== taskId),
+      }));
+    }
   },
 }));
 
@@ -76,7 +86,7 @@ export function startPolling() {
 export function stopPolling() {
   latestTaskPollRequest++;
   taskPollQueued = false;
-  useTaskStore.setState({ initialized: false });
+  useTaskStore.setState({ initialized: false, cancellingTaskIds: [] });
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;

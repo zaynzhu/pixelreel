@@ -5,6 +5,7 @@ import { toast } from '../stores/toastStore';
 
 export default function TaskPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tasks = useTaskStore((s) => s.tasks);
+  const cancellingTaskIds = useTaskStore((s) => s.cancellingTaskIds);
   const initialized = useTaskStore((s) => s.initialized);
   const pollError = useTaskStore((s) => s.pollError);
   const pollTasks = useTaskStore((s) => s.pollTasks);
@@ -103,7 +104,11 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
           ) : tasks.length > 0 ? (
             <div className="flex flex-col gap-4">
               {tasks.map((task) => (
-                <TaskCard key={task.taskId} task={task} />
+                <TaskCard
+                  key={task.taskId}
+                  task={task}
+                  cancelling={cancellingTaskIds.includes(task.taskId)}
+                />
               ))}
             </div>
           ) : null}
@@ -113,7 +118,10 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
   );
 }
 
-function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['tasks'][0] }) {
+function TaskCard({ task, cancelling }: {
+  task: ReturnType<typeof useTaskStore.getState>['tasks'][0];
+  cancelling: boolean;
+}) {
   const { lang, t } = useI18nStore()
   const pct = task.progress.total > 0
     ? Math.round((task.progress.processed / task.progress.total) * 100)
@@ -147,14 +155,15 @@ function TaskCard({ task }: { task: ReturnType<typeof useTaskStore.getState>['ta
           {task.status === 'running' && (
             <button
               type="button"
+              disabled={cancelling}
               onClick={() => {
                 void useTaskStore.getState().cancelTask(task.taskId).catch((reason) => {
                   toast(reason instanceof Error ? reason.message : t('task.panel.cancel_failed'), 'error')
                 })
               }}
-              className="text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 px-2 py-0.5 hover:bg-red-400/10 transition-colors"
+              className="text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 px-2 py-0.5 hover:bg-red-400/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {t('task.panel.cancel')}
+              {cancelling ? t('task.panel.cancelling') : t('task.panel.cancel')}
             </button>
           )}
         </div>
