@@ -364,11 +364,18 @@ export default function GameSearch() {
                             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-2">SCREENSHOTS</p>
                             <div className="flex gap-2 overflow-x-auto pb-1">
                               {detail.screenshots.map((url, i) => (
-                                <img
-                                  key={i}
+                                <ImgWithFallback
+                                  key={url}
                                   src={url}
                                   alt={`Screenshot ${i + 1}`}
                                   className="h-32 shrink-0 object-cover border border-[var(--line)] opacity-80 hover:opacity-100 transition-opacity"
+                                  fallback={
+                                    <div className="flex h-32 w-56 shrink-0 items-center justify-center border border-[var(--line)] bg-[#0a0a0a]">
+                                      <span className="font-display text-3xl font-bold text-[#8888ff]/15">
+                                        {game.title.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  }
                                 />
                               ))}
                             </div>
