@@ -154,10 +154,6 @@ router.get('/random', async (req: Request, res: Response, next: NextFunction) =>
       res.json(record);
     } else {
       const records = await getRandomRecords(limit, { category, status });
-      if (records.length === 0) {
-        res.status(404).json({ error: 'No records found' });
-        return;
-      }
       res.json(records);
     }
   } catch (err) {

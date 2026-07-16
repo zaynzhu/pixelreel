@@ -144,7 +144,16 @@ export function RandomPick({ compact }: RandomPickProps) {
           </select>
         </div>
 
-        {error ? (
+        {error && records.length > 0 && (
+          <div role="alert" className="mb-2 flex shrink-0 items-center justify-between gap-3 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.06)] px-3 py-2">
+            <p className="min-w-0 truncate font-mono text-[8px] text-[var(--accent-deep)]">{error}</p>
+            <button type="button" onClick={() => void fetchRandom()} disabled={loading} className="brutal-btn shrink-0 px-2 py-0.5 text-[8px]">
+              {loading ? t("showcase.random.loading") : t("showcase.random.retry")}
+            </button>
+          </div>
+        )}
+
+        {error && records.length === 0 ? (
           <div
             role="alert"
             className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.06)] px-4 text-center"
