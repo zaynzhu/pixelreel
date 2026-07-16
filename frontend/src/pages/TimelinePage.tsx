@@ -298,7 +298,7 @@ export default function TimelinePage() {
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 relative z-10">
                   {group.records.map((record, idx) => (
                     <div 
-                      key={record.id} 
+                      key={`${record.category}:${record.id}`}
                       className={`relative ${
                         idx === 0 ? "col-span-2 row-span-2 sm:col-span-2 sm:row-span-2" : ""
                       }`}
