@@ -5,6 +5,7 @@ import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
 import { NextUpQueue } from "../components/NextUpQueue";
 import { MonthlyMemories } from "../components/MonthlyMemories";
+import { ImgWithFallback } from "../components/ImgWithFallback";
 
 export default function DashboardPage() {
   const { summary, loading, error, fetchSummary } = useProfileStore();
@@ -296,10 +297,15 @@ export default function DashboardPage() {
               >
                 <div className="aspect-[4/5] bg-[#111] relative overflow-hidden">
                   {item.posterUrl ? (
-                    <img
+                    <ImgWithFallback
                       src={item.posterUrl}
                       alt={item.title}
                       className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
+                      fallback={
+                        <div className="flex h-full items-center justify-center p-4 text-xs font-bold uppercase tracking-[0.24em] text-[var(--line)]">
+                          {t("dash.no_signal")}
+                        </div>
+                      }
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center p-4 text-xs font-bold uppercase tracking-[0.24em] text-[var(--line)]">
