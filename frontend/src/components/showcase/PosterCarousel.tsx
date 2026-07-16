@@ -37,6 +37,8 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
   const [displayItems, setDisplayItems] = useState<RecentRecordItem[]>(() => items.slice(0, POSTER_BATCH_SIZE))
   const [selectedRecord, setSelectedRecord] = useState<LibraryRecord | null>(null)
   const [transitionKey, setTransitionKey] = useState(0)
+  const [rotationError, setRotationError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   const cols = compact ? 5 : 5
   const rows = compact ? 3 : 3
@@ -59,10 +61,11 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
         if (cancelled || requestId !== latestBatchRequest) return
         const records = Array.isArray(data) ? data : [data]
         setDisplayItems(records.map(toRecentItem))
+        setRotationError(null)
         setTransitionKey((k) => k + 1)
-      } catch {
+      } catch (reason) {
         if (cancelled || requestId !== latestBatchRequest) return
-        setDisplayItems(items.slice(0, POSTER_BATCH_SIZE))
+        setRotationError(reason instanceof Error ? reason.message : t("showcase.posters.rotation_failed"))
       }
     }
 
@@ -75,7 +78,7 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
       cancelled = true
       clearInterval(timer)
     }
-  }, [items])
+  }, [retryKey, t])
 
   useEffect(() => {
     if (displayItems.length === 0) return
@@ -107,13 +110,23 @@ export function PosterCarousel({ items, compact }: PosterCarouselProps) {
           <div className="section-kicker">{t("showcase.posters.kicker")}</div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full" style={{
-              background: "var(--accent)",
+              background: rotationError ? "var(--accent-deep)" : "var(--accent)",
               boxShadow: "0 0 6px rgba(212,255,0,0.6)",
               animation: "glow-pulse 2s ease-in-out infinite",
             }} />
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-              {t("showcase.posters.auto_rotate")}
+              {rotationError ? t("showcase.posters.rotation_failed") : t("showcase.posters.auto_rotate")}
             </div>
+            {rotationError && (
+              <button
+                type="button"
+                onClick={() => setRetryKey((key) => key + 1)}
+                title={rotationError}
+                className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-deep)] hover:text-white"
+              >
+                {t("showcase.posters.retry")}
+              </button>
+            )}
           </div>
         </div>
 
