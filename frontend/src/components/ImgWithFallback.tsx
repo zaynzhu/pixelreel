@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { proxiedImageUrl } from "../imageProxy";
 
 interface ImgWithFallbackProps {
   src: string;
@@ -10,17 +11,18 @@ interface ImgWithFallbackProps {
 
 export function ImgWithFallback({ src, alt, className, loading = "lazy", fallback }: ImgWithFallbackProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const resolvedSrc = proxiedImageUrl(src) ?? src;
 
-  if (failedSrc === src) return <>{fallback}</>;
+  if (failedSrc === resolvedSrc) return <>{fallback}</>;
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       className={className}
       loading={loading}
       decoding="async"
-      onError={() => setFailedSrc(src)}
+      onError={() => setFailedSrc(resolvedSrc)}
     />
   );
 }
