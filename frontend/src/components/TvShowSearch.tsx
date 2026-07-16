@@ -6,7 +6,7 @@ import type {
 } from "../types/externalSearch";
 import { apiFetch } from "../api";
 import { useI18nStore } from "../stores/i18nStore";
-import { proxiedImageUrl } from "../imageProxy";
+import { ImgWithFallback } from "./ImgWithFallback";
 
 const PROVIDERS = [
   { id: "tmdb", label: "TMDB" },
@@ -169,11 +169,17 @@ export default function TvShowSearch() {
                 className="group border border-[var(--line)] bg-[var(--surface-hover)] flex gap-4 p-4 transition-all hover:border-white"
               >
                 <div className="h-32 w-24 overflow-hidden bg-black border border-[var(--line)] relative shrink-0">
-                  {proxiedImageUrl(show.posterUrl) ? (
-                    <img
-                      src={proxiedImageUrl(show.posterUrl)!}
+                  {show.posterUrl ? (
+                    <ImgWithFallback
+                      src={show.posterUrl}
                       alt={show.title}
                       className="h-full w-full object-cover opacity-80 mix-blend-luminosity transition-all group-hover:opacity-100 group-hover:mix-blend-normal"
+                      fallback={
+                        <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+                          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+                          <span className="text-2xl font-display font-bold opacity-15 text-[var(--accent-deep)]">{show.title.charAt(0).toUpperCase()}</span>
+                        </div>
+                      }
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
