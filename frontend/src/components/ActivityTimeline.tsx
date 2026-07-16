@@ -206,7 +206,8 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
           <span>{error || t('activity.load_error')}</span>
           <button
             type="button"
-            onClick={() => isEntityMode ? void loadEntityHistory() : void store.fetchRecords()}
+            onClick={() => isEntityMode ? void loadEntityHistory() : void store.retryFetch()}
+            disabled={!isEntityMode && !store.failedFetch}
             className="brutal-btn shrink-0 px-3 text-[9px]"
           >
             {t('activity.retry')}
@@ -235,7 +236,7 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
       </div>
 
       {/* 无限滚动哨兵 */}
-      {!isEntityMode && store.nextCursor && <div ref={sentinelRef} className="h-1" />}
+      {!isEntityMode && store.nextCursor && !store.failedFetch && <div ref={sentinelRef} className="h-1" />}
 
       {/* 加载更多提示 */}
       {!isEntityMode && store.loadingMore && (

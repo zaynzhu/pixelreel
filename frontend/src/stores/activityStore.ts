@@ -16,10 +16,12 @@ interface ActivityState {
   loading: boolean
   loadingMore: boolean
   error: string | null
+  failedFetch: 'records' | 'more' | null
   filters: ActivityFilters
 
-  fetchRecords: () => Promise<void>
+  fetchRecords: (filters?: ActivityFilters) => Promise<void>
   fetchMore: () => Promise<void>
+  retryFetch: () => Promise<void>
   setFilters: (filters: ActivityFilters) => void
   undo: (id: string) => Promise<void>
   fetchEntityHistory: (entityType: string, entityId: string) => Promise<ActivityRecord[]>
@@ -27,54 +29,69 @@ interface ActivityState {
 
 let latestActivityRequest = 0
 
+function filtersEqual(left: ActivityFilters, right: ActivityFilters) {
+  return left.action === right.action
+    && left.entityType === right.entityType
+    && left.entityId === right.entityId
+    && left.from === right.from
+    && left.to === right.to
+}
+
+function buildActivityQuery(filters: ActivityFilters, cursor?: string | null) {
+  const params = new URLSearchParams()
+  if (cursor) params.set('cursor', cursor)
+  if (filters.action) params.set('action', filters.action)
+  if (filters.entityType) params.set('entityType', filters.entityType)
+  if (filters.entityId) params.set('entityId', filters.entityId)
+  if (filters.from) params.set('from', filters.from)
+  if (filters.to) params.set('to', filters.to)
+  params.set('limit', '50')
+  return `/activity?${params.toString()}`
+}
+
 export const useActivityStore = create<ActivityState>((set, get) => ({
   records: [],
   nextCursor: null,
   loading: false,
   loadingMore: false,
   error: null,
+  failedFetch: null,
   filters: {},
 
-  fetchRecords: async () => {
+  fetchRecords: async (filters) => {
+    const nextFilters = filters ?? get().filters
+    const current = get()
+    const filtersChanged = !filtersEqual(nextFilters, current.filters)
     const requestId = ++latestActivityRequest
-    set({ loading: true, loadingMore: false, error: null })
+    set({
+      records: filtersChanged ? [] : current.records,
+      nextCursor: filtersChanged ? null : current.nextCursor,
+      loading: true,
+      loadingMore: false,
+      error: null,
+      failedFetch: null,
+      filters: nextFilters,
+    })
     try {
-      const { filters } = get()
-      const params = new URLSearchParams()
-      if (filters.action) params.set('action', filters.action)
-      if (filters.entityType) params.set('entityType', filters.entityType)
-      if (filters.entityId) params.set('entityId', filters.entityId)
-      if (filters.from) params.set('from', filters.from)
-      if (filters.to) params.set('to', filters.to)
-      params.set('limit', '50')
-
-      const data = await apiFetch<ActivityResponse>(`/activity?${params.toString()}`)
+      const data = await apiFetch<ActivityResponse>(buildActivityQuery(nextFilters))
       if (requestId !== latestActivityRequest) return
       set({ records: data.records, nextCursor: data.nextCursor, loading: false })
     } catch (err: any) {
       if (requestId !== latestActivityRequest) return
-      set({ error: err.message, loading: false })
+      set({ error: err.message, failedFetch: 'records', loading: false })
     }
   },
 
   fetchMore: async () => {
-    const { nextCursor, loadingMore, filters } = get()
-    if (!nextCursor || loadingMore) return
+    const { nextCursor, loadingMore, loading, filters } = get()
+    if (!nextCursor || loadingMore || loading) return
 
+    const cursor = nextCursor
     const requestId = latestActivityRequest
-    set({ loadingMore: true })
+    set({ loadingMore: true, error: null, failedFetch: null })
     try {
-      const params = new URLSearchParams()
-      params.set('cursor', nextCursor)
-      params.set('limit', '50')
-      if (filters.action) params.set('action', filters.action)
-      if (filters.entityType) params.set('entityType', filters.entityType)
-      if (filters.entityId) params.set('entityId', filters.entityId)
-      if (filters.from) params.set('from', filters.from)
-      if (filters.to) params.set('to', filters.to)
-
-      const data = await apiFetch<ActivityResponse>(`/activity?${params.toString()}`)
-      if (requestId !== latestActivityRequest) return
+      const data = await apiFetch<ActivityResponse>(buildActivityQuery(filters, cursor))
+      if (requestId !== latestActivityRequest || get().nextCursor !== cursor) return
       set((state) => ({
         records: [...state.records, ...data.records],
         nextCursor: data.nextCursor,
@@ -82,13 +99,23 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       }))
     } catch (err: any) {
       if (requestId !== latestActivityRequest) return
-      set({ error: err.message, loadingMore: false })
+      set({ error: err.message, failedFetch: 'more', loadingMore: false })
+    }
+  },
+
+  retryFetch: async () => {
+    const failedFetch = get().failedFetch
+    if (failedFetch === 'more') {
+      await get().fetchMore()
+      return
+    }
+    if (failedFetch === 'records') {
+      await get().fetchRecords()
     }
   },
 
   setFilters: (filters) => {
-    set({ filters })
-    get().fetchRecords()
+    void get().fetchRecords(filters)
   },
 
   undo: async (id: string) => {

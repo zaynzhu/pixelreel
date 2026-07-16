@@ -128,7 +128,7 @@ frontend/src/
 - **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
 - **Settings 读取：** 配置读取必须采用最新请求获胜，页面卸载时使在途请求失效；读取失败必须持续显示错误与重试入口，不能只弹 Toast 后留下空白配置区。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
-- **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销；任务记录 `TASK_START|TASK_DONE|TASK_FAIL|TASK_CANCEL` 完整生命周期。“数据变更”筛选覆盖 `CREATE|UPDATE|DELETE|UNDO`，“任务”筛选按 `TASK` 实体查询全部任务事件。`/activity` 页面带筛选和无限滚动，筛选与分页请求必须采用最新请求获胜，旧分页不能追加到新筛选；记录级历史也必须绑定当前实体并在切换或卸载时使旧请求失效；全局与记录级读取失败必须显示错误和重试，不能伪装为空状态，撤销失败必须反馈原因。
+- **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销；任务记录 `TASK_START|TASK_DONE|TASK_FAIL|TASK_CANCEL` 完整生命周期。“数据变更”筛选覆盖 `CREATE|UPDATE|DELETE|UNDO`，“任务”筛选按 `TASK` 实体查询全部任务事件。`/activity` 页面带筛选和无限滚动，筛选与分页请求必须采用最新请求获胜；切换筛选时立即清空旧记录和游标，同条件刷新失败时保留已有记录，分页失败时保留列表和原游标并只允许显式重试原请求，旧分页不能追加到新筛选；记录级历史也必须绑定当前实体并在切换或卸载时使旧请求失效；全局与记录级读取失败必须显示错误和重试，不能伪装为空状态，撤销失败必须反馈原因且不能显示读取重试入口。
 - **数据健康：** `/data-health` 只读审计显示字段缺口，不自动修改记录；电影/剧集检查封面、简介、日期和外部 ID，游戏只检查封面和外部 ID，问题列表按 BigInt ID 游标分页。字段问题与重复候选的首屏、分页和操作后刷新必须绑定当前类别/筛选与最新请求，不能跨视图混入旧结果；摘要、字段队列和重复候选错误必须独立显示并可重试，读取失败不能显示“没有问题”的健康空状态。
 - **数据健康修复：** `POST /api/data-health/repair` 每次最多处理 50 条并创建唯一后台任务，只填充所选空字段及对应空 TMDB 原始字段；电影/剧集使用 TMDB，游戏仅支持 RAWG 封面，游戏外部 ID 必须人工核对，不能按标题自动绑定。
 - **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份、游戏仅按规范化标题+平台匹配。候选可逐条纠正辅助元数据，或整组标记为“确认不同”并恢复；裁决指纹随成员和共享标识变化而失效。不能自动合并或删除，豆瓣来源身份和原始字段必须保留。
