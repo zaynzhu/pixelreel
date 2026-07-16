@@ -32,6 +32,7 @@ export default function ImportReviewPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [failedCursor, setFailedCursor] = useState<string | null>(null)
   const tabRef = useRef(tab)
   const latestLoadRequest = useRef(0)
   tabRef.current = tab
@@ -48,6 +49,7 @@ export default function ImportReviewPage() {
       setLoadingMore(false)
     }
     setError(null)
+    setFailedCursor(null)
     try {
       const params = new URLSearchParams({
         category: "all",
@@ -66,6 +68,7 @@ export default function ImportReviewPage() {
     } catch (reason) {
       if (requestId === latestLoadRequest.current && requestTab === tabRef.current) {
         setError(reason instanceof Error ? reason.message : t("review.load_error"))
+        setFailedCursor(cursor ?? null)
       }
     } finally {
       if (requestId === latestLoadRequest.current && requestTab === tabRef.current) {
@@ -76,7 +79,24 @@ export default function ImportReviewPage() {
 
   useEffect(() => {
     void loadRecords()
+    return () => {
+      latestLoadRequest.current += 1
+    }
   }, [loadRecords])
+
+  const changeTab = (value: ReviewTab) => {
+    if (value === tab) return
+    latestLoadRequest.current += 1
+    setRecords([])
+    setNextCursor(null)
+    setTotal(0)
+    setSelected(new Set())
+    setLoading(true)
+    setLoadingMore(false)
+    setError(null)
+    setFailedCursor(null)
+    setTab(value)
+  }
 
   const decide = async (targets: LibraryRecord[], decision: ReviewDecision) => {
     if (!targets.length || deciding) return
@@ -130,7 +150,7 @@ export default function ImportReviewPage() {
               <button
                 key={value}
                 type="button"
-                onClick={() => setTab(value)}
+                onClick={() => changeTab(value)}
                 className={tab === value ? "brutal-btn-accent" : "brutal-btn"}
               >
                 {value === "PENDING" ? t("review.tab.pending") : t("review.tab.ignored")}
@@ -141,6 +161,18 @@ export default function ImportReviewPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> {t("review.refresh")}
           </button>
         </header>
+
+        {error && records.length > 0 && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-red-500/40 bg-red-500/10 p-4 sm:px-5">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-red-400">{t("review.load_error")}</p>
+              <p className="mt-1 break-words text-[10px] text-[var(--muted)]">{error}</p>
+            </div>
+            <button type="button" onClick={() => void loadRecords(failedCursor ?? undefined)} className="brutal-btn">
+              {t("review.retry")}
+            </button>
+          </div>
+        )}
 
         {!loading && records.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-black/20 p-4 sm:px-5">
@@ -168,10 +200,15 @@ export default function ImportReviewPage() {
           </div>
         )}
 
-        {loading ? (
+        {loading && records.length === 0 ? (
           <ReviewState label={t("review.loading")} />
-        ) : error ? (
-          <ReviewState label={error} />
+        ) : error && records.length === 0 ? (
+          <ReviewState label={t("review.load_error")}>
+            <p className="max-w-lg break-words text-[10px] normal-case tracking-normal">{error}</p>
+            <button type="button" onClick={() => void loadRecords(failedCursor ?? undefined)} className="brutal-btn">
+              {t("review.retry")}
+            </button>
+          </ReviewState>
         ) : records.length === 0 ? (
           <ReviewState label={tab === "PENDING" ? t("review.empty.pending") : t("review.empty.ignored")} />
         ) : (
@@ -244,8 +281,13 @@ export default function ImportReviewPage() {
   )
 }
 
-function ReviewState({ label }: { label: string }) {
-  return <div className="p-12 text-center text-xs uppercase tracking-widest text-[var(--muted)]">{label}</div>
+function ReviewState({ label, children }: { label: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-3 p-12 text-center text-xs uppercase tracking-widest text-[var(--muted)]">
+      <span>{label}</span>
+      {children}
+    </div>
+  )
 }
 
 function PosterFallback({ title }: { title: string }) {
