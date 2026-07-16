@@ -121,6 +121,7 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
   const records = isEntityMode ? entityRecords : store.records
   const loading = isEntityMode ? entityLoading : store.loading
   const error = isEntityMode ? entityError : store.error
+  const undoingIds = store.undoingIds
 
   const loadEntityHistory = useCallback(async () => {
     if (!entityId) return
@@ -230,6 +231,7 @@ export default function ActivityTimeline({ entityType, entityId, compact }: Acti
             record={record}
             compact={compact}
             showUndo={showUndo}
+            undoing={undoingIds.includes(record.id)}
             onUndo={handleUndo}
           />
         ))}
@@ -265,11 +267,13 @@ function ActivityRow({
   record,
   compact,
   showUndo,
+  undoing,
   onUndo,
 }: {
   record: ActivityRecord
   compact?: boolean
   showUndo: boolean
+  undoing: boolean
   onUndo: (id: string) => void
 }) {
   const { t } = useI18nStore()
@@ -333,9 +337,12 @@ function ActivityRow({
       {showUndo && record.undoable && (
         <button
           onClick={() => onUndo(record.id)}
-          className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[var(--muted)] border border-[var(--line)] px-2 py-0.5 opacity-0 group-hover:opacity-100 hover:text-[var(--accent)] hover:border-[var(--accent)]/50 transition-all"
+          disabled={undoing}
+          className={`shrink-0 text-[9px] font-bold uppercase tracking-wider text-[var(--muted)] border border-[var(--line)] px-2 py-0.5 hover:text-[var(--accent)] hover:border-[var(--accent)]/50 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+            undoing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
         >
-          {t('activity.undo')}
+          {undoing ? t('activity.undoing') : t('activity.undo')}
         </button>
       )}
     </div>

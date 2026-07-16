@@ -15,6 +15,7 @@ interface ActivityState {
   nextCursor: string | null
   loading: boolean
   loadingMore: boolean
+  undoingIds: string[]
   error: string | null
   failedFetch: 'records' | 'more' | null
   filters: ActivityFilters
@@ -54,6 +55,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   nextCursor: null,
   loading: false,
   loadingMore: false,
+  undoingIds: [],
   error: null,
   failedFetch: null,
   filters: {},
@@ -119,8 +121,19 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   },
 
   undo: async (id: string) => {
-    await apiFetch(`/activity/${id}/undo`, { method: 'POST' })
-    get().fetchRecords()
+    if (get().undoingIds.includes(id)) return
+    set(state => ({ undoingIds: [...state.undoingIds, id] }))
+    try {
+      await apiFetch(`/activity/${id}/undo`, { method: 'POST' })
+      set(state => ({
+        records: state.records.map(record => (
+          record.id === id ? { ...record, undoable: false } : record
+        )),
+      }))
+      await get().fetchRecords()
+    } finally {
+      set(state => ({ undoingIds: state.undoingIds.filter(item => item !== id) }))
+    }
   },
 
   fetchEntityHistory: async (entityType: string, entityId: string) => {
