@@ -12,6 +12,7 @@ export default function RightActionDrawer() {
   const [syncing, setSyncing] = useState<SyncTarget>(null);
   const { t } = useI18nStore()
   const tasks = useTaskStore(state => state.tasks)
+  const taskPollError = useTaskStore(state => state.pollError)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -95,6 +96,15 @@ export default function RightActionDrawer() {
               {statusMsg}
             </div>
           )}
+          {taskPollError !== null && (
+            <div role="alert" className="border-l-2 border-red-400 bg-red-500/10 px-3 py-2 text-[10px] text-red-300">
+              <p>{taskPollError || t('task.panel.load_error')}</p>
+              <p className="mt-1 text-[var(--muted)]">{t('task.panel.stale_hint')}</p>
+              <button type="button" onClick={() => void pollTasks()} className="brutal-btn mt-3">
+                {t('sync.retry')}
+              </button>
+            </div>
+          )}
 
           {/* 01: 豆瓣 */}
           <div className="flex flex-col gap-3">
@@ -105,19 +115,19 @@ export default function RightActionDrawer() {
             <ActionButton
               label={t('drawer.action.douban_json')}
               onClick={() => void startTask('douban-json', '/import/douban-harvest?mode=json')}
-              disabled={syncing != null || doubanRunning}
+              disabled={taskPollError !== null || syncing != null || doubanRunning}
               active={syncing === 'douban-json'}
             />
             <ActionButton
               label={t('drawer.action.douban_incremental')}
               onClick={() => void startTask('douban-incremental', '/import/douban-harvest?mode=incremental')}
-              disabled={syncing != null || doubanRunning}
+              disabled={taskPollError !== null || syncing != null || doubanRunning}
               active={syncing === 'douban-incremental'}
             />
             <ActionButton
               label={t('drawer.action.douban_full')}
               onClick={() => void startTask('douban-full', '/import/douban-harvest?mode=full')}
-              disabled={syncing != null || doubanRunning}
+              disabled={taskPollError !== null || syncing != null || doubanRunning}
               active={syncing === 'douban-full'}
             />
           </div>
@@ -131,13 +141,13 @@ export default function RightActionDrawer() {
             <ActionButton
               label={t('drawer.action.trakt_movies')}
               onClick={() => void startTask('trakt-movies', '/trakt/import/movies/task?status=WANT')}
-              disabled={syncing != null || traktRunning}
+              disabled={taskPollError !== null || syncing != null || traktRunning}
               active={syncing === 'trakt-movies'}
             />
             <ActionButton
               label={t('drawer.action.trakt_shows')}
               onClick={() => void startTask('trakt-shows', '/trakt/import/shows/task?status=WANT')}
-              disabled={syncing != null || traktRunning}
+              disabled={taskPollError !== null || syncing != null || traktRunning}
               active={syncing === 'trakt-shows'}
             />
           </div>
@@ -151,7 +161,7 @@ export default function RightActionDrawer() {
             <ActionButton
               label={t('drawer.action.steam_owned')}
               onClick={() => void startTask('steam-owned', '/import/steam/owned/task?status=WANT')}
-              disabled={syncing != null || steamRunning}
+              disabled={taskPollError !== null || syncing != null || steamRunning}
               active={syncing === 'steam-owned'}
             />
           </div>
@@ -177,6 +187,10 @@ export default function RightActionDrawer() {
   );
 
   async function startTask(target: Exclude<SyncTarget, null>, path: string) {
+    if (useTaskStore.getState().pollError !== null) {
+      toast(t('task.panel.stale_hint'), 'error')
+      return
+    }
     setSyncing(target)
     try {
       await apiFetch<{ taskId: string }>(path, { method: 'POST' })
