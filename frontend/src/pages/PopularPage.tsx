@@ -19,7 +19,7 @@ function formatSyncTime(iso: string | null) {
 }
 
 export default function PopularPage() {
-  const { items, total, page, category, platform, loading, syncing, error, lastSyncedAt, fetchItems, setCategory, setPlatform, triggerSync, addToLibrary } = useRadarStore();
+  const { items, total, page, category, platform, loading, syncing, error, failedRequest, lastSyncedAt, fetchItems, retryFetch, setCategory, setPlatform, triggerSync, addToLibrary } = useRadarStore();
   const { t } = useI18nStore();
 
   useEffect(() => { fetchItems(); }, []);
@@ -108,9 +108,11 @@ export default function PopularPage() {
             <p className="font-bold uppercase tracking-widest">{t('radar.loadError')}</p>
             <p className="mt-1 text-[10px] text-[var(--muted)]">{error}</p>
           </div>
-          <button type="button" onClick={() => void fetchItems()} className="brutal-btn">
-            {t('radar.retry')}
-          </button>
+          {failedRequest && (
+            <button type="button" onClick={() => void retryFetch()} disabled={loading} className="brutal-btn">
+              {t('radar.retry')}
+            </button>
+          )}
         </div>
       )}
 
