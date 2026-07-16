@@ -323,8 +323,12 @@ export default function SyncPage() {
               />
             ))}
           </div>
-        ) : (
+        ) : taskStateReady ? (
           <p className="p-6 text-xs text-[var(--muted)]">{t('sync.tasks_empty')}</p>
+        ) : (
+          <p className="p-6 text-xs text-[var(--muted)]">
+            {taskPollError !== null ? t('task.panel.unavailable_hint') : t('task.panel.initializing')}
+          </p>
         )}
       </section>
     </div>
