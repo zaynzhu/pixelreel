@@ -54,9 +54,19 @@ export default function DataHealthPage() {
   const [issueRefreshVersion, setIssueRefreshVersion] = useState(0)
   const [view, setView] = useState<"fields" | "duplicates">("fields")
   const issueViewKey = `${category}:${issue}`
+  const repairViewKey = `${view}:${issueViewKey}`
   const issueViewRef = useRef(issueViewKey)
+  const repairViewRef = useRef(repairViewKey)
   const latestIssueRequest = useRef(0)
+  const latestRepairRequest = useRef(0)
+  const repairRequestActive = useRef(false)
   issueViewRef.current = issueViewKey
+  repairViewRef.current = repairViewKey
+
+  useEffect(() => () => {
+    latestRepairRequest.current += 1
+    repairRequestActive.current = false
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -193,26 +203,47 @@ export default function DataHealthPage() {
   }
 
   const handleRepair = async () => {
-    if (!repairSupported || total === 0 || repairing) return
+    if (!repairSupported || total === 0 || repairing || repairRequestActive.current) return
     if (!useTaskStore.getState().initialized || useTaskStore.getState().pollError !== null) {
       toast(t("task.panel.unavailable_hint"), "error")
       return
     }
-    const limit = Math.min(50, total)
-    if (!(await confirmDialog(t("health.repair.confirm", String(limit))))) return
+    const requestId = ++latestRepairRequest.current
+    const actionViewKey = repairViewKey
+    const actionCategory = category
+    const actionIssue = issue
+    const actionLimit = Math.min(50, total)
+    repairRequestActive.current = true
     setStartingRepair(true)
     try {
+      if (!(await confirmDialog(t("health.repair.confirm", String(actionLimit))))) return
+      if (requestId !== latestRepairRequest.current || actionViewKey !== repairViewRef.current) return
+      if (!useTaskStore.getState().initialized || useTaskStore.getState().pollError !== null) {
+        toast(t("task.panel.unavailable_hint"), "error")
+        return
+      }
       const task = await apiFetch<RepairTaskResponse>("/data-health/repair", {
         method: "POST",
-        body: JSON.stringify({ category, issue, limit }),
+        body: JSON.stringify({
+          category: actionCategory,
+          issue: actionIssue,
+          limit: actionLimit,
+        }),
       })
+      if (requestId !== latestRepairRequest.current || actionViewKey !== repairViewRef.current) return
       setRepairTaskId(task.taskId)
       await pollTasks()
+      if (requestId !== latestRepairRequest.current || actionViewKey !== repairViewRef.current) return
       toast(t("health.repair.started"))
     } catch (reason) {
-      toast(`${t("health.repair.failed")}: ${reason instanceof Error ? reason.message : t("health.error")}`, "error")
+      if (requestId === latestRepairRequest.current && actionViewKey === repairViewRef.current) {
+        toast(`${t("health.repair.failed")}: ${reason instanceof Error ? reason.message : t("health.error")}`, "error")
+      }
     } finally {
-      setStartingRepair(false)
+      if (requestId === latestRepairRequest.current) {
+        repairRequestActive.current = false
+        setStartingRepair(false)
+      }
     }
   }
 
@@ -263,7 +294,8 @@ export default function DataHealthPage() {
               key={item}
               type="button"
               onClick={() => setView(item)}
-              className={`bg-[var(--surface)] px-4 py-3 text-left text-xs uppercase tracking-widest transition-colors hover:bg-[var(--surface-hover)] ${
+              disabled={startingRepair}
+              className={`bg-[var(--surface)] px-4 py-3 text-left text-xs uppercase tracking-widest transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50 ${
                 view === item ? "text-[var(--accent)] shadow-[inset_0_-2px_0_var(--accent)]" : "text-[var(--muted)]"
               }`}
             >
@@ -277,7 +309,8 @@ export default function DataHealthPage() {
               key={item}
               type="button"
               onClick={() => selectCategory(item)}
-              className={`flex items-center justify-between bg-[var(--surface)] px-4 py-4 text-left transition-colors hover:bg-[var(--surface-hover)] ${
+              disabled={startingRepair}
+              className={`flex items-center justify-between bg-[var(--surface)] px-4 py-4 text-left transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50 ${
                 category === item ? "shadow-[inset_0_-2px_0_var(--accent)]" : ""
               }`}
             >
@@ -300,7 +333,8 @@ export default function DataHealthPage() {
                 key={item.key}
                 type="button"
                 onClick={() => setIssue(item.key)}
-                className={`group border p-4 text-left transition-colors ${
+                disabled={startingRepair}
+                className={`group border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                   active
                     ? "border-[var(--accent)] bg-[rgba(212,255,0,0.06)]"
                     : "border-[var(--line)] hover:border-[var(--muted)]"
