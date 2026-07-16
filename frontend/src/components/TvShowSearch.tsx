@@ -25,7 +25,10 @@ export default function TvShowSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
+  const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
   const latestSearchRequest = useRef(0);
+  const addContextVersion = useRef(0);
+  const addRequestActive = useRef(false);
 
   const visibleData = useMemo(
     () => resultContext?.query === query.trim() && resultContext.provider === activeProvider ? data : null,
@@ -63,7 +66,10 @@ export default function TvShowSearch() {
   };
 
   const addToRecords = async (show: ExternalTvShowSearchResult) => {
+    if (addRequestActive.current) return;
     const key = buildTvShowKey(show);
+    const contextVersion = addContextVersion.current;
+    addRequestActive.current = true;
     setAddingKey(key);
     setError(null);
 
@@ -72,10 +78,14 @@ export default function TvShowSearch() {
         method: "POST",
         body: JSON.stringify(show.suggestedRecord),
       });
+      setAddedKeys((current) => new Set(current).add(key));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("search.commit_failed"));
+      if (contextVersion === addContextVersion.current) {
+        setError(err instanceof Error ? err.message : t("search.commit_failed"));
+      }
     } finally {
-      setAddingKey(null);
+      addRequestActive.current = false;
+      setAddingKey((current) => current === key ? null : current);
     }
   };
 
@@ -93,6 +103,7 @@ export default function TvShowSearch() {
             key={provider.id}
             onClick={() => {
               latestSearchRequest.current++;
+              addContextVersion.current++;
               setActiveProvider(provider.id);
               setData(null);
               setResultContext(null);
@@ -116,6 +127,7 @@ export default function TvShowSearch() {
           <input
             value={query}
             onChange={(event) => {
+              addContextVersion.current++;
               setQuery(event.target.value);
               setError(null);
             }}
@@ -148,6 +160,7 @@ export default function TvShowSearch() {
         <div className="mt-8 space-y-4">
           {visibleData?.results.map((show) => {
             const key = buildTvShowKey(show);
+            const isAdded = show.alreadyAdded || addedKeys.has(key);
             return (
               <div
                 key={key}
@@ -175,15 +188,17 @@ export default function TvShowSearch() {
                       <button
                         onClick={() => addToRecords(show)}
                         className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all ${
-                          show.alreadyAdded 
+                          isAdded
                             ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
                             : addingKey === key
                             ? "bg-[var(--accent)] text-black border border-[var(--accent)]"
+                            : addingKey !== null
+                            ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
                             : "border border-white text-white hover:bg-white hover:text-black"
                         }`}
-                        disabled={show.alreadyAdded || addingKey === key}
+                        disabled={isAdded || addingKey !== null}
                       >
-                        {show.alreadyAdded
+                        {isAdded
                           ? t("search.already")
                           : addingKey === key
                           ? t("search.committing")

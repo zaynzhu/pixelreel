@@ -29,12 +29,15 @@ export default function MovieSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
+  const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<ImdbDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const latestSearchRequest = useRef(0);
   const latestDetailRequest = useRef(0);
+  const addContextVersion = useRef(0);
+  const addRequestActive = useRef(false);
 
   const visibleData = useMemo(
     () => resultContext?.query === query.trim() && resultContext.provider === activeProvider ? data : null,
@@ -77,7 +80,10 @@ export default function MovieSearch() {
   };
 
   const addToRecords = async (movie: ExternalMovieSearchResult) => {
+    if (addRequestActive.current) return;
     const key = buildMovieKey(movie);
+    const contextVersion = addContextVersion.current;
+    addRequestActive.current = true;
     setAddingKey(key);
     setError(null);
 
@@ -86,10 +92,14 @@ export default function MovieSearch() {
         method: "POST",
         body: JSON.stringify(movie.suggestedRecord),
       });
+      setAddedKeys((current) => new Set(current).add(key));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("search.commit_failed"));
+      if (contextVersion === addContextVersion.current) {
+        setError(err instanceof Error ? err.message : t("search.commit_failed"));
+      }
     } finally {
-      setAddingKey(null);
+      addRequestActive.current = false;
+      setAddingKey((current) => current === key ? null : current);
     }
   };
 
@@ -153,6 +163,7 @@ export default function MovieSearch() {
             onClick={() => {
               latestSearchRequest.current++;
               latestDetailRequest.current++;
+              addContextVersion.current++;
               setActiveProvider(provider.id);
               setData(null);
               setResultContext(null);
@@ -180,6 +191,7 @@ export default function MovieSearch() {
           <input
             value={query}
             onChange={(event) => {
+              addContextVersion.current++;
               setQuery(event.target.value);
               setError(null);
             }}
@@ -213,6 +225,7 @@ export default function MovieSearch() {
           {visibleData?.results.map((movie) => {
             const key = buildMovieKey(movie);
             const isExpanded = expandedKey === key;
+            const isAdded = movie.alreadyAdded || addedKeys.has(key);
             return (
               <div key={key} className="border border-[var(--line)] bg-[var(--surface-hover)] transition-all hover:border-white">
                 <div
@@ -244,15 +257,17 @@ export default function MovieSearch() {
                             addToRecords(movie);
                           }}
                           className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-3 py-1 transition-all ${
-                            movie.alreadyAdded
+                            isAdded
                               ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
                               : addingKey === key
                               ? "bg-[var(--accent)] text-black border border-[var(--accent)]"
+                              : addingKey !== null
+                              ? "bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] cursor-not-allowed"
                               : "border border-white text-white hover:bg-white hover:text-black"
                           }`}
-                          disabled={movie.alreadyAdded || addingKey === key}
+                          disabled={isAdded || addingKey !== null}
                         >
-                          {movie.alreadyAdded
+                          {isAdded
                             ? t("search.already")
                             : addingKey === key
                             ? t("search.committing")
