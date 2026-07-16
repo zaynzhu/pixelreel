@@ -19,7 +19,7 @@ function formatSyncTime(iso: string | null) {
 }
 
 export default function RadarPage() {
-  const { items, total, page, category, platform, loading, syncing, error, failedRequest, lastSyncedAt, fetchItems, retryFetch, setCategory, setPlatform, triggerSync, addToLibrary } = useNewReleaseRadarStore();
+  const { items, total, page, category, platform, loading, syncing, addingIds, error, failedRequest, lastSyncedAt, fetchItems, retryFetch, setCategory, setPlatform, triggerSync, addToLibrary } = useNewReleaseRadarStore();
   const { t } = useI18nStore();
 
   useEffect(() => { fetchItems(); }, []);
@@ -27,8 +27,7 @@ export default function RadarPage() {
   const handleAddToLibrary = async (item: RadarItem) => {
     if (item.inLibrary) return;
     const result = await addToLibrary(item.id);
-    if (result?.exists) toast(t('radar.inLibrary'), 'error');
-    else if (result) toast(t('radar.inLibrary'));
+    if (result) toast(t('radar.inLibrary'));
   };
 
   const justWatchUrl = (item: RadarItem) =>
@@ -160,9 +159,10 @@ export default function RadarPage() {
                   ) : (
                     <button
                       onClick={() => handleAddToLibrary(item)}
+                      disabled={addingIds.includes(item.id)}
                       className="brutal-btn-accent px-2 py-1 text-[10px]"
                     >
-                      {t('radar.addToLibrary')}
+                      {addingIds.includes(item.id) ? t('radar.addingToLibrary') : t('radar.addToLibrary')}
                     </button>
                   )}
                   <a

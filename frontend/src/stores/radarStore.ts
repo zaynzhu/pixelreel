@@ -16,6 +16,7 @@ interface RadarState {
   platform: string;
   loading: boolean;
   syncing: boolean;
+  addingIds: number[];
   error: string | null;
   failedRequest: RadarRequest | null;
   lastSyncedAt: string | null;
@@ -29,6 +30,7 @@ interface RadarState {
 }
 
 let latestRadarRequest = 0;
+const activeRadarAdds = new Set<number>();
 
 export const useRadarStore = create<RadarState>((set, get) => ({
   items: [],
@@ -39,6 +41,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
   platform: '',
   loading: false,
   syncing: false,
+  addingIds: [],
   error: null,
   failedRequest: null,
   lastSyncedAt: null,
@@ -126,22 +129,26 @@ export const useRadarStore = create<RadarState>((set, get) => ({
   },
 
   addToLibrary: async (radarItemId) => {
+    if (activeRadarAdds.has(radarItemId)) return null;
+    activeRadarAdds.add(radarItemId);
+    set(state => ({ addingIds: [...state.addingIds, radarItemId] }));
     try {
       const result = await apiFetch<{ exists: boolean; recordId: number; category: string }>('/radar/add-to-library', {
         method: 'POST',
         body: JSON.stringify({ radarItemId }),
       });
-      if (!result.exists) {
-        set(state => ({
-          items: state.items.map(item =>
-            item.id === radarItemId ? { ...item, inLibrary: true } : item
-          ),
-        }));
-      }
+      set(state => ({
+        items: state.items.map(item =>
+          item.id === radarItemId ? { ...item, inLibrary: true } : item
+        ),
+      }));
       return result;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : '加入记录库失败', failedRequest: null });
+      toast(err instanceof Error ? err.message : '加入记录库失败', 'error');
       return null;
+    } finally {
+      activeRadarAdds.delete(radarItemId);
+      set(state => ({ addingIds: state.addingIds.filter(id => id !== radarItemId) }));
     }
   },
 }));
