@@ -132,6 +132,10 @@ const dictionaries = {
     "lib.desc": "/// Unified query interface for movies, games, and TV shows.",
     "lib.fetching": "FETCHING...",
     "lib.query": "QUERY DB",
+    "lib.load_error": "UNABLE TO READ LIBRARY",
+    "lib.save_error": "UNABLE TO SAVE RECORD",
+    "lib.retry": "RETRY REQUEST",
+    "lib.loading_more": "LOADING MORE...",
     
     "lib.met.results": "RESULTS",
     "lib.met.results_cap": "Matched nodes",
@@ -826,6 +830,10 @@ const dictionaries = {
     "lib.desc": "/// 电影、游戏与剧集的统一查询接口。",
     "lib.fetching": "提取中...",
     "lib.query": "查询数据库",
+    "lib.load_error": "无法读取记录库",
+    "lib.save_error": "无法保存记录",
+    "lib.retry": "重试请求",
+    "lib.loading_more": "正在加载更多...",
     
     "lib.met.results": "结果数",
     "lib.met.results_cap": "匹配的节点",

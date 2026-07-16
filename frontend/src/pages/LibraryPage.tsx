@@ -21,7 +21,7 @@ type CategoryFilter = "all" | LibraryCategory;
 type SelectedRecordKey = `${LibraryCategory}:${number}`;
 
 export default function LibraryPage() {
-  const { records, loading, loadingMore, saving, error, fetchRecords, fetchMore, updateRecord, nextCursor, totals } = useLibraryStore();
+  const { records, loading, loadingMore, saving, error, failedFetch, fetchRecords, fetchMore, retryFetch, updateRecord, nextCursor, totals } = useLibraryStore();
   const { t } = useI18nStore();
   const [searchParams] = useSearchParams();
   
@@ -263,8 +263,16 @@ export default function LibraryPage() {
         </div>
 
         {error ? (
-          <div className="mt-5 border-l-4 border-red-500 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-bold uppercase">
-            [ERR] {error}
+          <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 border-l-4 border-red-500 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-bold uppercase">
+            <div>
+              <p>{t(failedFetch ? "lib.load_error" : "lib.save_error")}</p>
+              <p className="mt-1 break-words font-normal normal-case text-[var(--muted)]">{error}</p>
+            </div>
+            {failedFetch && (
+              <button type="button" onClick={() => void retryFetch()} disabled={loading || loadingMore} className="brutal-btn">
+                {t("lib.retry")}
+              </button>
+            )}
           </div>
         ) : null}
 
@@ -370,7 +378,7 @@ export default function LibraryPage() {
           )}
           {loadingMore && (
             <div className="text-center text-[10px] text-[var(--muted)] uppercase tracking-widest py-8">
-              LOADING_MORE...
+              {t("lib.loading_more")}
             </div>
           )}
         </div>

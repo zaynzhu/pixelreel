@@ -30,6 +30,7 @@ type LibraryState = {
   loadingMore: boolean;
   saving: boolean;
   error: string | null;
+  failedFetch: "records" | "more" | null;
   filterCategory: "all" | LibraryCategory;
   filterStatus: "all" | RecordStatus;
   filterQuery: string;
@@ -46,6 +47,7 @@ type LibraryState = {
     sort?: LibrarySort;
   }) => Promise<void>;
   fetchMore: () => Promise<void>;
+  retryFetch: () => Promise<void>;
   updateRecord: (
     category: LibraryRecord["category"],
     id: number,
@@ -68,6 +70,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   loadingMore: false,
   saving: false,
   error: null,
+  failedFetch: null,
   filterCategory: "all",
   filterStatus: "all",
   filterQuery: "",
@@ -83,6 +86,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     const source = options?.source ?? get().filterSource;
     const review = options?.review ?? get().filterReview;
     const sort = options?.sort ?? get().filterSort;
+    const current = get();
+    const filtersChanged =
+      category !== current.filterCategory ||
+      status !== current.filterStatus ||
+      filterQuery !== current.filterQuery ||
+      source !== current.filterSource ||
+      review !== current.filterReview ||
+      sort !== current.filterSort;
     const query = new URLSearchParams({ limit: String(limit) });
     if (category !== "all") query.set("category", category);
     if (status !== "all") query.set("status", status);
@@ -95,7 +106,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       loading: true,
       loadingMore: false,
       error: null,
-      nextCursor: null,
+      failedFetch: null,
+      records: filtersChanged ? [] : current.records,
+      nextCursor: filtersChanged ? null : current.nextCursor,
+      totals: filtersChanged ? { total: 0, rated: 0, reviewed: 0, completed: 0 } : current.totals,
       pageSize: limit,
       filterCategory: category,
       filterStatus: status,
@@ -117,6 +131,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "获取记录库失败",
+        failedFetch: "records",
         loading: false,
       });
     }
@@ -138,7 +153,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     if (!nextCursor || loadingMore || loading) return;
     const cursor = nextCursor;
     const requestId = latestFetchRequest;
-    set({ loadingMore: true, error: null });
+    set({ loadingMore: true, error: null, failedFetch: null });
     try {
       const query = new URLSearchParams({
         cursor,
@@ -164,13 +179,25 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "加载更多记录失败",
+        failedFetch: "more",
         loadingMore: false,
       });
     }
   },
 
+  retryFetch: async () => {
+    const failedFetch = get().failedFetch;
+    if (failedFetch === "more") {
+      await get().fetchMore();
+      return;
+    }
+    if (failedFetch === "records") {
+      await get().fetchRecords();
+    }
+  },
+
   updateRecord: async (category, id, payload) => {
-    set({ saving: true, error: null });
+    set({ saving: true, error: null, failedFetch: null });
     try {
       const updated = await apiFetch<LibraryRecord>(`/library/${category}/${id}`, {
         method: "PATCH",
@@ -186,6 +213,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "保存失败",
+        failedFetch: null,
         saving: false,
       });
       return null;
