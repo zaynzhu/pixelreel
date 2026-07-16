@@ -12,12 +12,13 @@ import { YearFingerprint } from "../components/analytics/YearFingerprint"
 export default function AnalyticsPage() {
   const { data, year, loading, error, fetchAnalytics } = useAnalyticsStore()
   const { t } = useI18nStore()
+  const hasCurrentData = data?.year === year
 
   useEffect(() => {
     void fetchAnalytics()
   }, [fetchAnalytics])
 
-  if (loading) {
+  if (loading && !hasCurrentData) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-sm uppercase tracking-widest animate-pulse" style={{ color: "var(--accent)" }}>
@@ -27,7 +28,7 @@ export default function AnalyticsPage() {
     )
   }
 
-  if (error || !data) {
+  if (!hasCurrentData) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div role="alert" className="w-full max-w-xl border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] p-6 sm:p-8">
@@ -52,6 +53,20 @@ export default function AnalyticsPage() {
 
   return (
     <div className="analytics-bg flex flex-col gap-4">
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent-deep)]">
+              {t("analytics.error.kicker")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">{error}</p>
+          </div>
+          <button type="button" onClick={() => void fetchAnalytics(year)} disabled={loading} className="brutal-btn">
+            {loading ? t("analytics.loading") : t("analytics.error.retry")}
+          </button>
+        </div>
+      )}
+
       {/* 标题栏 + 年份选择器 */}
       <div className="flex items-center justify-between">
         <div>
