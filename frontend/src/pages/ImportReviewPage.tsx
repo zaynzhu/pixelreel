@@ -35,6 +35,8 @@ export default function ImportReviewPage() {
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
   const tabRef = useRef(tab)
   const latestLoadRequest = useRef(0)
+  const latestDecisionRequest = useRef(0)
+  const decisionRequestActive = useRef(false)
   tabRef.current = tab
 
   const loadRecords = useCallback(async (cursor?: string) => {
@@ -81,11 +83,13 @@ export default function ImportReviewPage() {
     void loadRecords()
     return () => {
       latestLoadRequest.current += 1
+      latestDecisionRequest.current += 1
+      decisionRequestActive.current = false
     }
   }, [loadRecords])
 
   const changeTab = (value: ReviewTab) => {
-    if (value === tab) return
+    if (value === tab || decisionRequestActive.current) return
     latestLoadRequest.current += 1
     setRecords([])
     setNextCursor(null)
@@ -99,7 +103,11 @@ export default function ImportReviewPage() {
   }
 
   const decide = async (targets: LibraryRecord[], decision: ReviewDecision) => {
-    if (!targets.length || deciding) return
+    if (!targets.length || decisionRequestActive.current) return
+    const requestId = ++latestDecisionRequest.current
+    const requestTab = tabRef.current
+    const targetKeys = new Set(targets.map(recordKey))
+    decisionRequestActive.current = true
     setDeciding(true)
     try {
       await apiFetch("/library/import-review", {
@@ -109,12 +117,24 @@ export default function ImportReviewPage() {
           records: targets.map(record => ({ category: record.category, id: record.id })),
         }),
       })
+      if (requestId !== latestDecisionRequest.current || requestTab !== tabRef.current) return
+      setRecords(current => current.filter(record => !targetKeys.has(recordKey(record))))
+      setSelected(current => {
+        const next = new Set(current)
+        for (const key of targetKeys) next.delete(key)
+        return next
+      })
+      setTotal(current => Math.max(0, current - targetKeys.size))
       toast(decision === "ACCEPTED" ? t("review.accepted") : t("review.ignored"))
       await loadRecords()
     } catch (reason) {
+      if (requestId !== latestDecisionRequest.current || requestTab !== tabRef.current) return
       toast(reason instanceof Error ? reason.message : t("review.decision_error"), "error")
     } finally {
-      setDeciding(false)
+      if (requestId === latestDecisionRequest.current) {
+        decisionRequestActive.current = false
+        setDeciding(false)
+      }
     }
   }
 
@@ -151,6 +171,7 @@ export default function ImportReviewPage() {
                 key={value}
                 type="button"
                 onClick={() => changeTab(value)}
+                disabled={deciding}
                 className={tab === value ? "brutal-btn-accent" : "brutal-btn"}
               >
                 {value === "PENDING" ? t("review.tab.pending") : t("review.tab.ignored")}
