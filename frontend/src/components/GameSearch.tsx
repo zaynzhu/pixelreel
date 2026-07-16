@@ -33,6 +33,7 @@ export default function GameSearch() {
   const [page, setPage] = useState(1);
   const [activeProvider, setActiveProvider] = useState<ProviderId>(defaultProvider);
   const [data, setData] = useState<ProviderSearchResult<ExternalGameSearchResult> | null>(null);
+  const [resultContext, setResultContext] = useState<{ query: string; provider: ProviderId } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
@@ -42,7 +43,11 @@ export default function GameSearch() {
   const latestSearchRequest = useRef(0);
   const latestDetailRequest = useRef(0);
 
-  const hasResults = useMemo(() => (data?.results?.length ?? 0) > 0, [data]);
+  const visibleData = useMemo(
+    () => resultContext?.query === query.trim() && resultContext.provider === activeProvider ? data : null,
+    [activeProvider, data, query, resultContext]
+  );
+  const hasResults = (visibleData?.results?.length ?? 0) > 0;
   const activeProviderConfig =
     PROVIDERS.find((item) => item.id === activeProvider) ?? PROVIDERS[0];
 
@@ -54,6 +59,7 @@ export default function GameSearch() {
     }
 
     const requestId = ++latestSearchRequest.current;
+    const requestedProvider = activeProvider;
     latestDetailRequest.current++;
     setLoading(true);
     setError(null);
@@ -68,6 +74,7 @@ export default function GameSearch() {
       if (requestId !== latestSearchRequest.current) return;
       const providerResult = payload.providers?.[0] ?? null;
       setData(providerResult);
+      setResultContext({ query: trimmed, provider: requestedProvider });
       setPage(providerResult?.page ?? nextPage);
     } catch (err) {
       if (requestId !== latestSearchRequest.current) return;
@@ -143,6 +150,7 @@ export default function GameSearch() {
               latestDetailRequest.current++;
               setActiveProvider(provider.id);
               setData(null);
+              setResultContext(null);
               setPage(1);
               setError(null);
               setExpandedKey(null);
@@ -165,7 +173,10 @@ export default function GameSearch() {
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setError(null);
+            }}
             placeholder={activeProviderConfig.placeholder}
             className="tech-input flex-1"
           />
@@ -179,9 +190,9 @@ export default function GameSearch() {
         </div>
       </div>
 
-      {data?.message && (
+      {visibleData?.message && (
         <div className="mt-5 border-l-4 border-yellow-500 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-400 font-bold uppercase">
-          [WARN] {data.message}
+          [WARN] {visibleData.message}
         </div>
       )}
 
@@ -193,7 +204,7 @@ export default function GameSearch() {
 
       {hasResults && (
         <div className="mt-8 space-y-4">
-          {data?.results.map((game) => {
+          {visibleData?.results.map((game) => {
             const key = buildGameKey(game);
             const isExpanded = expandedKey === key;
             return (
@@ -323,7 +334,7 @@ export default function GameSearch() {
         </div>
       )}
 
-      {data && data.totalPages > 1 && (
+      {visibleData && visibleData.totalPages > 1 && (
         <div className="mt-8 flex items-center justify-between border border-[var(--line)] bg-[var(--surface-hover)] p-4">
           <button
             className="brutal-btn"
@@ -333,11 +344,11 @@ export default function GameSearch() {
             {t("search.prev")}
           </button>
           <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--muted)]">
-            {t("search.page", page, data.totalPages)}
+            {t("search.page", page, visibleData.totalPages)}
           </span>
           <button
             className="brutal-btn"
-            disabled={page >= data.totalPages || loading}
+            disabled={page >= visibleData.totalPages || loading}
             onClick={() => search(page + 1)}
           >
             {t("search.next")}
