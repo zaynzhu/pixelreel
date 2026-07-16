@@ -34,6 +34,7 @@ type TimelineState = {
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
+  failedFetch: "records" | "more" | null;
   filters: TimelineFilters;
   years: number[];
   yearsLoading: boolean;
@@ -44,6 +45,7 @@ type TimelineState = {
     year?: number | "ALL";
   }) => Promise<void>;
   fetchMore: () => Promise<void>;
+  retryFetch: () => Promise<void>;
   setFilters: (filters: Partial<TimelineFilters>) => void;
   fetchYears: (category?: TimelineCategoryFilter) => Promise<void>;
 };
@@ -58,6 +60,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   loading: false,
   loadingMore: false,
   error: null,
+  failedFetch: null,
   filters: { category: "all", year: "ALL" },
   years: [],
   yearsLoading: false,
@@ -67,8 +70,19 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     const limit = Math.min(Math.max(options?.limit ?? get().pageSize, 1), 200);
     const category = options?.category ?? get().filters.category;
     const year = options?.year ?? get().filters.year;
+    const current = get();
+    const filtersChanged = category !== current.filters.category || year !== current.filters.year;
     const requestId = ++latestFetchRequest;
-    set({ loading: true, loadingMore: false, error: null, pageSize: limit, filters: { category, year } });
+    set({
+      records: filtersChanged ? [] : current.records,
+      nextCursor: filtersChanged ? null : current.nextCursor,
+      loading: true,
+      loadingMore: false,
+      error: null,
+      failedFetch: null,
+      pageSize: limit,
+      filters: { category, year },
+    });
     try {
       const url = buildTimelineQuery({
         limit,
@@ -87,6 +101,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
       if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "获取时间线失败",
+        failedFetch: "records",
         loading: false,
       });
     }
@@ -97,7 +112,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     if (!nextCursor || loadingMore || loading) return;
     const requestId = latestFetchRequest;
     const cursor = nextCursor;
-    set({ loadingMore: true, error: null });
+    set({ loadingMore: true, error: null, failedFetch: null });
     try {
       const url = buildTimelineQuery({
         cursor,
@@ -119,8 +134,20 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
       if (requestId !== latestFetchRequest) return;
       set({
         error: err instanceof Error ? err.message : "加载更多时间线失败",
+        failedFetch: "more",
         loadingMore: false,
       });
+    }
+  },
+
+  retryFetch: async () => {
+    const failedFetch = get().failedFetch;
+    if (failedFetch === "more") {
+      await get().fetchMore();
+      return;
+    }
+    if (failedFetch === "records") {
+      await get().fetchRecords();
     }
   },
 

@@ -74,7 +74,7 @@ function computeMonthStats(records: TimelineRecord[]) {
 }
 
 export default function TimelinePage() {
-  const { records, nextCursor, loading, loadingMore, error, years, yearsError, fetchRecords, fetchMore, fetchYears } = useTimelineStore();
+  const { records, nextCursor, loading, loadingMore, error, failedFetch, years, yearsError, fetchRecords, fetchMore, retryFetch, fetchYears } = useTimelineStore();
   const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore();
   const { t } = useI18nStore();
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
@@ -229,7 +229,8 @@ export default function TimelinePage() {
             </div>
             <button
               type="button"
-              onClick={() => void fetchRecords({ limit: 96, category: selectedCategory, year: selectedYear })}
+              onClick={() => void retryFetch()}
+              disabled={!failedFetch || loading || loadingMore}
               className="brutal-btn"
             >
               {t("timeline.retry")}
