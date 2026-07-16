@@ -9,9 +9,9 @@ interface ImgWithFallbackProps {
 }
 
 export function ImgWithFallback({ src, alt, className, loading = "lazy", fallback }: ImgWithFallbackProps) {
-  const [error, setError] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  if (error) return <>{fallback}</>;
+  if (failedSrc === src) return <>{fallback}</>;
 
   return (
     <img
@@ -20,7 +20,7 @@ export function ImgWithFallback({ src, alt, className, loading = "lazy", fallbac
       className={className}
       loading={loading}
       decoding="async"
-      onError={() => setError(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }
