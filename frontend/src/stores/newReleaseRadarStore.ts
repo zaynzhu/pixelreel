@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { RadarItem, RadarListResponse } from '../types/radar';
 import { apiFetch } from '../api';
 import { toast } from './toastStore';
+import { useTaskStore } from './taskStore';
 
 type RadarCategory = 'now_playing' | 'upcoming' | 'on_the_air';
 type RadarType = 'movie' | 'tv';
@@ -16,6 +17,7 @@ interface NewReleaseRadarState {
   platform: string;
   loading: boolean;
   syncing: boolean;
+  syncTaskId: string | null;
   addingIds: number[];
   error: string | null;
   failedRequest: RadarRequest | null;
@@ -25,6 +27,7 @@ interface NewReleaseRadarState {
   setCategory: (cat: RadarCategory | '') => void;
   setPlatform: (p: string) => void;
   triggerSync: (source?: string) => Promise<void>;
+  finishSync: (error?: string) => void;
   addToLibrary: (radarItemId: number) => Promise<{ exists: boolean; recordId: number; category: string } | null>;
 }
 
@@ -40,6 +43,7 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
   platform: '',
   loading: false,
   syncing: false,
+  syncTaskId: null,
   addingIds: [],
   error: null,
   failedRequest: null,
@@ -108,19 +112,27 @@ export const useNewReleaseRadarStore = create<NewReleaseRadarState>((set, get) =
 
   triggerSync: async (source) => {
     if (get().syncing) return;
-    set({ syncing: true, failedRequest: null });
+    set({ syncing: true, error: null, failedRequest: null });
     try {
       const url = source ? `/radar/sync-new-releases/${source}` : '/radar/sync-new-releases';
-      await apiFetch<{ taskId: string }>(url, { method: 'POST' });
-      setTimeout(() => {
-        get().fetchItems();
-        set({ syncing: false });
-      }, 3000);
+      const { taskId } = await apiFetch<{ taskId: string }>(url, { method: 'POST' });
+      set({ syncTaskId: taskId });
+      await useTaskStore.getState().pollTasks();
     } catch (err) {
       const message = err instanceof Error ? err.message : '新片同步失败';
-      set({ syncing: false, error: message, failedRequest: null });
+      set({ syncing: false, syncTaskId: null, error: message, failedRequest: null });
       toast(message, 'error');
     }
+  },
+
+  finishSync: (error) => {
+    set({
+      syncing: false,
+      syncTaskId: null,
+      error: error ?? null,
+      failedRequest: null,
+    });
+    if (error) toast(error, 'error');
   },
 
   addToLibrary: async (radarItemId) => {

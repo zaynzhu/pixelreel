@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNewReleaseRadarStore } from '../stores/newReleaseRadarStore';
 import { useI18nStore } from '../stores/i18nStore';
+import { useTaskStore } from '../stores/taskStore';
 import { toast } from '../stores/toastStore';
 import { proxiedImageUrl } from '../imageProxy';
 import { ImgWithFallback } from '../components/ImgWithFallback';
@@ -19,10 +20,27 @@ function formatSyncTime(iso: string | null) {
 }
 
 export default function RadarPage() {
-  const { items, total, page, category, platform, loading, syncing, addingIds, error, failedRequest, lastSyncedAt, fetchItems, retryFetch, setCategory, setPlatform, triggerSync, addToLibrary } = useNewReleaseRadarStore();
+  const { items, total, page, category, platform, loading, syncing, syncTaskId, addingIds, error, failedRequest, lastSyncedAt, fetchItems, retryFetch, setCategory, setPlatform, triggerSync, finishSync, addToLibrary } = useNewReleaseRadarStore();
+  const tasks = useTaskStore(state => state.tasks);
   const { t } = useI18nStore();
+  const runningSyncTask = tasks.some(task => task.type === 'new-release-radar-sync' && task.status === 'running');
+  const syncInProgress = syncing || runningSyncTask;
+  const wasSyncingRef = useRef(false);
 
   useEffect(() => { fetchItems(); }, []);
+
+  useEffect(() => {
+    if (!syncTaskId) return;
+    const task = tasks.find(item => item.taskId === syncTaskId);
+    if (!task || task.status === 'running') return;
+    finishSync(task.status === 'completed' ? undefined : task.error || '新片同步失败');
+  }, [finishSync, syncTaskId, tasks]);
+
+  useEffect(() => {
+    const wasSyncing = wasSyncingRef.current;
+    wasSyncingRef.current = syncInProgress;
+    if (wasSyncing && !syncInProgress) void fetchItems();
+  }, [fetchItems, syncInProgress]);
 
   const handleAddToLibrary = async (item: RadarItem) => {
     if (item.inLibrary) return;
@@ -53,10 +71,10 @@ export default function RadarPage() {
             <span>{t('radar.lastSync')}: {formatSyncTime(lastSyncedAt)}</span>
             <button
               onClick={() => triggerSync()}
-              disabled={syncing}
+              disabled={syncInProgress}
               className="brutal-btn-accent px-3 py-1 text-xs"
             >
-              {syncing ? t('radar.syncing') : t('radar.refresh')}
+              {syncInProgress ? t('radar.syncing') : t('radar.refresh')}
             </button>
           </div>
         </div>
