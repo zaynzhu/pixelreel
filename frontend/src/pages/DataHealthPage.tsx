@@ -46,9 +46,11 @@ export default function DataHealthPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [issueError, setIssueError] = useState<string | null>(null)
+  const [failedIssueFetch, setFailedIssueFetch] = useState<"records" | "more" | null>(null)
   const [startingRepair, setStartingRepair] = useState(false)
   const [repairTaskId, setRepairTaskId] = useState<string | null>(null)
-  const [refreshVersion, setRefreshVersion] = useState(0)
+  const [summaryRefreshVersion, setSummaryRefreshVersion] = useState(0)
+  const [issueRefreshVersion, setIssueRefreshVersion] = useState(0)
   const [view, setView] = useState<"fields" | "duplicates">("fields")
   const issueViewKey = `${category}:${issue}`
   const issueViewRef = useRef(issueViewKey)
@@ -72,7 +74,7 @@ export default function DataHealthPage() {
     return () => {
       active = false
     }
-  }, [refreshVersion, t])
+  }, [summaryRefreshVersion, t])
 
   const loadIssues = useCallback(async (cursor?: string) => {
     const params = new URLSearchParams({ category, issue, limit: "50" })
@@ -87,6 +89,7 @@ export default function DataHealthPage() {
     setLoadingIssues(true)
     setLoadingMore(false)
     setIssueError(null)
+    setFailedIssueFetch(null)
     setItems([])
     setTotal(0)
     setNextCursor(null)
@@ -100,6 +103,7 @@ export default function DataHealthPage() {
       .catch(reason => {
         if (active && requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
           setIssueError(reason instanceof Error ? reason.message : t("health.error"))
+          setFailedIssueFetch("records")
         }
       })
       .finally(() => {
@@ -110,7 +114,7 @@ export default function DataHealthPage() {
     return () => {
       active = false
     }
-  }, [issueViewKey, loadIssues, refreshVersion, t])
+  }, [issueViewKey, loadIssues, issueRefreshVersion, t])
 
   useEffect(() => {
     if (!repairTaskId) return
@@ -118,7 +122,8 @@ export default function DataHealthPage() {
     if (!task || task.status === "running") return
     if (task.status === "completed") {
       toast(t("health.repair.completed"))
-      setRefreshVersion(version => version + 1)
+      setSummaryRefreshVersion(version => version + 1)
+      setIssueRefreshVersion(version => version + 1)
     } else if (task.status === "cancelled") {
       toast(t("health.repair.cancelled"), "error")
     } else {
@@ -157,19 +162,32 @@ export default function DataHealthPage() {
     const requestViewKey = issueViewKey
     setLoadingMore(true)
     setIssueError(null)
+    setFailedIssueFetch(null)
     try {
-      const data = await loadIssues(nextCursor)
+      const cursor = nextCursor
+      const data = await loadIssues(cursor)
       if (requestId !== latestIssueRequest.current || requestViewKey !== issueViewRef.current) return
       setItems(current => [...current, ...data.items])
       setNextCursor(data.nextCursor)
     } catch (reason) {
       if (requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
         setIssueError(reason instanceof Error ? reason.message : t("health.error"))
+        setFailedIssueFetch("more")
       }
     } finally {
       if (requestId === latestIssueRequest.current && requestViewKey === issueViewRef.current) {
         setLoadingMore(false)
       }
+    }
+  }
+
+  const retryIssues = () => {
+    if (failedIssueFetch === "more") {
+      void handleLoadMore()
+      return
+    }
+    if (failedIssueFetch === "records") {
+      setIssueRefreshVersion(version => version + 1)
     }
   }
 
@@ -227,7 +245,7 @@ export default function DataHealthPage() {
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">{summaryError}</p>
           </div>
-          <button type="button" onClick={() => setRefreshVersion(version => version + 1)} className="brutal-btn">
+          <button type="button" onClick={() => setSummaryRefreshVersion(version => version + 1)} className="brutal-btn">
             {t("health.retry")}
           </button>
         </div>
@@ -345,7 +363,7 @@ export default function DataHealthPage() {
               </p>
               <p className="mt-1 text-xs text-[var(--muted)]">{issueError}</p>
             </div>
-            <button type="button" onClick={() => setRefreshVersion(version => version + 1)} className="brutal-btn">
+            <button type="button" onClick={retryIssues} disabled={!failedIssueFetch} className="brutal-btn">
               {t("health.retry")}
             </button>
           </div>
@@ -400,7 +418,7 @@ export default function DataHealthPage() {
           </div>
         )}
 
-        {nextCursor && !loadingIssues && (
+        {nextCursor && !loadingIssues && !failedIssueFetch && (
           <div className="border-t border-[var(--line)] p-4 text-center">
             <button type="button" onClick={handleLoadMore} disabled={loadingMore} className="brutal-btn">
               {loadingMore ? t("health.loading") : t("health.more")}

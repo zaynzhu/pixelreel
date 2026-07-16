@@ -28,6 +28,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [failedFetch, setFailedFetch] = useState<"groups" | "more" | null>(null)
   const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null)
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
@@ -59,6 +60,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     setLoading(true)
     setLoadingMore(false)
     setError(null)
+    setFailedFetch(null)
     setGroups([])
     setTotalGroups(0)
     setTotalRecords(0)
@@ -76,6 +78,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       .catch(reason => {
         if (active && requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
           setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+          setFailedFetch("groups")
         }
       })
       .finally(() => {
@@ -94,14 +97,17 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     const requestViewKey = duplicateViewKey
     setLoadingMore(true)
     setError(null)
+    setFailedFetch(null)
     try {
-      const data = await fetchGroups(nextCursor)
+      const cursor = nextCursor
+      const data = await fetchGroups(cursor)
       if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
       setGroups(current => [...current, ...data.groups])
       setNextCursor(data.nextCursor)
     } catch (reason) {
       if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
         setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+        setFailedFetch("more")
       }
     } finally {
       if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
@@ -117,6 +123,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     setLoading(true)
     setLoadingMore(false)
     setError(null)
+    setFailedFetch(null)
     try {
       const data = await fetchGroups()
       if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
@@ -124,6 +131,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     } catch (reason) {
       if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
         setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
+        setFailedFetch("groups")
       }
     } finally {
       if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
@@ -135,17 +143,26 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const openRescrape = async (recordId: number) => {
     const requestViewKey = duplicateViewKey
     setOpeningRecordId(recordId)
-    setError(null)
     try {
       const record = await apiFetch<LibraryRecord>(`/library/${category}/${recordId}`)
       if (requestViewKey !== duplicateViewRef.current) return
       setRescrapeRecord(record)
     } catch (reason) {
       if (requestViewKey === duplicateViewRef.current) {
-        setError(reason instanceof Error ? reason.message : t("health.duplicates.open_error"))
+        toast(reason instanceof Error ? reason.message : t("health.duplicates.open_error"), "error")
       }
     } finally {
       if (requestViewKey === duplicateViewRef.current) setOpeningRecordId(null)
+    }
+  }
+
+  const retryFetch = () => {
+    if (failedFetch === "more") {
+      void loadMore()
+      return
+    }
+    if (failedFetch === "groups") {
+      void refreshGroups()
     }
   }
 
@@ -232,7 +249,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">{error}</p>
           </div>
-          <button type="button" onClick={() => void refreshGroups()} className="brutal-btn">
+          <button type="button" onClick={retryFetch} disabled={!failedFetch} className="brutal-btn">
             {t("health.retry")}
           </button>
         </div>
@@ -349,7 +366,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
 
       <footer className="flex flex-col gap-3 border-t border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[10px] leading-5 text-[var(--muted)]">{t("health.duplicates.review_note")}</p>
-        {nextCursor && (
+        {nextCursor && !failedFetch && (
           <button type="button" onClick={loadMore} disabled={loadingMore} className="brutal-btn shrink-0">
             {loadingMore ? t("health.loading") : t("health.more")}
           </button>
