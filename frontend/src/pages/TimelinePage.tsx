@@ -74,7 +74,7 @@ function computeMonthStats(records: TimelineRecord[]) {
 }
 
 export default function TimelinePage() {
-  const { records, nextCursor, loading, loadingMore, error, failedFetch, years, yearsError, fetchRecords, fetchMore, retryFetch, fetchYears } = useTimelineStore();
+  const { records, nextCursor, loading, loadingMore, error, failedFetch, years, yearsLoading, yearsError, fetchRecords, fetchMore, retryFetch, fetchYears } = useTimelineStore();
   const { fetchDetail, cache: detailCache, loading: detailLoading, errors: detailErrors } = useTimelineDetailStore();
   const { t } = useI18nStore();
   const [selectedYear, setSelectedYear] = useState<YearFilter>("ALL");
@@ -126,17 +126,15 @@ export default function TimelinePage() {
   }, [nextCursor, loadingMore, fetchMore]);
 
   // Server-side filtering handles category and year
-  const yearOptions = useMemo(() => {
-    if (years.length > 0) return years;
-    return [...new Set(records.map((r) => getYear(r.createdAt)))].sort((a, b) => b - a);
-  }, [years, records]);
+  const yearOptions = years;
 
   // 切换分类后，如果已选年份不在新列表里，重置为 ALL
   useEffect(() => {
+    if (yearsLoading || yearsError) return;
     if (selectedYear !== "ALL" && !yearOptions.includes(selectedYear)) {
       setSelectedYear("ALL");
     }
-  }, [yearOptions, selectedYear]);
+  }, [yearOptions, selectedYear, yearsError, yearsLoading]);
 
   const stats = useMemo(() => computeStats(records), [records]);
 

@@ -37,6 +37,7 @@ type TimelineState = {
   failedFetch: "records" | "more" | null;
   filters: TimelineFilters;
   years: number[];
+  yearsCategory: TimelineCategoryFilter | null;
   yearsLoading: boolean;
   yearsError: string | null;
   fetchRecords: (options?: {
@@ -63,6 +64,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   failedFetch: null,
   filters: { category: "all", year: "ALL" },
   years: [],
+  yearsCategory: null,
   yearsLoading: false,
   yearsError: null,
 
@@ -158,7 +160,13 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   fetchYears: async (category) => {
     const cat = category ?? get().filters.category;
     const requestId = ++latestYearsRequest;
-    set({ yearsLoading: true, yearsError: null });
+    const current = get();
+    set({
+      years: current.yearsCategory === cat ? current.years : [],
+      yearsCategory: cat,
+      yearsLoading: true,
+      yearsError: null,
+    });
     try {
       const search = new URLSearchParams();
       search.set("category", cat);
