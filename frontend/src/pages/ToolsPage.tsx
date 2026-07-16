@@ -33,7 +33,9 @@ export default function ToolsPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [converting, setConverting] = useState<number | null>(null);
+  const [failedSearchQuery, setFailedSearchQuery] = useState<string | null>(null);
+  const [resultQuery, setResultQuery] = useState('');
+  const [converting, setConverting] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
   const latestSearchRequest = useRef(0);
@@ -63,27 +65,31 @@ export default function ToolsPage() {
     }
   }
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const handleSearch = async (requestedQuery = query.trim()) => {
+    if (!requestedQuery) return;
+    const queryChanged = requestedQuery !== resultQuery;
     const requestId = ++latestSearchRequest.current;
     setSearching(true);
     setSearched(true);
     setSearchError(null);
-    setResults([]);
+    setFailedSearchQuery(null);
+    if (queryChanged) setResults([]);
     try {
-      const data = await apiFetch<SearchResponse>(`/tools/search?query=${encodeURIComponent(query.trim())}`);
+      const data = await apiFetch<SearchResponse>(`/tools/search?query=${encodeURIComponent(requestedQuery)}`);
       if (requestId !== latestSearchRequest.current) return;
       setResults(data.results || []);
+      setResultQuery(requestedQuery);
     } catch (reason) {
       if (requestId !== latestSearchRequest.current) return;
       setSearchError(reason instanceof Error ? reason.message : t('tools.convert.search_failed'));
+      setFailedSearchQuery(requestedQuery);
     } finally {
       if (requestId === latestSearchRequest.current) setSearching(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
+    if (e.key === 'Enter') void handleSearch();
   };
 
   const handleConvert = async (record: SearchResult) => {
@@ -91,7 +97,8 @@ export default function ToolsPage() {
     const confirmMsg = t('tools.convert.confirm');
     if (!(await confirmDialog(confirmMsg))) return;
 
-    setConverting(record.id);
+    const recordKey = `${record.category}:${record.id}`;
+    setConverting(recordKey);
     try {
       const data = await apiFetch<ConvertResponse>('/tools/convert-category', {
         method: 'POST',
@@ -103,12 +110,9 @@ export default function ToolsPage() {
       });
       if (data.success) {
         toast(t('tools.convert.success', String(data.newId)));
-        // 更新列表中的记录
-        setResults((prev) =>
-          prev.map((r) =>
-            r.id === record.id ? { ...r, category: targetCategory } : r
-          )
-        );
+        setResults((prev) => prev.filter((item) => (
+          item.id !== record.id || item.category !== record.category
+        )));
       } else {
         toast(`${t('tools.convert.failed')}: ${data.error || 'Unknown error'}`, 'error');
       }
@@ -180,7 +184,7 @@ export default function ToolsPage() {
             disabled={searching}
           />
           <button
-            onClick={handleSearch}
+            onClick={() => void handleSearch()}
             disabled={searching || !query.trim()}
             className="brutal-btn-accent px-6"
           >
@@ -197,7 +201,7 @@ export default function ToolsPage() {
               </div>
               <p className="mt-1 break-all">{searchError}</p>
             </div>
-            <button type="button" onClick={() => void handleSearch()} className="brutal-btn">
+            <button type="button" onClick={() => void handleSearch(failedSearchQuery ?? undefined)} className="brutal-btn">
               {t('tools.convert.search_retry')}
             </button>
           </div>
@@ -213,7 +217,7 @@ export default function ToolsPage() {
           <div className="space-y-3">
             {results.map((item) => {
               const posterSrc = proxiedImageUrl(item.posterUrl);
-              const isConverting = converting === item.id;
+              const isConverting = converting === `${item.category}:${item.id}`;
               const targetType = item.category === 'movie' ? 'tv_show' : 'movie';
 
               return (
@@ -278,9 +282,9 @@ export default function ToolsPage() {
                   {/* Convert button */}
                   <button
                     onClick={() => handleConvert(item)}
-                    disabled={isConverting}
+                    disabled={converting !== null}
                     className={`brutal-btn px-4 text-[10px] ${
-                      isConverting ? 'opacity-50 cursor-not-allowed' : ''
+                      converting !== null ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
                     {isConverting
