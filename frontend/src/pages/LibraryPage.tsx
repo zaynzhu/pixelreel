@@ -57,6 +57,8 @@ export default function LibraryPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null);
+  const saveRequestActive = useRef(false);
+  const selectedRecordKeyRef = useRef<SelectedRecordKey | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -101,6 +103,7 @@ export default function LibraryPage() {
 
   const selectedRecord =
     filteredRecords.find((record) => buildRecordKey(record) === selectedKey) ?? filteredRecords[0] ?? null;
+  selectedRecordKeyRef.current = selectedRecord ? buildRecordKey(selectedRecord) : null;
 
   useEffect(() => {
     if (!filteredRecords.length) {
@@ -133,20 +136,26 @@ export default function LibraryPage() {
   const overview = totals;
 
   const saveRecord = async () => {
-    if (!selectedRecord) {
+    if (!selectedRecord || saveRequestActive.current) {
       return;
     }
 
+    const recordKey = buildRecordKey(selectedRecord);
+    saveRequestActive.current = true;
     setSaveMessage(null);
-    const updated = await updateRecord(selectedRecord.category, selectedRecord.id, {
-      status: form.status,
-      rating: form.rating == null ? null : Number(form.rating),
-      shortReview: form.shortReview?.trim() ? form.shortReview.trim() : null,
-    });
+    try {
+      const updated = await updateRecord(selectedRecord.category, selectedRecord.id, {
+        status: form.status,
+        rating: form.rating == null ? null : Number(form.rating),
+        shortReview: form.shortReview?.trim() ? form.shortReview.trim() : null,
+      });
 
-    if (updated) {
-      setSaveMessage(t("lib.edit.success"));
-      await fetchRecords();
+      if (updated && selectedRecordKeyRef.current === recordKey) {
+        setSaveMessage(t("lib.edit.success"));
+        await fetchRecords();
+      }
+    } finally {
+      saveRequestActive.current = false;
     }
   };
 
