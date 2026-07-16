@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useI18nStore } from "../stores/i18nStore";
@@ -8,20 +8,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const loginRequestActive = useRef(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
   const { lang, toggleLang, t } = useI18nStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loginRequestActive.current) return;
+    loginRequestActive.current = true;
     setError(null);
     setLoading(true);
-    const ok = await login(username, password);
+    const result = await login(username, password);
+    loginRequestActive.current = false;
     setLoading(false);
-    if (ok) {
+    if (result.success) {
       navigate("/", { replace: true });
-    } else {
-      setError(t("login.err_auth"));
+    } else if (result.error) {
+      setError(result.error);
     }
   };
 
