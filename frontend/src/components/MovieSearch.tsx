@@ -32,6 +32,7 @@ export default function MovieSearch() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<ImdbDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const latestSearchRequest = useRef(0);
   const latestDetailRequest = useRef(0);
 
@@ -56,6 +57,7 @@ export default function MovieSearch() {
     setExpandedKey(null);
     setDetail(null);
     setDetailLoading(false);
+    setDetailError(null);
 
     try {
       const payload = await apiFetch<ExternalSearchResponse<ExternalMovieSearchResult>>(
@@ -91,19 +93,11 @@ export default function MovieSearch() {
     }
   };
 
-  const toggleDetail = async (movie: ExternalMovieSearchResult) => {
-    const key = buildMovieKey(movie);
+  const loadDetail = async (movie: ExternalMovieSearchResult) => {
     const requestId = ++latestDetailRequest.current;
-    if (expandedKey === key) {
-      setExpandedKey(null);
-      setDetail(null);
-      setDetailLoading(false);
-      return;
-    }
-
-    setExpandedKey(key);
     setDetail(null);
     setDetailLoading(false);
+    setDetailError(null);
 
     // 根据可用的 ID 选择详情接口
     let detailUrl: string | null = null;
@@ -121,11 +115,27 @@ export default function MovieSearch() {
       const result = await apiFetch<ImdbDetail>(detailUrl);
       if (requestId !== latestDetailRequest.current) return;
       setDetail(result);
-    } catch {
-      // 静默失败，详情不可用
+    } catch (reason) {
+      if (requestId !== latestDetailRequest.current) return;
+      setDetailError(reason instanceof Error ? reason.message : t("search.detail.failed"));
     } finally {
       if (requestId === latestDetailRequest.current) setDetailLoading(false);
     }
+  };
+
+  const toggleDetail = (movie: ExternalMovieSearchResult) => {
+    const key = buildMovieKey(movie);
+    if (expandedKey === key) {
+      latestDetailRequest.current++;
+      setExpandedKey(null);
+      setDetail(null);
+      setDetailLoading(false);
+      setDetailError(null);
+      return;
+    }
+
+    setExpandedKey(key);
+    void loadDetail(movie);
   };
 
   const providerLabel =
@@ -152,6 +162,7 @@ export default function MovieSearch() {
               setDetail(null);
               setLoading(false);
               setDetailLoading(false);
+              setDetailError(null);
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >
@@ -269,6 +280,20 @@ export default function MovieSearch() {
                       <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
                         {t("search.detail.loading")}
                       </p>
+                    ) : detailError ? (
+                      <div role="alert" className="space-y-3">
+                        <p className="text-[10px] leading-5 text-red-300">{detailError}</p>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void loadDetail(movie);
+                          }}
+                          className="brutal-btn"
+                        >
+                          {t("search.detail.retry")}
+                        </button>
+                      </div>
                     ) : detail ? (
                       <div className="space-y-3">
                         {detail.imdbRating && detail.imdbRating !== "N/A" && (
@@ -293,7 +318,7 @@ export default function MovieSearch() {
                           <DetailRow label={t("search.detail.plot")} value={detail.plot} />
                         )}
                       </div>
-                    ) : movie.imdbId ? (
+                    ) : movie.imdbId || movie.tmdbId || movie.doubanId ? (
                       <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
                         {t("search.no_data")}
                       </p>

@@ -40,6 +40,7 @@ export default function GameSearch() {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<GameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const latestSearchRequest = useRef(0);
   const latestDetailRequest = useRef(0);
 
@@ -66,6 +67,7 @@ export default function GameSearch() {
     setExpandedKey(null);
     setDetail(null);
     setDetailLoading(false);
+    setDetailError(null);
 
     try {
       const payload = await apiFetch<ExternalSearchResponse<ExternalGameSearchResult>>(
@@ -84,19 +86,11 @@ export default function GameSearch() {
     }
   };
 
-  const toggleDetail = async (game: ExternalGameSearchResult) => {
-    const key = buildGameKey(game);
+  const loadDetail = async (game: ExternalGameSearchResult) => {
     const requestId = ++latestDetailRequest.current;
-    if (expandedKey === key) {
-      setExpandedKey(null);
-      setDetail(null);
-      setDetailLoading(false);
-      return;
-    }
-
-    setExpandedKey(key);
     setDetail(null);
     setDetailLoading(false);
+    setDetailError(null);
 
     // 根据可用的 ID 选择详情接口
     let detailUrl: string | null = null;
@@ -112,11 +106,27 @@ export default function GameSearch() {
       const result = await apiFetch<GameDetail>(detailUrl);
       if (requestId !== latestDetailRequest.current) return;
       setDetail(result);
-    } catch {
-      // 静默失败
+    } catch (reason) {
+      if (requestId !== latestDetailRequest.current) return;
+      setDetailError(reason instanceof Error ? reason.message : t("search.detail.failed"));
     } finally {
       if (requestId === latestDetailRequest.current) setDetailLoading(false);
     }
+  };
+
+  const toggleDetail = (game: ExternalGameSearchResult) => {
+    const key = buildGameKey(game);
+    if (expandedKey === key) {
+      latestDetailRequest.current++;
+      setExpandedKey(null);
+      setDetail(null);
+      setDetailLoading(false);
+      setDetailError(null);
+      return;
+    }
+
+    setExpandedKey(key);
+    void loadDetail(game);
   };
 
   const addToRecords = async (game: ExternalGameSearchResult) => {
@@ -157,6 +167,7 @@ export default function GameSearch() {
               setDetail(null);
               setLoading(false);
               setDetailLoading(false);
+              setDetailError(null);
             }}
             className={activeProvider === provider.id ? "brutal-btn-accent" : "brutal-btn"}
           >
@@ -274,6 +285,20 @@ export default function GameSearch() {
                       <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
                         {t("search.detail.loading")}
                       </p>
+                    ) : detailError ? (
+                      <div role="alert" className="space-y-3">
+                        <p className="text-[10px] leading-5 text-red-300">{detailError}</p>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void loadDetail(game);
+                          }}
+                          className="brutal-btn"
+                        >
+                          {t("search.detail.retry")}
+                        </button>
+                      </div>
                     ) : detail ? (
                       <div className="space-y-4">
                         <div className="space-y-3">
@@ -321,7 +346,7 @@ export default function GameSearch() {
                           </div>
                         )}
                       </div>
-                    ) : game.rawgId ? (
+                    ) : game.rawgId || game.steamAppId ? (
                       <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
                         {t("search.no_data")}
                       </p>
