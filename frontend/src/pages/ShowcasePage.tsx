@@ -42,7 +42,7 @@ export default function ShowcasePage() {
     setCurrentSlide(0)
   }, [])
 
-  if (loading) {
+  if (loading && !summary) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-sm uppercase tracking-widest animate-pulse" style={{ color: "var(--accent)" }}>
@@ -52,7 +52,7 @@ export default function ShowcasePage() {
     )
   }
 
-  if (error || !summary) {
+  if (!summary) {
     return (
       <div className="showcase-bg flex min-h-[60vh] items-center justify-center">
         <div role="alert" className="showcase-panel w-full max-w-xl border-[var(--accent-deep)] p-6 sm:p-8">
@@ -73,6 +73,20 @@ export default function ShowcasePage() {
 
   return (
     <div className="showcase-bg flex min-h-[680px] flex-col">
+      {error && (
+        <div role="alert" className="relative z-10 mb-4 flex flex-wrap items-center justify-between gap-4 border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent-deep)]">
+              {t("showcase.error.kicker")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">{error}</p>
+          </div>
+          <button type="button" onClick={() => void fetchSummary()} disabled={loading} className="brutal-btn">
+            {loading ? t("showcase.loading") : t("showcase.error.retry")}
+          </button>
+        </div>
+      )}
+
       {/* 顶部控制栏 */}
       <div className="flex items-center justify-between mb-4 relative z-10">
         <div>
