@@ -16,6 +16,7 @@ import type {
   SyncTaskResponse,
   SyncUnavailableReason,
 } from '../types/sync'
+import { applyPlatformAccountOverride } from '../types/sync'
 
 const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam', 'xbox', 'psn']
 const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
@@ -106,8 +107,18 @@ export default function SyncPage() {
   }, [loadHistory, syncTaskVersion])
 
   const runningCount = sourceTasks.filter(task => task.status === 'running').length
+  const xboxAvailability = status
+    ? applyPlatformAccountOverride(status.xbox, platformAccounts.xbox)
+    : null
+  const psnAvailability = status
+    ? applyPlatformAccountOverride(status.psn, platformAccounts.psn)
+    : null
   const availableCount = status
-    ? SOURCE_ORDER.filter(source => status[source].available).length
+    ? SOURCE_ORDER.filter(source => {
+      if (source === 'xbox') return xboxAvailability?.available
+      if (source === 'psn') return psnAvailability?.available
+      return status[source].available
+    }).length
     : 0
 
   const latestTask = (source: SyncSourceKey) => {
@@ -294,7 +305,7 @@ export default function SyncPage() {
 
           <SourceCard
             source="xbox"
-            availability={status.xbox}
+            availability={xboxAvailability ?? status.xbox}
             task={latestTask('xbox')}
             history={history?.xbox}
             settingsCategory="openxbl"
@@ -314,7 +325,7 @@ export default function SyncPage() {
                 `/import/xbox/owned/task?gamertag=${encodeURIComponent(platformAccounts.xbox.trim())}&status=${directStatuses.xbox}`,
                 'xbox-owned',
               )}
-              disabled={!sourceStatusReady || !taskStateReady || !status.xbox.available || activeAction != null || latestTask('xbox')?.status === 'running'}
+              disabled={!sourceStatusReady || !taskStateReady || !xboxAvailability?.available || activeAction != null || latestTask('xbox')?.status === 'running'}
               active={activeAction === 'xbox-owned'}
               className="mt-3 w-full"
             />
@@ -322,7 +333,7 @@ export default function SyncPage() {
 
           <SourceCard
             source="psn"
-            availability={status.psn}
+            availability={psnAvailability ?? status.psn}
             task={latestTask('psn')}
             history={history?.psn}
             settingsCategory="psn"
@@ -342,7 +353,7 @@ export default function SyncPage() {
                 `/import/psn/owned/task?psnId=${encodeURIComponent(platformAccounts.psn.trim())}&status=${directStatuses.psn}`,
                 'psn-owned',
               )}
-              disabled={!sourceStatusReady || !taskStateReady || !status.psn.available || activeAction != null || latestTask('psn')?.status === 'running'}
+              disabled={!sourceStatusReady || !taskStateReady || !psnAvailability?.available || activeAction != null || latestTask('psn')?.status === 'running'}
               active={activeAction === 'psn-owned'}
               className="mt-3 w-full"
             />

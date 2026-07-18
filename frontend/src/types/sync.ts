@@ -16,6 +16,14 @@ export interface SyncAvailability {
   reason: SyncUnavailableReason
 }
 
+export function applyPlatformAccountOverride(
+  availability: SyncAvailability,
+  accountOverride: string,
+): SyncAvailability {
+  if (availability.reason !== 'missing_account' || !accountOverride.trim()) return availability
+  return { available: true, reason: null }
+}
+
 export interface SyncSourceStatus {
   steam: SyncAvailability
   trakt: SyncAvailability
