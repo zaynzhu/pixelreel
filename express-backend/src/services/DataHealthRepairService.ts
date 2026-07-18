@@ -9,6 +9,7 @@ import {
 } from './DataHealthService';
 import { assertTaskActive } from './import/ImportSummaryTaskService';
 import { fetchTmdbPosterUrl } from './import/TmdbCoverFillService';
+import { toSafeTmdbId } from './import/TmdbId';
 import {
   fetchMovieDetail,
   fetchTvDetail,
@@ -54,7 +55,9 @@ async function resolveTmdbRecord(
   record: MediaRepairRecord,
 ): Promise<ResolvedTmdbRecord | null> {
   if (record.tmdbId != null) {
-    return { tmdbId: Number(record.tmdbId), enrich: null };
+    const tmdbId = toSafeTmdbId(record.tmdbId);
+    if (tmdbId == null) throw new Error('TMDB ID 超出安全整数范围');
+    return { tmdbId, enrich: null };
   }
 
   const enrich = await enrichFromTmdb(record.title);

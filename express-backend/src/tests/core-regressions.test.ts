@@ -69,6 +69,7 @@ import {
   parsePsnProfilePage,
 } from '../services/import/PsnProfilesImportService';
 import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
+import { toSafeTmdbId } from '../services/import/TmdbId';
 import {
   parseImportReviewDecisionBody,
   parseLibraryListParameters,
@@ -367,6 +368,13 @@ test('BigInt JSON 序列化只在安全范围内返回数字', () => {
   assert.equal(serializeBigIntForJson(9_223_372_036_854_775_807n), '9223372036854775807');
   assert.equal(bigIntToJson.call(42n), 42);
   assert.equal(bigIntToJson.call(9_223_372_036_854_775_807n), '9223372036854775807');
+});
+
+test('TMDB 外部请求只接受可安全转换的正整数 ID', () => {
+  assert.equal(toSafeTmdbId(1n), 1);
+  assert.equal(toSafeTmdbId(BigInt(Number.MAX_SAFE_INTEGER)), Number.MAX_SAFE_INTEGER);
+  assert.equal(toSafeTmdbId(BigInt(Number.MAX_SAFE_INTEGER) + 1n), null);
+  assert.equal(toSafeTmdbId(0n), null);
 });
 
 test('直接记录列表使用有界游标分页', () => {

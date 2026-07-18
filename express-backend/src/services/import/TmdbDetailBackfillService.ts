@@ -3,6 +3,7 @@ import { getDb } from '../../config/db'
 import { config } from '../../config'
 import { tmdbAuthHeaders, axiosProxyOpts } from '../douban-harvester/tmdb-enrich'
 import { createTask, updateProgress, completeTask, failTask } from '../task-manager'
+import { toSafeTmdbId } from './TmdbId'
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -114,7 +115,13 @@ export async function backfillTmdbDetails(
     if (signal?.aborted) break
     if (onProgress) onProgress(summary.imported + summary.skipped, summary.total, movie.title)
 
-    const detail = await fetchMovieDetail(Number(movie.tmdbId))
+    const tmdbId = toSafeTmdbId(movie.tmdbId!)
+    if (tmdbId == null) {
+      summary.errors.push(`电影 ${movie.title}: TMDB ID 超出安全整数范围`)
+      summary.skipped++
+      continue
+    }
+    const detail = await fetchMovieDetail(tmdbId)
     if (!detail) {
       summary.errors.push(`电影 ${movie.title}: TMDB 详情获取失败`)
       summary.skipped++
@@ -167,7 +174,13 @@ export async function backfillTmdbDetails(
     if (signal?.aborted) break
     if (onProgress) onProgress(summary.imported + summary.skipped, summary.total, show.title)
 
-    const detail = await fetchTvDetail(Number(show.tmdbId))
+    const tmdbId = toSafeTmdbId(show.tmdbId!)
+    if (tmdbId == null) {
+      summary.errors.push(`剧集 ${show.title}: TMDB ID 超出安全整数范围`)
+      summary.skipped++
+      continue
+    }
+    const detail = await fetchTvDetail(tmdbId)
     if (!detail) {
       summary.errors.push(`剧集 ${show.title}: TMDB 详情获取失败`)
       summary.skipped++
