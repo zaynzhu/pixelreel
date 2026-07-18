@@ -78,7 +78,7 @@ export async function importXboxOwnedGames(
     onProgress?.(0, 0, '读取 Xbox 游戏库');
     const titleRes = await axios.get(buildOpenXblUrl(
       config.openxbl.baseUrl,
-      `titles/${encodeURIComponent(xuid)}`,
+      `player/titleHistory/${encodeURIComponent(xuid)}`,
     ), {
       headers: { 'X-Authorization': config.openxbl.apiKey },
       ...buildPlatformGameRequestOptions(signal),

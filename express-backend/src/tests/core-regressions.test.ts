@@ -53,7 +53,12 @@ import {
   parseXboxOwnedImportParameters,
   resolvePlatformImportAccount,
 } from '../routes/import';
-import { buildOpenXblUrl, extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
+import {
+  buildOpenXblUrl,
+  extractXuid,
+  importXboxOwnedGames,
+  parseXboxTitles,
+} from '../services/import/OpenXblImportService';
 import {
   collectPsnProfilePages,
   extractPsnGameId,
@@ -493,6 +498,55 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
     () => parseXboxTitles({ content: { titles: 'invalid' }, code: 200 }),
     /OpenXBL 返回的游戏列表格式无效/,
   );
+});
+
+test('Xbox 导入使用 OpenXBL 当前玩家游戏历史端点', async () => {
+  const mutableConfig = config as unknown as {
+    openxbl: { enabled: boolean; apiKey: string; baseUrl: string };
+  };
+  const originalEnabled = mutableConfig.openxbl.enabled;
+  const originalApiKey = mutableConfig.openxbl.apiKey;
+  const originalBaseUrl = mutableConfig.openxbl.baseUrl;
+  const axiosClient = axios as unknown as { get: typeof axios.get };
+  const originalGet = axiosClient.get;
+  const requestUrls: string[] = [];
+
+  try {
+    mutableConfig.openxbl.enabled = true;
+    mutableConfig.openxbl.apiKey = 'test-api-key';
+    mutableConfig.openxbl.baseUrl = 'https://api.xbl.io/v2';
+    axiosClient.get = async (url) => {
+      requestUrls.push(url);
+      if (requestUrls.length === 1) {
+        return {
+          data: {
+            content: {
+              people: [{ gamertag: 'Player#1234', xuid: '2535473210914202' }],
+            },
+          },
+        } as any;
+      }
+      return { data: { content: { titles: [] } } } as any;
+    };
+
+    const result = await importXboxOwnedGames('Player#1234');
+    assert.deepEqual(requestUrls, [
+      'https://api.xbl.io/v2/search/Player%231234',
+      'https://api.xbl.io/v2/player/titleHistory/2535473210914202',
+    ]);
+    assert.deepEqual(result, {
+      total: 0,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      errors: [],
+    });
+  } finally {
+    axiosClient.get = originalGet;
+    mutableConfig.openxbl.enabled = originalEnabled;
+    mutableConfig.openxbl.apiKey = originalApiKey;
+    mutableConfig.openxbl.baseUrl = originalBaseUrl;
+  }
 });
 
 test('游戏平台重复同步只刷新来源指标并保留已有展示字段', () => {
