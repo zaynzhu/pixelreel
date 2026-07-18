@@ -2,7 +2,6 @@ import axios from 'axios';
 import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
-import { RecordStatus } from '../../enums/RecordStatus';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
   buildPlatformGameRequestOptions,
@@ -12,6 +11,7 @@ import {
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
   parsePlatformGameMetric,
+  resolvePlatformGameImportStatus,
   PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH,
   PLATFORM_GAME_TITLE_MAX_LENGTH,
 } from './PlatformGameSyncService';
@@ -91,7 +91,7 @@ export async function importXboxOwnedGames(
   }
 
   summary.total = titleHistory.length;
-  const effectiveStatus = status || RecordStatus.UNSET;
+  const effectiveStatus = resolvePlatformGameImportStatus(status);
   const now = new Date();
 
   // 批量查已有记录

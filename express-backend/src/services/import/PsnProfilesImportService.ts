@@ -3,7 +3,6 @@ import * as cheerio from 'cheerio';
 import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
-import { RecordStatus } from '../../enums/RecordStatus';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
   buildPlatformGameRequestOptions,
@@ -13,6 +12,7 @@ import {
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
   parsePlatformGameMetric,
+  resolvePlatformGameImportStatus,
   PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH,
   PLATFORM_GAME_TITLE_MAX_LENGTH,
 } from './PlatformGameSyncService';
@@ -60,7 +60,7 @@ export async function importPsnOwnedGames(
     ? new Map((await getDb().game.findMany({ where: { psnId: { in: psnIds } } })).map((g) => [g.psnId!, g]))
     : new Map<string, any>();
 
-  const effectiveStatus = status || RecordStatus.UNSET;
+  const effectiveStatus = resolvePlatformGameImportStatus(status);
   const now = new Date();
   const toSave: any[] = [];
 

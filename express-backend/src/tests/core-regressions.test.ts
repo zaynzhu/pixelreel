@@ -200,6 +200,7 @@ import {
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
   parsePlatformGameMetric,
+  resolvePlatformGameImportStatus,
   PLATFORM_GAME_METRIC_MAX_VALUE,
   PLATFORM_GAME_REQUEST_TIMEOUT_MS,
 } from '../services/import/PlatformGameSyncService';
@@ -659,6 +660,12 @@ test('主机平台指标只接受 Prisma Int 范围内的非负整数', () => {
   assert.equal(parsePlatformGameMetric(PLATFORM_GAME_METRIC_MAX_VALUE + 1), null);
   assert.equal(parsePlatformGameMetric('-1'), null);
   assert.equal(parsePlatformGameMetric('12 minutes'), null);
+});
+
+test('主机平台导入未指定状态时默认为想玩', () => {
+  assert.equal(resolvePlatformGameImportStatus(null), RecordStatus.WANT);
+  assert.equal(resolvePlatformGameImportStatus(undefined), RecordStatus.WANT);
+  assert.equal(resolvePlatformGameImportStatus(RecordStatus.DONE), RecordStatus.DONE);
 });
 
 test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {

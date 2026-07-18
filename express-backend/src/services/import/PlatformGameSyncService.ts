@@ -1,3 +1,5 @@
+import { RecordStatus } from '../../enums/RecordStatus';
+
 export const PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH = 50;
 export const PLATFORM_GAME_TITLE_MAX_LENGTH = 255;
 export const PLATFORM_GAME_POSTER_URL_MAX_LENGTH = 500;
@@ -9,6 +11,10 @@ export function buildPlatformGameRequestOptions(signal?: AbortSignal) {
     signal,
     timeout: PLATFORM_GAME_REQUEST_TIMEOUT_MS,
   };
+}
+
+export function resolvePlatformGameImportStatus(status?: string | null): string {
+  return status || RecordStatus.WANT;
 }
 
 export function parsePlatformGameMetric(value: unknown): number | null {
