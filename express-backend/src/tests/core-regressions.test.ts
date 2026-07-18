@@ -52,7 +52,7 @@ import {
   parseSteamOwnedImportParameters,
   parseXboxOwnedImportParameters,
 } from '../routes/import';
-import { extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
+import { buildOpenXblUrl, extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
 import {
   collectPsnProfilePages,
   extractPsnGameId,
@@ -433,6 +433,13 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
     achievementUnlocked: 0,
   }]);
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
+  assert.equal(extractXuid({ xuid: '../titles' }), null);
+  assert.equal(extractXuid({ xuid: '1'.repeat(21) }), null);
+  assert.equal(extractXuid({ xuid: 0 }), null);
+  assert.equal(
+    buildOpenXblUrl('https://api.xbl.io/v2/', '/search/Player%20One'),
+    'https://api.xbl.io/v2/search/Player%20One',
+  );
   assert.deepEqual(parseXboxTitles({ content: { titles: [] }, code: 200 }), []);
   assert.throws(
     () => parseXboxTitles({ content: { titles: 'invalid' }, code: 200 }),

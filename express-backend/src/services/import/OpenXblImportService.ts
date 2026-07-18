@@ -53,7 +53,10 @@ export async function importXboxOwnedGames(
   let xuid: string | null = null;
   onProgress?.(0, 0, '解析 Xbox 账号');
   try {
-    const searchRes = await axios.get(`${config.openxbl.baseUrl}/search/${encodeURIComponent(gamertag.trim())}`, {
+    const searchRes = await axios.get(buildOpenXblUrl(
+      config.openxbl.baseUrl,
+      `search/${encodeURIComponent(gamertag.trim())}`,
+    ), {
       headers: { 'X-Authorization': config.openxbl.apiKey },
       ...buildPlatformGameRequestOptions(signal),
     });
@@ -74,7 +77,10 @@ export async function importXboxOwnedGames(
   let titleHistory: XboxImportedTitle[] = [];
   try {
     onProgress?.(0, 0, '读取 Xbox 游戏库');
-    const titleRes = await axios.get(`${config.openxbl.baseUrl}/titles/${xuid}`, {
+    const titleRes = await axios.get(buildOpenXblUrl(
+      config.openxbl.baseUrl,
+      `titles/${encodeURIComponent(xuid)}`,
+    ), {
       headers: { 'X-Authorization': config.openxbl.apiKey },
       ...buildPlatformGameRequestOptions(signal),
     });
@@ -179,8 +185,10 @@ export function extractXuid(data: unknown): string | null {
   if (!data) return null;
   if (typeof data === 'object') {
     const record = data as Record<string, unknown>;
-    if (record.xuid) return String(record.xuid);
-    if (record.Xuid) return String(record.Xuid);
+    const lowercaseXuid = parseXboxXuid(record.xuid);
+    if (lowercaseXuid) return lowercaseXuid;
+    const uppercaseXuid = parseXboxXuid(record.Xuid);
+    if (uppercaseXuid) return uppercaseXuid;
     if (Array.isArray(data)) {
       for (const item of data) {
         const found = extractXuid(item);
@@ -196,6 +204,17 @@ export function extractXuid(data: unknown): string | null {
     }
   }
   return null;
+}
+
+export function buildOpenXblUrl(baseUrl: string, resourcePath: string): string {
+  return `${baseUrl.replace(/\/+$/, '')}/${resourcePath.replace(/^\/+/, '')}`;
+}
+
+function parseXboxXuid(value: unknown): string | null {
+  if (typeof value === 'number' && (!Number.isSafeInteger(value) || value <= 0)) return null;
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const normalized = String(value).trim();
+  return /^[1-9]\d{0,19}$/.test(normalized) ? normalized : null;
 }
 
 export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
