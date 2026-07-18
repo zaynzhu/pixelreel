@@ -159,9 +159,17 @@ async function fetchPsnProfileHtml(
   return collectPsnProfilePages(async (page) => {
     try {
       const response = await axios.get(`${baseUrl}/${encodeURIComponent(psnId)}`, {
-        params: { ajax: 1, page },
+        params: {
+          ajax: 1,
+          completion: 'all',
+          order: 'last-played',
+          pf: 'all',
+          page,
+        },
         headers: {
           'User-Agent': config.psnProfiles.userAgent,
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json, text/javascript, */*; q=0.01',
           ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
         },
         ...buildPlatformGameRequestOptions(signal),

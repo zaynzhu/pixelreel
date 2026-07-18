@@ -982,14 +982,22 @@ test('PSNProfiles 将 Cloudflare 403 识别为需要更新 Cookie', () => {
 });
 
 test('PSN 导入把 Cloudflare 403 转换为可操作的同步错误', async () => {
-  const mutableConfig = config as unknown as { psnProfiles: { enabled: boolean } };
+  const mutableConfig = config as unknown as {
+    psnProfiles: { enabled: boolean; userAgent: string; cookie: string };
+  };
   const originalEnabled = mutableConfig.psnProfiles.enabled;
+  const originalUserAgent = mutableConfig.psnProfiles.userAgent;
+  const originalCookie = mutableConfig.psnProfiles.cookie;
   const axiosClient = axios as unknown as { get: typeof axios.get };
   const originalGet = axiosClient.get;
+  let requestOptions: any;
 
   try {
     mutableConfig.psnProfiles.enabled = true;
-    axiosClient.get = async () => {
+    mutableConfig.psnProfiles.userAgent = 'PixelReel Test Agent';
+    mutableConfig.psnProfiles.cookie = 'cf_clearance=test-value';
+    axiosClient.get = async (_url, options) => {
+      requestOptions = options;
       throw {
         isAxiosError: true,
         message: 'Request failed with status code 403',
@@ -1007,9 +1015,24 @@ test('PSN 导入把 Cloudflare 403 转换为可操作的同步错误', async () 
       skipped: 0,
       errors: ['无法获取 PSNProfiles 页面: PSNProfiles 访问被验证页面拦截，请更新 Cookie'],
     });
+    assert.deepEqual(requestOptions.params, {
+      ajax: 1,
+      completion: 'all',
+      order: 'last-played',
+      pf: 'all',
+      page: 1,
+    });
+    assert.deepEqual(requestOptions.headers, {
+      'User-Agent': 'PixelReel Test Agent',
+      'X-Requested-With': 'XMLHttpRequest',
+      Accept: 'application/json, text/javascript, */*; q=0.01',
+      Cookie: 'cf_clearance=test-value',
+    });
   } finally {
     axiosClient.get = originalGet;
     mutableConfig.psnProfiles.enabled = originalEnabled;
+    mutableConfig.psnProfiles.userAgent = originalUserAgent;
+    mutableConfig.psnProfiles.cookie = originalCookie;
   }
 });
 
