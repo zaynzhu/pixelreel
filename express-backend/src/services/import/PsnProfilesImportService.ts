@@ -12,6 +12,7 @@ import {
   isPlatformGameExternalIdValid,
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
+  parsePlatformGameMetric,
   PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH,
   PLATFORM_GAME_TITLE_MAX_LENGTH,
 } from './PlatformGameSyncService';
@@ -305,8 +306,7 @@ function extractTrophyProgress($: any, row: any): { total: number | null; unlock
   const trophyInfo = row.find('div.small-info').first();
   if (trophyInfo.length) {
     const values = trophyInfo.find('b').toArray()
-      .map((element: any) => parseInt($(element).text().trim(), 10))
-      .filter((value: number) => !Number.isNaN(value));
+      .map((element: any) => parsePlatformGameMetric($(element).text()));
     if (values.length >= 2) return { unlocked: values[0], total: values[1] };
     if (values.length === 1) return { unlocked: values[0], total: values[0] };
   }
@@ -316,10 +316,10 @@ function extractTrophyProgress($: any, row: any): { total: number | null; unlock
     ? row
     : row.find('[data-earned][data-total]').first();
   if (dataNode.length) {
-    const earned = parseInt(dataNode.attr('data-earned') || '');
-    const total = parseInt(dataNode.attr('data-total') || '');
-    if (!isNaN(earned) || !isNaN(total)) {
-      return { total: isNaN(total) ? null : total, unlocked: isNaN(earned) ? null : earned };
+    const earned = parsePlatformGameMetric(dataNode.attr('data-earned'));
+    const total = parsePlatformGameMetric(dataNode.attr('data-total'));
+    if (earned != null || total != null) {
+      return { total, unlocked: earned };
     }
   }
 
@@ -327,7 +327,10 @@ function extractTrophyProgress($: any, row: any): { total: number | null; unlock
   const text = row.text();
   const match = text.match(/(\d+)\s*\/\s*(\d+)/);
   if (match) {
-    return { total: parseInt(match[2]), unlocked: parseInt(match[1]) };
+    return {
+      total: parsePlatformGameMetric(match[2]),
+      unlocked: parsePlatformGameMetric(match[1]),
+    };
   }
 
   return { total: null, unlocked: null };

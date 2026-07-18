@@ -2,12 +2,23 @@ export const PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH = 50;
 export const PLATFORM_GAME_TITLE_MAX_LENGTH = 255;
 export const PLATFORM_GAME_POSTER_URL_MAX_LENGTH = 500;
 export const PLATFORM_GAME_REQUEST_TIMEOUT_MS = 30_000;
+export const PLATFORM_GAME_METRIC_MAX_VALUE = 2_147_483_647;
 
 export function buildPlatformGameRequestOptions(signal?: AbortSignal) {
   return {
     signal,
     timeout: PLATFORM_GAME_REQUEST_TIMEOUT_MS,
   };
+}
+
+export function parsePlatformGameMetric(value: unknown): number | null {
+  if (value == null || (typeof value !== 'number' && typeof value !== 'string')) return null;
+  const normalized = typeof value === 'string' ? value.trim() : value;
+  if (normalized === '' || (typeof normalized === 'string' && !/^\d+$/.test(normalized))) return null;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed >= 0 && parsed <= PLATFORM_GAME_METRIC_MAX_VALUE
+    ? parsed
+    : null;
 }
 
 export function isPlatformGameExternalIdValid(value: string): boolean {

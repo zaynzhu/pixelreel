@@ -191,6 +191,8 @@ import {
   isPlatformGameExternalIdValid,
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
+  parsePlatformGameMetric,
+  PLATFORM_GAME_METRIC_MAX_VALUE,
   PLATFORM_GAME_REQUEST_TIMEOUT_MS,
 } from '../services/import/PlatformGameSyncService';
 import {
@@ -398,6 +400,7 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
           name: 'The Sims 4',
           type: 'Game',
           displayImage: 'https://images.example/game.jpg',
+          minutesPlayed: '2147483648',
           achievement: {
             currentAchievements: 0,
             totalAchievements: 50,
@@ -490,6 +493,14 @@ test('主机平台外部请求限制等待时间并保留取消信号', () => {
     timeout: PLATFORM_GAME_REQUEST_TIMEOUT_MS,
   });
   assert.equal(PLATFORM_GAME_REQUEST_TIMEOUT_MS, 30_000);
+});
+
+test('主机平台指标只接受 Prisma Int 范围内的非负整数', () => {
+  assert.equal(parsePlatformGameMetric(0), 0);
+  assert.equal(parsePlatformGameMetric(String(PLATFORM_GAME_METRIC_MAX_VALUE)), PLATFORM_GAME_METRIC_MAX_VALUE);
+  assert.equal(parsePlatformGameMetric(PLATFORM_GAME_METRIC_MAX_VALUE + 1), null);
+  assert.equal(parsePlatformGameMetric('-1'), null);
+  assert.equal(parsePlatformGameMetric('12 minutes'), null);
 });
 
 test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {

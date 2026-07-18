@@ -11,6 +11,7 @@ import {
   isPlatformGameExternalIdValid,
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
+  parsePlatformGameMetric,
   PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH,
   PLATFORM_GAME_TITLE_MAX_LENGTH,
 } from './PlatformGameSyncService';
@@ -221,13 +222,13 @@ export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
         item.displayImage ?? item.displayImageUrl ?? item.image
         ?? item.imageUrl ?? item.boxArt ?? item.boxArtUrl,
       ),
-      playtimeMinutes: readNonNegativeInteger(
+      playtimeMinutes: parsePlatformGameMetric(
         item.playtimeMinutes ?? item.minutesPlayed ?? item.timePlayedMinutes ?? item.minutes,
       ),
-      achievementTotal: readNonNegativeInteger(
+      achievementTotal: parsePlatformGameMetric(
         stats.totalAchievements ?? stats.total ?? stats.achievementTotal,
       ),
-      achievementUnlocked: readNonNegativeInteger(
+      achievementUnlocked: parsePlatformGameMetric(
         stats.currentAchievements ?? stats.unlockedAchievements
         ?? stats.achievementUnlocked ?? stats.earned,
       ),
@@ -256,11 +257,4 @@ function readString(value: unknown): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const normalized = String(value).trim();
   return normalized || null;
-}
-
-function readNonNegativeInteger(value: unknown): number | null {
-  if (value == null || (typeof value !== 'number' && typeof value !== 'string')) return null;
-  if (typeof value === 'string' && !value.trim()) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
