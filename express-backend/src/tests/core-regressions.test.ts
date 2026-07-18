@@ -257,6 +257,20 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player One' }), null);
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player#1234' }), null);
   assert.equal(validateSettingValues({ PSN_PROFILES_ACCOUNT_ID: 'player_name-1' }), null);
+  assert.equal(validateSettingValues({ OPENXBL_BASE_URL: 'https://proxy.example/openxbl/v2/' }), null);
+  assert.equal(validateSettingValues({ PSN_PROFILES_BASE_URL: 'http://localhost:19000/psn' }), null);
+  assert.equal(
+    validateSettingValues({ OPENXBL_BASE_URL: 'api.xbl.io/v2' }),
+    'OPENXBL_BASE_URL 必须是不含查询参数或片段的绝对 HTTP(S) 地址',
+  );
+  assert.equal(
+    validateSettingValues({ PSN_PROFILES_BASE_URL: 'file:///tmp/profile' }),
+    'PSN_PROFILES_BASE_URL 必须是不含查询参数或片段的绝对 HTTP(S) 地址',
+  );
+  assert.equal(
+    validateSettingValues({ OPENXBL_BASE_URL: 'https://api.xbl.io/v2?token=value' }),
+    'OPENXBL_BASE_URL 必须是不含查询参数或片段的绝对 HTTP(S) 地址',
+  );
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'player/name' }), 'OPENXBL_GAMERTAG 格式无效');
   assert.equal(validateSettingValues({ PSN_PROFILES_ACCOUNT_ID: 'a'.repeat(101) }), 'PSN_PROFILES_ACCOUNT_ID 不能超过 100 个字符');
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');

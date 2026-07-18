@@ -14,6 +14,7 @@ const MAX_TIMER_MILLISECONDS = 2_147_483_647;
 const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MILLISECONDS / 1000);
 const CRON_SETTING_KEYS = new Set(['RADAR_SYNC_CORE_CRON', 'RADAR_SYNC_SCRAPER_CRON']);
 const EXTERNAL_ACCOUNT_SETTING_KEYS = new Set(['OPENXBL_GAMERTAG', 'PSN_PROFILES_ACCOUNT_ID']);
+const PLATFORM_BASE_URL_SETTING_KEYS = new Set(['OPENXBL_BASE_URL', 'PSN_PROFILES_BASE_URL']);
 const XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN = /[/?\\]/;
 const PSN_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
 
@@ -205,6 +206,9 @@ export function validateSettingValues(values: Record<string, unknown>): string |
     if (typeof value !== 'string') return `${key} 必须是字符串`;
     if (/\r|\n/.test(value)) return `${key} 不能包含换行`;
     if (/['"]/.test(value)) return `${key} 不能包含引号`;
+    if (PLATFORM_BASE_URL_SETTING_KEYS.has(key) && !isAbsoluteHttpBaseUrl(value)) {
+      return `${key} 必须是不含查询参数或片段的绝对 HTTP(S) 地址`;
+    }
     if (EXTERNAL_ACCOUNT_SETTING_KEYS.has(key)) {
       if (value.trim().length > 100) return `${key} 不能超过 100 个字符`;
       const invalidPattern = key === 'OPENXBL_GAMERTAG'
@@ -244,6 +248,19 @@ export function validateSettingValues(values: Record<string, unknown>): string |
   }
 
   return null;
+}
+
+function isAbsoluteHttpBaseUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && !value.includes('?')
+      && !value.includes('#')
+      && !parsed.search
+      && !parsed.hash;
+  } catch {
+    return false;
+  }
 }
 
 export function formatEnvLine(key: string, value: string): string {
