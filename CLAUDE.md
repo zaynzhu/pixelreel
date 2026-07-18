@@ -170,7 +170,7 @@ frontend/src/
 - **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
 - **主来源归属：** 首页、记录库、时间线和年度分析统一复用 `LibraryService` 的来源判定；媒体按豆瓣 → TMDB → IMDb → Trakt → 手动的优先级归属，TMDB 补全不能把豆瓣记录改判为 TMDB。
 - **Toast 通知：** 用 `toastStore` 的 `addToast(message, type)` 和 `toast()` 便捷函数。错误用 `toast(msg, 'error')`，成功用默认 `toast(msg)`。确认对话框用 `confirmDialog(msg, danger?)` 返回 `Promise<boolean>`，替代浏览器原生 `alert()`/`confirm()`。
-- **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据；Prisma `BigInt` 的 tmdbId 只有在可安全转换为正整数时才能发起外部请求，超出范围必须跳过并记录错误。
+- **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据；Prisma `BigInt` 的 tmdbId 只有在可安全转换为正整数时才能发起外部请求，超出范围必须跳过并记录错误；HTTP 请求和 429 重试必须绑定任务取消信号，请求返回后写库前再次确认任务仍有效。
 - **年份筛选：** AnalyticsService 中「已完成」对豆瓣影视优先使用严格合法的 `doubanDate`，缺失或非法时回退 `updatedAt`；其他来源使用 `updatedAt`。评分、短评、Top 榜、来源分布和跨平台评分使用 `createdAt`。
 - **分析年份：** `GET /api/analytics?year=` 同时返回按降序排列的 `availableYears`，由记录创建年份和完成年份并集生成，并保留当前选择。前端只能在该列表内跳转，过期年份请求不能覆盖最新结果。
 - **分析读取：** 年度分析的加载、失败和重试文案必须使用 i18n；首次读取或切换到尚无缓存的年份失败时必须持续显示具体原因和原地重试入口，同一年已有数据的刷新期间与刷新失败后必须保留现有报表并显示可重试错误；不同年份的数据不能相互冒充，不能留下无法恢复的错误页。

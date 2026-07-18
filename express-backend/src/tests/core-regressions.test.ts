@@ -70,6 +70,7 @@ import {
 } from '../services/import/PsnProfilesImportService';
 import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
 import { toSafeTmdbId } from '../services/import/TmdbId';
+import { fetchMovieDetail } from '../services/import/TmdbDetailBackfillService';
 import {
   parseImportReviewDecisionBody,
   parseLibraryListParameters,
@@ -375,6 +376,31 @@ test('TMDB 外部请求只接受可安全转换的正整数 ID', () => {
   assert.equal(toSafeTmdbId(BigInt(Number.MAX_SAFE_INTEGER)), Number.MAX_SAFE_INTEGER);
   assert.equal(toSafeTmdbId(BigInt(Number.MAX_SAFE_INTEGER) + 1n), null);
   assert.equal(toSafeTmdbId(0n), null);
+});
+
+test('TMDB 详情请求传递任务取消信号', async () => {
+  const axiosClient = axios as unknown as { get: typeof axios.get };
+  const originalGet = axiosClient.get;
+  const controller = new AbortController();
+  let requestOptions: any;
+
+  try {
+    axiosClient.get = async (_url, options) => {
+      requestOptions = options;
+      return {
+        data: {
+          id: 42,
+          title: '测试电影',
+          genres: [],
+        },
+      } as any;
+    };
+    const detail = await fetchMovieDetail(42, controller.signal);
+    assert.equal(requestOptions.signal, controller.signal);
+    assert.equal(detail?.tmdbId, 42);
+  } finally {
+    axiosClient.get = originalGet;
+  }
 });
 
 test('直接记录列表使用有界游标分页', () => {

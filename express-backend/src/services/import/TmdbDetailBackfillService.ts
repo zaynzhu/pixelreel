@@ -3,6 +3,7 @@ import { getDb } from '../../config/db'
 import { config } from '../../config'
 import { tmdbAuthHeaders, axiosProxyOpts } from '../douban-harvester/tmdb-enrich'
 import { createTask, updateProgress, completeTask, failTask } from '../task-manager'
+import { assertTaskActive } from './ImportSummaryTaskService'
 import { toSafeTmdbId } from './TmdbId'
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -19,13 +20,17 @@ export interface TmdbDetail {
   imdbId: string | null
 }
 
-export async function fetchMovieDetail(tmdbId: number): Promise<TmdbDetail | null> {
+export async function fetchMovieDetail(
+  tmdbId: number,
+  signal?: AbortSignal,
+): Promise<TmdbDetail | null> {
   try {
     const url = `${config.tmdb.baseUrl}/movie/${tmdbId}`
     const { data } = await axios.get(url, {
       params: { language: 'zh-CN' },
       headers: tmdbAuthHeaders,
       timeout: 10000,
+      signal,
       ...axiosProxyOpts,
     })
     return {
@@ -40,28 +45,35 @@ export async function fetchMovieDetail(tmdbId: number): Promise<TmdbDetail | nul
       imdbId: data.imdb_id ?? null,
     }
   } catch (err: any) {
+    assertTaskActive(signal)
     if (err.response?.status === 429) {
       const wait = parseInt(err.response.headers['retry-after'] ?? '3', 10) * 1000
       await delay(wait)
-      return fetchMovieDetail(tmdbId)
+      assertTaskActive(signal)
+      return fetchMovieDetail(tmdbId, signal)
     }
     console.error(`[TMDB Detail] movie/${tmdbId} error:`, err.message)
     return null
   }
 }
 
-export async function fetchTvDetail(tmdbId: number): Promise<TmdbDetail | null> {
+export async function fetchTvDetail(
+  tmdbId: number,
+  signal?: AbortSignal,
+): Promise<TmdbDetail | null> {
   try {
     const [detailRes, extIdsRes] = await Promise.all([
       axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}`, {
         params: { language: 'zh-CN' },
         headers: tmdbAuthHeaders,
         timeout: 10000,
+        signal,
         ...axiosProxyOpts,
       }),
       axios.get(`${config.tmdb.baseUrl}/tv/${tmdbId}/external_ids`, {
         headers: tmdbAuthHeaders,
         timeout: 10000,
+        signal,
         ...axiosProxyOpts,
       }),
     ])
@@ -78,10 +90,12 @@ export async function fetchTvDetail(tmdbId: number): Promise<TmdbDetail | null> 
       imdbId: extIdsRes.data?.imdb_id ?? null,
     }
   } catch (err: any) {
+    assertTaskActive(signal)
     if (err.response?.status === 429) {
       const wait = parseInt(err.response.headers['retry-after'] ?? '3', 10) * 1000
       await delay(wait)
-      return fetchTvDetail(tmdbId)
+      assertTaskActive(signal)
+      return fetchTvDetail(tmdbId, signal)
     }
     console.error(`[TMDB Detail] tv/${tmdbId} error:`, err.message)
     return null
@@ -112,7 +126,7 @@ export async function backfillTmdbDetails(
   summary.total += movies.length
 
   for (const movie of movies) {
-    if (signal?.aborted) break
+    assertTaskActive(signal)
     if (onProgress) onProgress(summary.imported + summary.skipped, summary.total, movie.title)
 
     const tmdbId = toSafeTmdbId(movie.tmdbId!)
@@ -121,7 +135,8 @@ export async function backfillTmdbDetails(
       summary.skipped++
       continue
     }
-    const detail = await fetchMovieDetail(tmdbId)
+    const detail = await fetchMovieDetail(tmdbId, signal)
+    assertTaskActive(signal)
     if (!detail) {
       summary.errors.push(`电影 ${movie.title}: TMDB 详情获取失败`)
       summary.skipped++
@@ -143,6 +158,7 @@ export async function backfillTmdbDetails(
     if (detail.overview && !movie.overview) data.overview = detail.overview
 
     if (Object.keys(data).length > 0) {
+      assertTaskActive(signal)
       await getDb().movie.update({ where: { id: movie.id }, data })
       summary.imported++
     } else {
@@ -171,7 +187,7 @@ export async function backfillTmdbDetails(
   summary.total += shows.length
 
   for (const show of shows) {
-    if (signal?.aborted) break
+    assertTaskActive(signal)
     if (onProgress) onProgress(summary.imported + summary.skipped, summary.total, show.title)
 
     const tmdbId = toSafeTmdbId(show.tmdbId!)
@@ -180,7 +196,8 @@ export async function backfillTmdbDetails(
       summary.skipped++
       continue
     }
-    const detail = await fetchTvDetail(tmdbId)
+    const detail = await fetchTvDetail(tmdbId, signal)
+    assertTaskActive(signal)
     if (!detail) {
       summary.errors.push(`剧集 ${show.title}: TMDB 详情获取失败`)
       summary.skipped++
@@ -202,6 +219,7 @@ export async function backfillTmdbDetails(
     if (detail.overview && !show.overview) data.overview = detail.overview
 
     if (Object.keys(data).length > 0) {
+      assertTaskActive(signal)
       await getDb().tvShow.update({ where: { id: show.id }, data })
       summary.imported++
     } else {

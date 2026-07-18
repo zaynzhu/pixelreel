@@ -70,6 +70,7 @@ async function getRepairValue(
   category: 'movie' | 'tv_show',
   issue: DataHealthIssue,
   resolved: ResolvedTmdbRecord,
+  signal?: AbortSignal,
 ): Promise<string | number | null> {
   if (issue === 'missing_external_id') return resolved.tmdbId;
   if (issue === 'missing_poster') {
@@ -78,8 +79,8 @@ async function getRepairValue(
   }
 
   const detail: TmdbDetail | null = category === 'movie'
-    ? await fetchMovieDetail(resolved.tmdbId)
-    : await fetchTvDetail(resolved.tmdbId);
+    ? await fetchMovieDetail(resolved.tmdbId, signal)
+    : await fetchTvDetail(resolved.tmdbId, signal);
   if (!detail) return null;
   return issue === 'missing_overview' ? detail.overview : detail.releaseDate;
 }
@@ -93,7 +94,7 @@ async function repairMediaRecord(
   const resolved = await resolveTmdbRecord(category, record);
   assertTaskActive(signal);
   if (!resolved) return false;
-  const value = await getRepairValue(category, issue, resolved);
+  const value = await getRepairValue(category, issue, resolved, signal);
   assertTaskActive(signal);
   if (value == null || value === '') return false;
   const data = buildMediaRepairUpdate(category, issue, record, resolved.tmdbId, value);
