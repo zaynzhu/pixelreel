@@ -484,6 +484,8 @@ test('游戏平台重复同步只刷新来源指标并保留已有展示字段',
   assert.equal(isPlatformGameTitleValid('游'.repeat(256)), false);
   assert.equal(normalizePlatformGamePosterUrl(`https://example.com/${'a'.repeat(480)}`), 'https://example.com/' + 'a'.repeat(480));
   assert.equal(normalizePlatformGamePosterUrl(`https://example.com/${'a'.repeat(481)}`), null);
+  assert.equal(normalizePlatformGamePosterUrl('/relative/cover.jpg'), null);
+  assert.equal(normalizePlatformGamePosterUrl('javascript:alert(1)'), null);
 });
 
 test('主机平台外部请求限制等待时间并保留取消信号', () => {
@@ -935,6 +937,8 @@ test('RAWG 封面响应只接受非空图片地址并补全协议', () => {
   }), 'https://media.rawg.io/game.jpg');
   assert.equal(parseRawgPosterUrl({ results: [] }), null);
   assert.equal(parseRawgPosterUrl({ results: [{ background_image: '' }] }), null);
+  assert.equal(parseRawgPosterUrl({ results: [{ background_image: '/relative/cover.jpg' }] }), null);
+  assert.equal(parseRawgPosterUrl({ results: [{ background_image: 'data:image/png;base64,abc' }] }), null);
 });
 
 test('同步导入和任务查询拒绝未知或超长参数', () => {

@@ -30,7 +30,17 @@ export function isPlatformGameTitleValid(value: string): boolean {
 }
 
 export function normalizePlatformGamePosterUrl(value: string | null): string | null {
-  return value && value.length <= PLATFORM_GAME_POSTER_URL_MAX_LENGTH ? value : null;
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    const normalized = parsed.toString();
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && normalized.length <= PLATFORM_GAME_POSTER_URL_MAX_LENGTH
+      ? normalized
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface PlatformGameMetricSnapshot {

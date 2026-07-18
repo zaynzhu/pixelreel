@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { config } from '../../config';
-import { buildPlatformGameRequestOptions } from './PlatformGameSyncService';
+import {
+  buildPlatformGameRequestOptions,
+  normalizePlatformGamePosterUrl,
+} from './PlatformGameSyncService';
 
 export function parseRawgPosterUrl(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null;
@@ -8,7 +11,7 @@ export function parseRawgPosterUrl(data: unknown): string | null {
   if (!Array.isArray(results) || !results[0] || typeof results[0] !== 'object') return null;
   const image = (results[0] as { background_image?: unknown }).background_image;
   if (typeof image !== 'string' || !image.trim()) return null;
-  return image.startsWith('//') ? `https:${image}` : image;
+  return normalizePlatformGamePosterUrl(image.startsWith('//') ? `https:${image}` : image);
 }
 
 export async function lookupRawgPosterUrl(
