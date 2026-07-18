@@ -34,6 +34,10 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | `OMDB_API_KEY` | OMDb API Key | 按需 |
 | `RAWG_API_KEY` | RAWG API Key | 按需 |
 | `STEAM_WEB_API_KEY` | Steam Web API Key | 按需 |
+| `OPENXBL_API_KEY` | OpenXBL API Key（Xbox 同步） | 启用 Xbox 时 |
+| `OPENXBL_ENABLED` | 启用 Xbox 同步（默认 false） | 否 |
+| `PSN_PROFILES_ENABLED` | 启用 PSNProfiles 同步（默认 false） | 否 |
+| `PSN_PROFILES_COOKIE` | PSNProfiles 的 Cloudflare Cookie | 遇验证拦截时 |
 | `HTTPS_PROXY` | HTTPS 代理（TMDB 国内必需） | 按需 |
 | `DOUBAN_USER_ID` | 豆瓣用户 ID（爬取用） | 按需 |
 | `RADAR_ENABLED` | 雷达模块总开关（默认 false） | 否 |
@@ -72,7 +76,9 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/import/douban-harvest?mode=json\|full\|incremental` | 豆瓣数据导入/爬取 |
 | GET | `/api/import/douban-harvest/status?taskId=xxx` | 任务进度 |
 | GET | `/api/import/tasks` | 所有任务列表 |
-| GET | `/api/import/platforms/status` | Xbox/PSN 实验性未接入状态（不返回敏感配置） |
+| GET | `/api/import/sources/status` | 正式同步来源可用性（不返回凭据） |
+| GET | `/api/import/sources/history` | 各正式来源最近一次同步终态 |
+| GET | `/api/import/platforms/status` | Xbox/PSN 配置可用性（不返回密钥或 Cookie） |
 | DELETE | `/api/import/tasks/:taskId` | 取消任务 |
 | POST | `/api/import/tmdb-enrich/backfill?limit=50` | 批量补充 TMDB 数据 |
 | POST | `/api/import/tmdb-detail/backfill?limit=50` | 按 tmdbId 回填详情 |
@@ -80,10 +86,12 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/trakt/import/movies` | Trakt 电影导入 |
 | POST | `/api/trakt/import/shows` | Trakt 电视剧导入 |
 | POST | `/api/import/steam/owned` | Steam 已购导入 |
+| POST | `/api/import/xbox/owned/task?gamertag=&status=` | OpenXBL Xbox 游戏历史任务 |
+| POST | `/api/import/psn/owned/task?psnId=&status=` | PSNProfiles 公开游戏档案任务 |
 | POST | `/api/import/covers/fill` | RAWG 封面补全 |
 | POST | `/api/import/tmdb-covers/fill` | TMDB 封面补全 |
 
-Xbox/OpenXBL 与 PSN/PSNProfiles 目前仅保留实验实现和状态展示，尚未通过真实账号链路验收，因此不注册启动导入的 HTTP 路由。
+Xbox 通过 Gamertag → XUID → 游戏历史链路导入，PSN 按公开 PSNProfiles 档案逐页导入。两项来源默认关闭，需先在 Settings 配置并启用；新记录进入导入审核队列，已有记录只刷新平台指标和空封面。
 
 ### 数据健康
 
