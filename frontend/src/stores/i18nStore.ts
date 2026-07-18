@@ -43,6 +43,9 @@ const dictionaries = {
     "route.error_title": "UNABLE TO LOAD THIS PAGE",
     "route.error_desc": "The page module could not be loaded. Reload to fetch the current application files.",
     "route.retry": "RELOAD PAGE",
+    "api.request_failed": "Request failed ({0})",
+    "api.session_expired": "Your session has expired. Please sign in again.",
+    "auth.status_failed": "Authentication status request failed ({0})",
 
     // Dashboard
     "dash.telemetry": "PROFILE // TELEMETRY",
@@ -490,6 +493,11 @@ const dictionaries = {
     "radar.time.minutesAgo": "{0}m ago",
     "radar.time.hoursAgo": "{0}h ago",
     "radar.time.daysAgo": "{0}d ago",
+    "radar.fetch_failed": "Unable to read radar data",
+    "radar.new_release_fetch_failed": "Unable to read new release data",
+    "radar.sync_failed": "Radar sync failed",
+    "radar.new_release_sync_failed": "New release sync failed",
+    "radar.add_failed": "Unable to add this item to the library",
 
     // Timeline
     "timeline.load_error": "UNABLE TO READ TIMELINE",
@@ -759,6 +767,9 @@ const dictionaries = {
     "route.error_title": "无法加载这个页面",
     "route.error_desc": "页面模块未能加载。请重新加载以获取当前版本的应用文件。",
     "route.retry": "重新加载页面",
+    "api.request_failed": "请求失败 ({0})",
+    "api.session_expired": "登录已过期，请重新登录",
+    "auth.status_failed": "认证状态请求失败 ({0})",
 
     // Dashboard
     "dash.telemetry": "档案 // 遥测",
@@ -1206,6 +1217,11 @@ const dictionaries = {
     "radar.time.minutesAgo": "{0} 分钟前",
     "radar.time.hoursAgo": "{0} 小时前",
     "radar.time.daysAgo": "{0} 天前",
+    "radar.fetch_failed": "获取雷达数据失败",
+    "radar.new_release_fetch_failed": "获取新片数据失败",
+    "radar.sync_failed": "雷达同步失败",
+    "radar.new_release_sync_failed": "新片同步失败",
+    "radar.add_failed": "加入记录库失败",
 
     // Timeline
     "timeline.load_error": "无法读取时间线",

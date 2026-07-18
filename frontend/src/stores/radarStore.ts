@@ -92,7 +92,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
     } catch (err) {
       if (requestId !== latestRadarRequest) return;
       set({
-        error: err instanceof Error ? err.message : '获取雷达数据失败',
+        error: err instanceof Error ? err.message : useI18nStore.getState().t('radar.fetch_failed'),
         failedRequest: request,
         loading: false,
       });
@@ -130,7 +130,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
       set({ syncTaskId: taskId });
       await useTaskStore.getState().pollTasks();
     } catch (err) {
-      const message = err instanceof Error ? err.message : '同步失败';
+      const message = err instanceof Error ? err.message : useI18nStore.getState().t('radar.sync_failed');
       set({ syncing: false, syncTaskId: null, error: message, failedRequest: null });
       toast(message, 'error');
     }
@@ -162,7 +162,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
       }));
       return result;
     } catch (err) {
-      toast(err instanceof Error ? err.message : '加入记录库失败', 'error');
+      toast(err instanceof Error ? err.message : useI18nStore.getState().t('radar.add_failed'), 'error');
       return null;
     } finally {
       activeRadarAdds.delete(radarItemId);

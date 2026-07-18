@@ -1,4 +1,6 @@
 // 统一 API 请求工具，自动附加 JWT Token
+import { useI18nStore } from "./stores/i18nStore";
+
 function getToken(): string | null {
   return localStorage.getItem("pixelreel_token");
 }
@@ -6,7 +8,7 @@ function getToken(): string | null {
 const API_BASE = "/api";
 
 export async function getApiErrorMessage(response: Response): Promise<string> {
-  const fallback = `请求失败 (${response.status})`;
+  const fallback = useI18nStore.getState().t("api.request_failed", response.status);
   const text = await response.text().catch(() => "");
   if (!text) return fallback;
 
@@ -47,7 +49,7 @@ export async function apiFetch<T = unknown>(
   if (response.status === 401) {
     localStorage.removeItem("pixelreel_token");
     window.location.href = "/login";
-    throw new Error("登录已过期，请重新登录");
+    throw new Error(useI18nStore.getState().t("api.session_expired"));
   }
 
   if (!response.ok) {
@@ -74,7 +76,7 @@ export async function apiDownload(path: string): Promise<{ blob: Blob; filename:
   if (response.status === 401) {
     localStorage.removeItem("pixelreel_token")
     window.location.href = "/login"
-    throw new Error("登录已过期，请重新登录")
+    throw new Error(useI18nStore.getState().t("api.session_expired"))
   }
   if (!response.ok) throw new Error(await getApiErrorMessage(response))
 

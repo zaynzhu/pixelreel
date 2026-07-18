@@ -34,8 +34,8 @@ export default function PopularPage() {
     if (!syncTaskId) return;
     const task = tasks.find(item => item.taskId === syncTaskId);
     if (!task || task.status === 'running') return;
-    finishSync(task.status === 'completed' ? undefined : task.error || '同步失败');
-  }, [finishSync, syncTaskId, tasks]);
+    finishSync(task.status === 'completed' ? undefined : task.error || t('radar.sync_failed'));
+  }, [finishSync, syncTaskId, t, tasks]);
 
   useEffect(() => {
     const wasSyncing = wasSyncingRef.current;

@@ -34,8 +34,8 @@ export default function RadarPage() {
     if (!syncTaskId) return;
     const task = tasks.find(item => item.taskId === syncTaskId);
     if (!task || task.status === 'running') return;
-    finishSync(task.status === 'completed' ? undefined : task.error || '新片同步失败');
-  }, [finishSync, syncTaskId, tasks]);
+    finishSync(task.status === 'completed' ? undefined : task.error || t('radar.new_release_sync_failed'));
+  }, [finishSync, syncTaskId, t, tasks]);
 
   useEffect(() => {
     const wasSyncing = wasSyncingRef.current;

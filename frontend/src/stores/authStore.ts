@@ -34,7 +34,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ initialized: false, initializationError: null })
     try {
       const response = await fetch("/api/auth/status")
-      if (!response.ok) throw new Error(`认证状态请求失败 (${response.status})`)
+      if (!response.ok) {
+        throw new Error(useI18nStore.getState().t("auth.status_failed", response.status))
+      }
 
       const data = await response.json() as { enabled: boolean }
       if (requestId !== latestInitializationRequest) return
@@ -50,7 +52,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (requestId !== latestInitializationRequest) return
       set({
         initialized: true,
-        initializationError: reason instanceof Error ? reason.message : "认证状态请求失败",
+        initializationError: reason instanceof Error
+          ? reason.message
+          : useI18nStore.getState().t("auth.unavailable_title"),
       })
     }
   },
