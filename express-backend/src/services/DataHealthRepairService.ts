@@ -7,6 +7,7 @@ import {
   DataHealthIssue,
   buildDataHealthWhere,
 } from './DataHealthService';
+import { assertTaskActive } from './import/ImportSummaryTaskService';
 import { fetchTmdbPosterUrl } from './import/TmdbCoverFillService';
 import {
   fetchMovieDetail,
@@ -84,10 +85,13 @@ async function repairMediaRecord(
   category: 'movie' | 'tv_show',
   issue: DataHealthIssue,
   record: MediaRepairRecord,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   const resolved = await resolveTmdbRecord(category, record);
+  assertTaskActive(signal);
   if (!resolved) return false;
   const value = await getRepairValue(category, issue, resolved);
+  assertTaskActive(signal);
   if (value == null || value === '') return false;
   const data = buildMediaRepairUpdate(category, issue, record, resolved.tmdbId, value);
 
@@ -162,9 +166,10 @@ async function repairMediaIssues(
     const record = records[index];
     onProgress?.(index, records.length, record.title);
     try {
-      if (await repairMediaRecord(category, issue, record)) summary.imported++;
+      if (await repairMediaRecord(category, issue, record, signal)) summary.imported++;
       else summary.skipped++;
     } catch (error: any) {
+      if (signal?.aborted) break;
       summary.errors.push(`${record.title}: ${error.message}`);
       summary.skipped++;
     }
@@ -199,6 +204,7 @@ async function repairGamePosters(
       await getDb().game.update({ where: { id: record.id }, data: { posterUrl } });
       summary.imported++;
     } catch (error: any) {
+      if (signal?.aborted) break;
       summary.errors.push(`${record.title}: ${error.message}`);
       summary.skipped++;
     }
