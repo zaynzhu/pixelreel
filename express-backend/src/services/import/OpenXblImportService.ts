@@ -63,7 +63,7 @@ export async function importXboxOwnedGames(
     xuid = extractXuid(searchRes.data, gamertag.trim());
   } catch (ex: any) {
     if (signal?.aborted) return summary;
-    summary.errors.push(`Xbox 用户搜索失败: ${ex.message}`);
+    summary.errors.push(`Xbox 用户搜索失败: ${getOpenXblRequestError(ex)}`);
     return summary;
   }
 
@@ -86,7 +86,7 @@ export async function importXboxOwnedGames(
     titleHistory = parseXboxTitles(titleRes.data);
   } catch (ex: any) {
     if (signal?.aborted) return summary;
-    summary.errors.push(`获取 Xbox 游戏列表失败: ${ex.message}`);
+    summary.errors.push(`获取 Xbox 游戏列表失败: ${getOpenXblRequestError(ex)}`);
     return summary;
   }
 
@@ -178,6 +178,17 @@ export async function importXboxOwnedGames(
   onProgress?.(summary.total, summary.total, '');
 
   return summary;
+}
+
+export function getOpenXblRequestError(error: unknown): string {
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  if (status === 401) return 'OpenXBL API Key 无效';
+  if (status === 403) return 'OpenXBL API Key 无权访问该资源';
+  if (status === 404) return 'OpenXBL 请求的玩家或资源不存在';
+  if (status === 429) return 'OpenXBL 请求过于频繁，请稍后重试';
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : 'OpenXBL 请求失败';
 }
 
 export function extractXuid(data: unknown, expectedGamertag?: string): string | null {

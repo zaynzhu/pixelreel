@@ -176,15 +176,24 @@ async function fetchPsnProfileHtml(
       });
       return response.data;
     } catch (error) {
-      const response = axios.isAxiosError(error) ? error.response : undefined;
-      if (isPsnProfilesChallengeResponse(response?.status, response?.data)) {
-        throw new Error('PSNProfiles 访问被验证页面拦截，请更新 Cookie');
-      }
-      throw error;
+      throw new Error(getPsnProfilesRequestError(error));
     }
   }, MAX_PROFILE_PAGES, (page) => {
     onProgress?.(0, 0, `读取 PSNProfiles 第 ${page} 页`);
   });
+}
+
+export function getPsnProfilesRequestError(error: unknown): string {
+  const response = axios.isAxiosError(error) ? error.response : undefined;
+  if (isPsnProfilesChallengeResponse(response?.status, response?.data)) {
+    return 'PSNProfiles 访问被验证页面拦截，请更新 Cookie';
+  }
+  if (response?.status === 403) return 'PSNProfiles 访问被拒绝，请更新 Cookie 后重试';
+  if (response?.status === 404) return 'PSNProfiles 档案不存在或不可访问';
+  if (response?.status === 429) return 'PSNProfiles 请求过于频繁，请稍后重试';
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : 'PSNProfiles 请求失败';
 }
 
 export async function collectPsnProfilePages(

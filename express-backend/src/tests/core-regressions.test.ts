@@ -56,12 +56,14 @@ import {
 import {
   buildOpenXblUrl,
   extractXuid,
+  getOpenXblRequestError,
   importXboxOwnedGames,
   parseXboxTitles,
 } from '../services/import/OpenXblImportService';
 import {
   collectPsnProfilePages,
   extractPsnGameId,
+  getPsnProfilesRequestError,
   importPsnOwnedGames,
   isPsnProfilesChallengePage,
   isPsnProfilesChallengeResponse,
@@ -595,6 +597,25 @@ test('Xbox 导入使用 OpenXBL 当前玩家游戏历史端点', async () => {
     mutableConfig.openxbl.apiKey = originalApiKey;
     mutableConfig.openxbl.baseUrl = originalBaseUrl;
   }
+});
+
+test('主机平台 HTTP 失败返回可操作提示', () => {
+  const axiosError = (status: number, data?: unknown) => ({
+    isAxiosError: true,
+    response: { status, data },
+  });
+  assert.equal(getOpenXblRequestError(axiosError(401)), 'OpenXBL API Key 无效');
+  assert.equal(getOpenXblRequestError(axiosError(429)), 'OpenXBL 请求过于频繁，请稍后重试');
+  assert.equal(getPsnProfilesRequestError(axiosError(404)), 'PSNProfiles 档案不存在或不可访问');
+  assert.equal(getPsnProfilesRequestError(axiosError(403)), 'PSNProfiles 访问被拒绝，请更新 Cookie 后重试');
+  assert.equal(
+    getPsnProfilesRequestError(axiosError(
+      403,
+      '<html><title>Attention Required! | Cloudflare</title></html>',
+    )),
+    'PSNProfiles 访问被验证页面拦截，请更新 Cookie',
+  );
+  assert.equal(getOpenXblRequestError(new Error('网络不可达')), '网络不可达');
 });
 
 test('游戏平台重复同步只刷新来源指标并保留已有展示字段', () => {
