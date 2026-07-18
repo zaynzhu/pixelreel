@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTaskStore } from '../stores/taskStore';
 import { useI18nStore } from '../stores/i18nStore';
 import { toast } from '../stores/toastStore';
@@ -123,6 +123,7 @@ function TaskCard({ task, cancelling }: {
   cancelling: boolean;
 }) {
   const { lang, t } = useI18nStore()
+  const [errorsExpanded, setErrorsExpanded] = useState(false)
   const pct = task.progress.total > 0
     ? Math.round((task.progress.processed / task.progress.total) * 100)
     : 0;
@@ -195,14 +196,36 @@ function TaskCard({ task, cancelling }: {
 
       {/* 完成结果 */}
       {(task.status === 'completed' || task.status === 'cancelled') && task.result && (
-        <div className="flex gap-3 text-[10px] text-[var(--muted)]">
-          <span>{t('task.panel.result.imported')} <span className="text-white">{task.result.imported}</span></span>
-          {task.result.updated != null && (
-            <span>{t('task.panel.result.updated')} <span className="text-white">{task.result.updated}</span></span>
+        <div>
+          <div className="flex gap-3 text-[10px] text-[var(--muted)]">
+            <span>{t('task.panel.result.imported')} <span className="text-white">{task.result.imported}</span></span>
+            {task.result.updated != null && (
+              <span>{t('task.panel.result.updated')} <span className="text-white">{task.result.updated}</span></span>
+            )}
+            <span>{t('task.panel.result.skipped')} <span className="text-white">{task.result.skipped}</span></span>
+            {task.result.errors.length > 0 && (
+              <span>{t('task.panel.result.errors')} <span className="text-red-400">{task.result.errors.length}</span></span>
+            )}
+          </div>
+          {task.result.errors[0] && !errorsExpanded && (
+            <p className="mt-2 break-words text-[10px] text-red-400">{task.result.errors[0]}</p>
           )}
-          <span>{t('task.panel.result.skipped')} <span className="text-white">{task.result.skipped}</span></span>
-          {task.result.errors.length > 0 && (
-            <span>{t('task.panel.result.errors')} <span className="text-red-400">{task.result.errors.length}</span></span>
+          {task.result.errors.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setErrorsExpanded(current => !current)}
+              aria-expanded={errorsExpanded}
+              className="mt-2 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:text-red-200"
+            >
+              {errorsExpanded ? t('sync.result.hide_errors') : t('sync.result.show_errors', task.result.errors.length)}
+            </button>
+          )}
+          {errorsExpanded && (
+            <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto border border-red-500/30 bg-red-500/5 p-3 text-[10px] text-red-300">
+              {task.result.errors.map((error, index) => (
+                <li key={`${index}:${error}`} className="break-words">{index + 1}. {error}</li>
+              ))}
+            </ul>
           )}
         </div>
       )}
