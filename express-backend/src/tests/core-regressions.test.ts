@@ -352,7 +352,7 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: [] }), RequestValidationError);
 });
 
-test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏条目', () => {
+test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目', () => {
   const response = {
     content: {
       xuid: '2535473210914202',
@@ -371,6 +371,15 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏条目', () => 
           titleId: 'app-1',
           name: 'Streaming App',
           type: 'App',
+        },
+        {
+          titleId: '1632510060',
+          name: 'Duplicate The Sims 4',
+          type: 'Game',
+          achievement: {
+            currentAchievements: 10,
+            totalAchievements: 50,
+          },
         },
       ],
     },

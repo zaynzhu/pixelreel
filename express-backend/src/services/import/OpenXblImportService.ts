@@ -198,6 +198,7 @@ export function extractXuid(data: unknown): string | null {
 
 export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
   const array = findXboxTitleArray(data);
+  const seenTitleIds = new Set<string>();
   return array.flatMap((value) => {
     if (!value || typeof value !== 'object') return [];
     const item = value as Record<string, unknown>;
@@ -205,7 +206,8 @@ export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
     if (type && type.toLowerCase() !== 'game') return [];
 
     const titleId = readString(item.titleId ?? item.titleID ?? item.id ?? item.title_id);
-    if (!titleId) return [];
+    if (!titleId || seenTitleIds.has(titleId)) return [];
+    seenTitleIds.add(titleId);
     const statsValue = item.achievement ?? item.achievements ?? item.stats ?? item.progress;
     const stats = statsValue && typeof statsValue === 'object'
       ? statsValue as Record<string, unknown>
