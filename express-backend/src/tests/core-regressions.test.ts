@@ -479,7 +479,13 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
     content: {
       people: [
         { xuid: '2533274792093122', gamertag: 'Player' },
-        { xuid: '2535473210914202', gamertag: 'Player#1234' },
+        {
+          xuid: '2535473210914202',
+          gamertag: 'LegacyPlayer',
+          modernGamertag: 'Player',
+          modernGamertagSuffix: '1234',
+          uniqueModernGamertag: 'Player#1234',
+        },
       ],
     },
   }, 'player#1234'), '2535473210914202');

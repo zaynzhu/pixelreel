@@ -198,9 +198,20 @@ function findXboxXuid(data: unknown, normalizedExpected: string | null): string 
   }
 
   const record = data as Record<string, unknown>;
-  const returnedGamertag = readString(record.gamertag ?? record.Gamertag);
+  const modernGamertag = readString(record.modernGamertag ?? record.ModernGamertag);
+  const modernGamertagSuffix = readString(
+    record.modernGamertagSuffix ?? record.ModernGamertagSuffix,
+  );
+  const returnedGamertags = [
+    readString(record.gamertag ?? record.Gamertag),
+    readString(record.uniqueModernGamertag ?? record.UniqueModernGamertag),
+    modernGamertag,
+    modernGamertag && modernGamertagSuffix
+      ? `${modernGamertag}#${modernGamertagSuffix}`
+      : null,
+  ].filter((value): value is string => value != null);
   if (normalizedExpected == null
-    || (returnedGamertag && normalizeXboxGamertag(returnedGamertag) === normalizedExpected)) {
+    || returnedGamertags.some(gamertag => normalizeXboxGamertag(gamertag) === normalizedExpected)) {
     const xuid = parseXboxXuid(record.xuid) ?? parseXboxXuid(record.Xuid);
     if (xuid) return xuid;
   }
