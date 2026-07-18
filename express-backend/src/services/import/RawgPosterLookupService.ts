@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { config } from '../../config';
+import { buildPlatformGameRequestOptions } from './PlatformGameSyncService';
 
 export function parseRawgPosterUrl(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null;
@@ -18,7 +19,7 @@ export async function lookupRawgPosterUrl(
   try {
     const response = await axios.get(`${config.rawg.baseUrl}/games`, {
       params: { search: title, key: config.rawg.apiKey, page_size: 1 },
-      signal,
+      ...buildPlatformGameRequestOptions(signal),
     });
     return parseRawgPosterUrl(response.data);
   } catch {

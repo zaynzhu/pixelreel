@@ -1,6 +1,14 @@
 export const PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH = 50;
 export const PLATFORM_GAME_TITLE_MAX_LENGTH = 255;
 export const PLATFORM_GAME_POSTER_URL_MAX_LENGTH = 500;
+export const PLATFORM_GAME_REQUEST_TIMEOUT_MS = 30_000;
+
+export function buildPlatformGameRequestOptions(signal?: AbortSignal) {
+  return {
+    signal,
+    timeout: PLATFORM_GAME_REQUEST_TIMEOUT_MS,
+  };
+}
 
 export function isPlatformGameExternalIdValid(value: string): boolean {
   return value.length > 0 && value.length <= PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH;

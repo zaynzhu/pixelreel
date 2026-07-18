@@ -6,6 +6,7 @@ import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
+  buildPlatformGameRequestOptions,
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
   isPlatformGameExternalIdValid,
@@ -162,7 +163,7 @@ async function fetchPsnProfileHtml(
           'User-Agent': config.psnProfiles.userAgent,
           ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
         },
-        signal,
+        ...buildPlatformGameRequestOptions(signal),
       });
       return response.data;
     } catch (error) {

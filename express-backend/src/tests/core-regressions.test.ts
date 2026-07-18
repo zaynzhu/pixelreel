@@ -184,11 +184,13 @@ import {
   getImportSummaryFailure,
 } from '../services/import/ImportSummaryTaskService';
 import {
+  buildPlatformGameRequestOptions,
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
   isPlatformGameExternalIdValid,
   isPlatformGameTitleValid,
   normalizePlatformGamePosterUrl,
+  PLATFORM_GAME_REQUEST_TIMEOUT_MS,
 } from '../services/import/PlatformGameSyncService';
 import {
   getExternalServiceKey,
@@ -440,6 +442,15 @@ test('游戏平台重复同步只刷新来源指标并保留已有展示字段',
   assert.equal(isPlatformGameTitleValid('游'.repeat(256)), false);
   assert.equal(normalizePlatformGamePosterUrl(`https://example.com/${'a'.repeat(480)}`), 'https://example.com/' + 'a'.repeat(480));
   assert.equal(normalizePlatformGamePosterUrl(`https://example.com/${'a'.repeat(481)}`), null);
+});
+
+test('主机平台外部请求限制等待时间并保留取消信号', () => {
+  const controller = new AbortController();
+  assert.deepEqual(buildPlatformGameRequestOptions(controller.signal), {
+    signal: controller.signal,
+    timeout: PLATFORM_GAME_REQUEST_TIMEOUT_MS,
+  });
+  assert.equal(PLATFORM_GAME_REQUEST_TIMEOUT_MS, 30_000);
 });
 
 test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {

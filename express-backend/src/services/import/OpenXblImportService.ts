@@ -5,6 +5,7 @@ import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
+  buildPlatformGameRequestOptions,
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
   isPlatformGameExternalIdValid,
@@ -53,7 +54,7 @@ export async function importXboxOwnedGames(
   try {
     const searchRes = await axios.get(`${config.openxbl.baseUrl}/search/${encodeURIComponent(gamertag.trim())}`, {
       headers: { 'X-Authorization': config.openxbl.apiKey },
-      signal,
+      ...buildPlatformGameRequestOptions(signal),
     });
     // 尝试从返回数据中提取 xuid
     xuid = extractXuid(searchRes.data);
@@ -74,7 +75,7 @@ export async function importXboxOwnedGames(
     onProgress?.(0, 0, '读取 Xbox 游戏库');
     const titleRes = await axios.get(`${config.openxbl.baseUrl}/titles/${xuid}`, {
       headers: { 'X-Authorization': config.openxbl.apiKey },
-      signal,
+      ...buildPlatformGameRequestOptions(signal),
     });
     titleHistory = parseXboxTitles(titleRes.data);
   } catch (ex: any) {
