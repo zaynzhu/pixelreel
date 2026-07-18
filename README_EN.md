@@ -21,13 +21,13 @@
 
 > [!TIP]
 > PixelReel is a self-hosted personal media tracking platform that unifies movies, TV shows, and games in one place.
-> Import data from Douban, Trakt, and Steam. Xbox and PSN remain disabled-by-default experimental integrations.
+> Import data from Douban, Trakt, Steam, Xbox, and PSN. Aggregate metadata from TMDB, OMDb, RAWG, and more.
 > Enjoy rich visualizations including timelines, analytics dashboards, and showcase displays.
 
 ## ✨ Features
 
 - **Multi-Source Search** -- Search TMDB, OMDb, Douban, IMDb, Trakt, RAWG, and Steam from a single interface
-- **One-Click Import** -- Bulk import from Douban, Trakt, and Steam with automatic poster and detail fetching; Xbox and PSN remain experimental
+- **One-Click Import** -- Bulk import from Douban, Trakt, Steam, Xbox, and PSN with automatic poster and detail fetching
 - **Unified Library** -- Movies, TV shows, and games in one list with category/year/status filters and ratings
 - **Timeline Poster Wall** -- Monthly grouped poster gallery with year switching and detail popups
 - **Radar Discovery** -- Browse TMDB now-playing/trending + Youku/Tencent listings, add to wishlist instantly
@@ -108,7 +108,7 @@ curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
 ```
 
-Xbox and PSN currently expose only disabled-by-default experimental backend code and status indicators; they are not part of the supported sync workflow.
+Xbox imports title history through OpenXBL, while PSN reads every page of a public PSNProfiles profile. Both integrations are disabled by default and must be configured in Settings.
 
 ### Discover with Radar
 
@@ -127,7 +127,7 @@ Visit the `/radar` page to browse TMDB now-playing, upcoming, and trending title
 | Multi-source aggregation | ✅ | ❌ | ⚠️ | ❌ |
 | Douban data import | ✅ | ❌ | ❌ | -- |
 | Steam import | ✅ | ❌ | ❌ | ❌ |
-| Xbox/PSN import | ⚠️ | ❌ | ❌ | ❌ |
+| Xbox/PSN import | ✅ | ❌ | ❌ | ❌ |
 | Analytics reports | ✅ | ⚠️ | ✅ | ❌ |
 | Radar discovery | ✅ | ❌ | ✅ | ✅ |
 | Operation undo | ✅ | ❌ | ❌ | ❌ |
@@ -207,7 +207,9 @@ DELETE /api/import/tasks/:taskId
 POST   /api/trakt/import/movies/task?status=WANT
 POST   /api/trakt/import/shows/task?status=WANT
 POST   /api/import/steam/owned/task?status=WANT
-GET    /api/import/platforms/status  # Xbox/PSN experimental status; not supported sync
+POST   /api/import/xbox/owned/task?gamertag=&status=WANT
+POST   /api/import/psn/owned/task?psnId=&status=WANT
+GET    /api/import/platforms/status  # Xbox/PSN availability without secrets
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
 POST   /api/import/steam/backfill

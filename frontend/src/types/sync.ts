@@ -9,7 +9,6 @@ export type SyncUnavailableReason =
   | 'missing_access_token'
   | 'missing_data'
   | 'disabled'
-  | 'experimental_not_connected'
   | null
 
 export interface SyncAvailability {
@@ -41,7 +40,7 @@ export interface SyncResult {
 export type SyncHistoryStatus = 'completed' | 'failed' | 'cancelled'
 
 export interface SyncHistoryEntry {
-  source: Extract<SyncSourceKey, 'douban' | 'trakt' | 'steam'>
+  source: SyncSourceKey
   taskId: string
   type: string
   label: string
@@ -52,7 +51,7 @@ export interface SyncHistoryEntry {
   completedAt: string
 }
 
-export type SyncHistoryResponse = Record<'douban' | 'trakt' | 'steam', SyncHistoryEntry | null>
+export type SyncHistoryResponse = Record<SyncSourceKey, SyncHistoryEntry | null>
 
 export interface SyncTaskResponse {
   taskId: string

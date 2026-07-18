@@ -84,9 +84,23 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 
 ## Xbox / PSN
 
-OpenXBL 与 PSNProfiles 目前仅保留实验性实现，尚未通过真实账号导入链路验收。同步中心只展示“实验性未接入”状态，后端不注册 Xbox 或 PSN 的启动导入接口。
+### Xbox（OpenXBL）
 
-`GET /api/import/platforms/status` 固定返回 `experimental_not_connected`，即使环境变量中存在历史配置也不会启用导入。待真实账号验收、限流和数据核对全部完成后，再单独开放配置与启动流程。
+1. 在 [OpenXBL](https://xbl.io) 创建 API Key
+2. 在 Settings 的 OpenXBL 分类填写 `OPENXBL_API_KEY`，并将 `OPENXBL_ENABLED` 设为 `true`
+3. 在同步中心输入 Xbox Gamertag，或调用 `POST /api/import/xbox/owned/task?gamertag=玩家代号&status=WANT`
+
+服务先按 Gamertag 查询 XUID，再读取游戏历史。新记录写入导入审核队列，不覆盖已有 Xbox 记录。
+
+### PSN（PSNProfiles）
+
+1. 将 `PSN_PROFILES_ENABLED` 设为 `true`
+2. 在同步中心输入 PSN 在线 ID，或调用 `POST /api/import/psn/owned/task?psnId=在线ID&status=WANT`
+3. 公开档案通常不需要 Cookie；如遇 Cloudflare 验证页，在 Settings 的 PSN 分类更新 `PSN_PROFILES_COOKIE`
+
+服务按 `?ajax=1&page=N` 逐页读取公开档案，最多 100 页。新记录写入导入审核队列，不覆盖已有 PSN 记录。
+
+`GET /api/import/platforms/status` 只返回两项来源的配置可用性，不返回 API Key 或 Cookie。外部服务响应可能变化，首次使用应先用真实账号做小范围核对。
 
 ## RAWG 封面补全
 

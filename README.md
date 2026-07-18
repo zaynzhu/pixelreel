@@ -21,13 +21,13 @@
 
 > [!TIP]
 > PixelReel 是一个自托管的个人影剧游记录平台，将电影、电视剧和游戏统一管理。
-> 支持从豆瓣、Trakt、Steam 导入数据，聚合 TMDB、OMDb、RAWG 等数据源，
+> 支持从豆瓣、Trakt、Steam、Xbox、PSN 导入数据，聚合 TMDB、OMDb、RAWG 等数据源，
 > 提供时间线、数据分析、大屏展示等丰富的可视化功能。
 
 ## ✨ Features
 
 - **多平台搜索聚合** -- 同时搜索 TMDB、OMDb、豆瓣、IMDb、Trakt、RAWG、Steam，一个入口搜遍全网
-- **一键数据导入** -- 从豆瓣、Trakt、Steam 批量导入，自动填充海报和详情；Xbox、PSN 仍处于实验性阶段
+- **一键数据导入** -- 从豆瓣、Trakt、Steam、Xbox、PSN 批量导入，自动填充海报和详情
 - **导入审核队列** -- 新同步记录先进入待审核区，可批量接受、忽略或打开详情修正，忽略不会删除数据
 - **资料库安全快照** -- 一键下载电影、剧集、游戏和豆瓣原始字段的只读 JSON，不包含设置与密钥
 - **统一记录库** -- 电影、电视剧、游戏混排展示，支持分类/年份/状态多维筛选和评分短评
@@ -109,9 +109,15 @@ curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 
 # Steam 已购游戏导入任务
 curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
+
+# Xbox 游戏历史导入任务（需配置并启用 OpenXBL）
+curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?gamertag=你的玩家代号&status=WANT'
+
+# PSN 游戏导入任务（需启用 PSNProfiles）
+curl -X POST 'http://localhost:18889/api/import/psn/owned/task?psnId=你的在线ID&status=WANT'
 ```
 
-Xbox、PSN 目前仅保留默认关闭的实验性后端代码和状态展示，尚未接入正式同步流程。
+Xbox 通过 OpenXBL API 读取玩家和游戏历史；PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置并启用后使用。
 
 ### 雷达发现新片
 
@@ -130,7 +136,7 @@ Xbox、PSN 目前仅保留默认关闭的实验性后端代码和状态展示，
 | 多平台数据聚合 | ✅ | ❌ | ⚠️ | ❌ |
 | 豆瓣数据导入 | ✅ | ❌ | ❌ | -- |
 | Steam 导入 | ✅ | ❌ | ❌ | ❌ |
-| Xbox/PSN 导入 | ⚠️ | ❌ | ❌ | ❌ |
+| Xbox/PSN 导入 | ✅ | ❌ | ❌ | ❌ |
 | 数据分析报告 | ✅ | ⚠️ | ✅ | ❌ |
 | 雷达发现 | ✅ | ❌ | ✅ | ✅ |
 | 操作撤销 | ✅ | ❌ | ❌ | ❌ |
@@ -212,7 +218,9 @@ DELETE /api/import/tasks/:taskId
 POST   /api/trakt/import/movies/task?status=WANT
 POST   /api/trakt/import/shows/task?status=WANT
 POST   /api/import/steam/owned/task?status=WANT
-GET    /api/import/platforms/status  # Xbox/PSN 实验代码状态，不代表正式接入
+POST   /api/import/xbox/owned/task?gamertag=&status=WANT
+POST   /api/import/psn/owned/task?psnId=&status=WANT
+GET    /api/import/platforms/status  # Xbox/PSN 配置可用性，不返回密钥或 Cookie
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
 POST   /api/import/steam/backfill

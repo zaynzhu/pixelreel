@@ -231,8 +231,10 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ RADAR_SYNC_SCRAPER_CRON: '0 0 */6 * * *' }), null);
   assert.equal(validateSettingValues({ HOST: '127.0.0.1\nINJECTED=true' }), 'HOST 不能包含换行');
   assert.equal(validateSettingValues({ HOST: '"127.0.0.1"' }), 'HOST 不能包含引号');
-  assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'true' }), '未知配置项: OPENXBL_ENABLED');
-  assert.equal(validateSettingValues({ PSN_PROFILES_COOKIE: 'secret' }), '未知配置项: PSN_PROFILES_COOKIE');
+  assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'yes' }), 'OPENXBL_ENABLED 必须是 true 或 false');
+  assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'yes' }), 'PSN_PROFILES_ENABLED 必须是 true 或 false');
+  assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'true', OPENXBL_API_KEY: 'secret' }), null);
+  assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'true', PSN_PROFILES_COOKIE: 'secret' }), null);
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');
   assert.equal(validateSettingValues({ AUTH_ENABLED: 'false', PORT: '18889' }), null);
 });
@@ -372,10 +374,22 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏条目', () => 
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
 });
 
-test('主机平台导入状态固定标记为实验性未接入', () => {
-  assert.deepEqual(buildPlatformImportStatus(), {
-    xbox: { available: false, reason: 'experimental_not_connected' },
-    psn: { available: false, reason: 'experimental_not_connected' },
+test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
+  assert.deepEqual(buildPlatformImportStatus({
+    openxblEnabled: false,
+    openxblApiKey: '',
+    psnProfilesEnabled: false,
+  }), {
+    xbox: { available: false, reason: 'disabled' },
+    psn: { available: false, reason: 'disabled' },
+  });
+  assert.deepEqual(buildPlatformImportStatus({
+    openxblEnabled: true,
+    openxblApiKey: '',
+    psnProfilesEnabled: true,
+  }), {
+    xbox: { available: false, reason: 'missing_api_key' },
+    psn: { available: true, reason: null },
   });
 });
 
@@ -388,13 +402,16 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     doubanHarvestEnabled: false,
     doubanUserId: '',
     doubanCollectExists: false,
+    openxblEnabled: false,
+    openxblApiKey: '',
+    psnProfilesEnabled: false,
   });
   assert.deepEqual(unavailable.steam, { available: false, reason: 'missing_api_key' });
   assert.deepEqual(unavailable.trakt, { available: false, reason: 'missing_access_token' });
   assert.deepEqual(unavailable.douban.modes.json, { available: false, reason: 'missing_data' });
   assert.deepEqual(unavailable.douban.modes.full, { available: false, reason: 'disabled' });
-  assert.deepEqual(unavailable.xbox, { available: false, reason: 'experimental_not_connected' });
-  assert.deepEqual(unavailable.psn, { available: false, reason: 'experimental_not_connected' });
+  assert.deepEqual(unavailable.xbox, { available: false, reason: 'disabled' });
+  assert.deepEqual(unavailable.psn, { available: false, reason: 'disabled' });
 
   const available = buildImportSourceStatus({
     steamApiKey: 'configured',
@@ -404,12 +421,15 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     doubanHarvestEnabled: true,
     doubanUserId: 'user',
     doubanCollectExists: true,
+    openxblEnabled: true,
+    openxblApiKey: 'openxbl-key',
+    psnProfilesEnabled: true,
   });
   assert.equal(available.steam.available, true);
   assert.equal(available.trakt.available, true);
   assert.equal(available.douban.available, true);
-  assert.deepEqual(available.xbox, { available: false, reason: 'experimental_not_connected' });
-  assert.deepEqual(available.psn, { available: false, reason: 'experimental_not_connected' });
+  assert.deepEqual(available.xbox, { available: true, reason: null });
+  assert.deepEqual(available.psn, { available: true, reason: null });
   assert.equal(available.douban.modes.incremental.available, true);
 });
 
@@ -1488,6 +1508,16 @@ test('同步历史按来源持久化最近一次终态且忽略非同步任务',
     }));
     store.record(task({ taskId: 'other', type: 'tmdb-detail-backfill' }));
     store.record(task({
+      taskId: 'xbox-1',
+      type: 'xbox-owned',
+      label: 'Xbox 导入',
+    }));
+    store.record(task({
+      taskId: 'psn-1',
+      type: 'psn-owned',
+      label: 'PSN 导入',
+    }));
+    store.record(task({
       taskId: 'trakt-1',
       type: 'trakt-import',
       label: 'Trakt 电影同步',
@@ -1502,6 +1532,8 @@ test('同步历史按来源持久化最近一次终态且忽略非同步任务',
     assert.equal(history.trakt?.status, 'failed');
     assert.equal(history.trakt?.error, '令牌失效');
     assert.equal(history.steam, null);
+    assert.equal(history.xbox?.taskId, 'xbox-1');
+    assert.equal(history.psn?.taskId, 'psn-1');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

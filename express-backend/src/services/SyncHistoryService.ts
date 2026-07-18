@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { ImportSummary } from '../dto/import-summary';
 
-export type SyncHistorySource = 'douban' | 'trakt' | 'steam';
+export type SyncHistorySource = 'douban' | 'trakt' | 'steam' | 'xbox' | 'psn';
 export type SyncHistoryStatus = 'completed' | 'failed' | 'cancelled';
 
 export interface SyncHistoryEntry {
@@ -34,12 +34,14 @@ const TASK_SOURCE: Record<string, SyncHistorySource> = {
   'douban-harvest': 'douban',
   'trakt-import': 'trakt',
   'steam-owned': 'steam',
+  'xbox-owned': 'xbox',
+  'psn-owned': 'psn',
 };
 const SYNC_HISTORY_PATH = path.resolve(__dirname, '../../data/sync-history.json');
 const TERMINAL_STATUSES = new Set<SyncHistoryStatus>(['completed', 'failed', 'cancelled']);
 
 function emptyHistory(): SyncHistoryResponse {
-  return { douban: null, trakt: null, steam: null };
+  return { douban: null, trakt: null, steam: null, xbox: null, psn: null };
 }
 
 function isImportSummary(value: unknown): value is ImportSummary {

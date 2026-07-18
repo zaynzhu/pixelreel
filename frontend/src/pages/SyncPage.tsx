@@ -17,14 +17,16 @@ import type {
   SyncUnavailableReason,
 } from '../types/sync'
 
-const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam']
+const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam', 'xbox', 'psn']
 const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
   douban: 'douban-harvest',
   trakt: 'trakt-import',
   steam: 'steam-owned',
+  xbox: 'xbox-owned',
+  psn: 'psn-owned',
 }
 
-type DirectSource = 'steam' | 'trakt'
+type DirectSource = 'steam' | 'trakt' | 'xbox' | 'psn'
 
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
@@ -46,7 +48,10 @@ export default function SyncPage() {
   const [directStatuses, setDirectStatuses] = useState<Record<DirectSource, RecordStatus>>({
     steam: 'WANT',
     trakt: 'WANT',
+    xbox: 'WANT',
+    psn: 'WANT',
   })
+  const [platformAccounts, setPlatformAccounts] = useState({ xbox: '', psn: '' })
   const taskStateReady = tasksInitialized && taskPollError === null
   const sourceStatusReady = status !== null && statusError === null && !loading
 
@@ -287,25 +292,64 @@ export default function SyncPage() {
             />
           </SourceCard>
 
+          <SourceCard
+            source="xbox"
+            availability={status.xbox}
+            task={latestTask('xbox')}
+            history={history?.xbox}
+            settingsCategory="openxbl"
+          >
+            <AccountInput
+              source="xbox"
+              value={platformAccounts.xbox}
+              onChange={value => setPlatformAccounts(current => ({ ...current, xbox: value }))}
+            />
+            <StatusSelect
+              value={directStatuses.xbox}
+              onChange={value => setDirectStatuses(current => ({ ...current, xbox: value }))}
+            />
+            <SyncButton
+              label={t('sync.xbox.owned')}
+              onClick={() => void startSourceTask(
+                `/import/xbox/owned/task?gamertag=${encodeURIComponent(platformAccounts.xbox.trim())}&status=${directStatuses.xbox}`,
+                'xbox-owned',
+              )}
+              disabled={!sourceStatusReady || !taskStateReady || !status.xbox.available || !platformAccounts.xbox.trim() || activeAction != null || latestTask('xbox')?.status === 'running'}
+              active={activeAction === 'xbox-owned'}
+              className="mt-3 w-full"
+            />
+          </SourceCard>
+
+          <SourceCard
+            source="psn"
+            availability={status.psn}
+            task={latestTask('psn')}
+            history={history?.psn}
+            settingsCategory="psn"
+          >
+            <AccountInput
+              source="psn"
+              value={platformAccounts.psn}
+              onChange={value => setPlatformAccounts(current => ({ ...current, psn: value }))}
+            />
+            <StatusSelect
+              value={directStatuses.psn}
+              onChange={value => setDirectStatuses(current => ({ ...current, psn: value }))}
+            />
+            <SyncButton
+              label={t('sync.psn.owned')}
+              onClick={() => void startSourceTask(
+                `/import/psn/owned/task?psnId=${encodeURIComponent(platformAccounts.psn.trim())}&status=${directStatuses.psn}`,
+                'psn-owned',
+              )}
+              disabled={!sourceStatusReady || !taskStateReady || !status.psn.available || !platformAccounts.psn.trim() || activeAction != null || latestTask('psn')?.status === 'running'}
+              active={activeAction === 'psn-owned'}
+              className="mt-3 w-full"
+            />
+          </SourceCard>
+
         </div>
       )}
-
-      <section className="border border-dashed border-[var(--line)] bg-black/20 p-5 sm:p-6">
-        <span className="section-kicker">{t('sync.experimental_kicker')}</span>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {(['xbox', 'psn'] as const).map(source => (
-            <div key={source} className="flex items-start justify-between gap-4 border border-[var(--line)] bg-[var(--surface)] p-4 opacity-75">
-              <div>
-                <h2 className="font-display text-xl text-white">{t(`sync.source.${source}`)}</h2>
-                <p className="mt-2 text-[10px] leading-5 text-[var(--muted)]">{t(`sync.source.${source}.desc`)}</p>
-              </div>
-              <span className="shrink-0 font-mono text-[8px] uppercase tracking-widest text-yellow-400">
-                {t('sync.state.experimental')}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section className="border border-[var(--line)] bg-[var(--surface)]">
         <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--line)] p-5 sm:p-6">
@@ -449,6 +493,27 @@ function StatusSelect({ value, onChange }: { value: RecordStatus; onChange: (val
         <option value="DONE">{t('global.status.done')}</option>
         <option value="DROPPED">{t('global.status.dropped')}</option>
       </select>
+    </label>
+  )
+}
+
+function AccountInput({ source, value, onChange }: {
+  source: 'xbox' | 'psn'
+  value: string
+  onChange: (value: string) => void
+}) {
+  const { t } = useI18nStore()
+  return (
+    <label className="mb-3 block text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
+      {t(`sync.${source}.account`)}
+      <input
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        maxLength={100}
+        autoComplete="off"
+        placeholder={t(`sync.${source}.placeholder`)}
+        className="tech-input mt-2 w-full"
+      />
     </label>
   )
 }
