@@ -10,13 +10,13 @@ import type { RadarItem } from '../types/radar';
 const CATEGORIES = ['now_playing', 'upcoming', 'on_the_air'] as const;
 const PLATFORMS = ['', 'Netflix', 'Disney+', 'Apple TV+', 'Max', '优酷', '腾讯视频'];
 
-function formatSyncTime(iso: string | null) {
+function formatSyncTime(iso: string | null, t: ReturnType<typeof useI18nStore.getState>['t']) {
   if (!iso) return '—';
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-  return `${Math.floor(diff / 86400000)} 天前`;
+  if (diff < 60000) return t('radar.time.justNow');
+  if (diff < 3600000) return t('radar.time.minutesAgo', Math.floor(diff / 60000));
+  if (diff < 86400000) return t('radar.time.hoursAgo', Math.floor(diff / 3600000));
+  return t('radar.time.daysAgo', Math.floor(diff / 86400000));
 }
 
 export default function RadarPage() {
@@ -69,7 +69,7 @@ export default function RadarPage() {
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <h2 className="font-display text-3xl text-white">{t('radar.heading')}</h2>
           <div className="flex items-center gap-4 text-xs text-[var(--muted)]">
-            <span>{t('radar.lastSync')}: {formatSyncTime(lastSyncedAt)}</span>
+            <span>{t('radar.lastSync')}: {formatSyncTime(lastSyncedAt, t)}</span>
             <button
               onClick={() => triggerSync()}
               disabled={!taskStateReady || syncInProgress}

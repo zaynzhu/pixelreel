@@ -486,6 +486,10 @@ const dictionaries = {
     "radar.heading": "NEW RELEASES",
     "radar.headingPopular": "POPULAR",
     "radar.loadingSync": "SYNCING NEW RELEASES...",
+    "radar.time.justNow": "just now",
+    "radar.time.minutesAgo": "{0}m ago",
+    "radar.time.hoursAgo": "{0}h ago",
+    "radar.time.daysAgo": "{0}d ago",
 
     // Timeline
     "timeline.load_error": "UNABLE TO READ TIMELINE",
@@ -1198,6 +1202,10 @@ const dictionaries = {
     "radar.heading": "新片雷达",
     "radar.headingPopular": "热门",
     "radar.loadingSync": "同步新片中...",
+    "radar.time.justNow": "刚刚",
+    "radar.time.minutesAgo": "{0} 分钟前",
+    "radar.time.hoursAgo": "{0} 小时前",
+    "radar.time.daysAgo": "{0} 天前",
 
     // Timeline
     "timeline.load_error": "无法读取时间线",
