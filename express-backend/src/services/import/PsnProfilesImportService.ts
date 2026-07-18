@@ -226,7 +226,7 @@ export function isPsnProfilesChallengeResponse(status: unknown, data: unknown): 
     && isPsnProfilesChallengePage(data);
 }
 
-export function parsePsnGames(html: string): PsnGame[] {
+export function parsePsnGames(html: string, baseUrl = config.psnProfiles.baseUrl): PsnGame[] {
   const $ = cheerio.load(html);
   const results: PsnGame[] = [];
   const seenIds = new Set<string>();
@@ -239,7 +239,7 @@ export function parsePsnGames(html: string): PsnGame[] {
 
     const row = $(el).closest('tr').length ? $(el).closest('tr') : ($(el).closest('li').length ? $(el).closest('li') : $(el).parent());
     const title = extractTitle($, $(el), row);
-    const posterUrl = extractPosterUrl($, row);
+    const posterUrl = extractPosterUrl($, row, baseUrl);
     const progress = extractTrophyProgress($, row);
 
     results.push({
@@ -281,15 +281,21 @@ function extractTitle($: any, link: any, row: any): string | null {
   return title;
 }
 
-function extractPosterUrl($: any, row: any): string | null {
+function extractPosterUrl($: any, row: any, baseUrl: string): string | null {
   if (!row.length) return null;
   const gameImage = row.find('picture.game img').first();
   const img = gameImage.length ? gameImage : row.find('img').first();
   if (!img.length) return null;
   const url = img.attr('data-src') || img.attr('data-lazy-src') || img.attr('src');
   if (!url) return null;
-  if (url.startsWith('//')) return 'https:' + url;
-  return url;
+  try {
+    const resolved = new URL(url, baseUrl);
+    return resolved.protocol === 'http:' || resolved.protocol === 'https:'
+      ? resolved.toString()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function extractTrophyProgress($: any, row: any): { total: number | null; unlocked: number | null } {

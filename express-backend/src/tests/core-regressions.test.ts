@@ -796,11 +796,13 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
         </td>
       </tr>
       <tr data-earned="3" data-total="20">
+        <td><img src="/lib/img/games/second.png" alt="Second Game"></td>
         <td><a class="title" href="/trophies/20000-second-game-with-a-very-long-title-that-exceeds-the-database-identity-limit/TestPlayer">Second Game</a></td>
       </tr>
+      <tr><td><img src="javascript:alert(1)"><a class="title" href="/trophies/30000-third-game/TestPlayer">Third Game</a></td></tr>
       <tr><td><a class="title" href="/trophies/not-a-game/TestPlayer">Invalid Game</a></td></tr>
     </table>
-  `);
+  `, 'https://psnprofiles.com');
   assert.deepEqual(games, [
     {
       psnId: '10034',
@@ -812,9 +814,16 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
     {
       psnId: '20000',
       title: 'Second Game',
-      posterUrl: null,
+      posterUrl: 'https://psnprofiles.com/lib/img/games/second.png',
       achievementTotal: 20,
       achievementUnlocked: 3,
+    },
+    {
+      psnId: '30000',
+      title: 'Third Game',
+      posterUrl: null,
+      achievementTotal: null,
+      achievementUnlocked: null,
     },
   ]);
 });
