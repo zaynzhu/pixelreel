@@ -47,15 +47,16 @@ export default function SyncPage() {
     trakt: 'WANT',
   })
   const taskStateReady = tasksInitialized && taskPollError === null
+  const sourceStatusReady = status !== null && statusError === null && !loading
 
   const loadStatus = useCallback(async () => {
     const requestId = ++latestStatusRequest.current
     setLoading(true)
-    setStatusError(null)
     try {
       const nextStatus = await apiFetch<SyncSourceStatus>('/import/sources/status')
       if (requestId !== latestStatusRequest.current) return
       setStatus(nextStatus)
+      setStatusError(null)
     } catch (reason) {
       if (requestId !== latestStatusRequest.current) return
       setStatusError(reason instanceof Error ? reason.message : t('sync.status_error'))
@@ -224,7 +225,7 @@ export default function SyncPage() {
                   key={mode}
                   label={t(`sync.douban.${mode}`)}
                   onClick={() => void startDouban(mode)}
-                  disabled={statusError != null || !taskStateReady || !status.douban.modes[mode].available || activeAction != null || latestTask('douban')?.status === 'running'}
+                  disabled={!sourceStatusReady || !taskStateReady || !status.douban.modes[mode].available || activeAction != null || latestTask('douban')?.status === 'running'}
                   active={activeAction === `douban-${mode}`}
                   title={reasonLabel(status.douban.modes[mode].reason, t)}
                 />
@@ -247,13 +248,13 @@ export default function SyncPage() {
               <SyncButton
                 label={t('sync.trakt.movies')}
                 onClick={() => void startSourceTask(`/trakt/import/movies/task?status=${directStatuses.trakt}`, 'trakt-movies')}
-                disabled={statusError != null || !taskStateReady || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
+                disabled={!sourceStatusReady || !taskStateReady || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
                 active={activeAction === 'trakt-movies'}
               />
               <SyncButton
                 label={t('sync.trakt.shows')}
                 onClick={() => void startSourceTask(`/trakt/import/shows/task?status=${directStatuses.trakt}`, 'trakt-shows')}
-                disabled={statusError != null || !taskStateReady || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
+                disabled={!sourceStatusReady || !taskStateReady || !status.trakt.available || activeAction != null || latestTask('trakt')?.status === 'running'}
                 active={activeAction === 'trakt-shows'}
               />
             </div>
@@ -273,7 +274,7 @@ export default function SyncPage() {
             <SyncButton
               label={t('sync.steam.owned')}
               onClick={() => void startSourceTask(`/import/steam/owned/task?status=${directStatuses.steam}`, 'steam-owned')}
-              disabled={statusError != null || !taskStateReady || !status.steam.available || activeAction != null || latestTask('steam')?.status === 'running'}
+              disabled={!sourceStatusReady || !taskStateReady || !status.steam.available || activeAction != null || latestTask('steam')?.status === 'running'}
               active={activeAction === 'steam-owned'}
               className="mt-3 w-full"
             />
