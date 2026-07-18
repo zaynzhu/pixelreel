@@ -31,7 +31,8 @@ const IMPORT_DEFAULT_LIMIT = 50;
 const IMPORT_MAX_LIMIT = 100;
 export const DOUBAN_CSV_MAX_BYTES = 5 * 1024 * 1024;
 const DOUBAN_HARVEST_MODES = new Set(['json', 'full', 'incremental']);
-const EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
+const XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN = /[/?\\]/;
+const PSN_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
 
 export function assertKnownImportParameters(value: Record<string, unknown>, allowedKeys: string[]) {
   const unknownKey = Object.keys(value).find(key => !allowedKeys.includes(key));
@@ -46,10 +47,10 @@ export function assertEmptyImportRequestBody(value: unknown) {
   }
 }
 
-function parseExternalAccountIdentifier(value: unknown, name: string): string | null {
+function parseExternalAccountIdentifier(value: unknown, name: string, invalidPattern: RegExp): string | null {
   const parsed = parseBoundedStringParameter(value, name, 100);
   if (!parsed) return null;
-  if (EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN.test(parsed)) {
+  if (invalidPattern.test(parsed)) {
     throw new RequestValidationError(`${name} 格式无效`);
   }
   return parsed;
@@ -70,7 +71,9 @@ export function parseSteamOwnedImportParameters(value: Record<string, unknown>) 
 export function parseXboxOwnedImportParameters(value: Record<string, unknown>) {
   assertKnownImportParameters(value, ['gamertag', 'status']);
   return {
-    gamertag: parseExternalAccountIdentifier(value.gamertag, 'gamertag'),
+    gamertag: parseExternalAccountIdentifier(
+      value.gamertag, 'gamertag', XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN,
+    ),
     status: parseRecordStatusParameter(value.status, null),
   };
 }
@@ -78,7 +81,9 @@ export function parseXboxOwnedImportParameters(value: Record<string, unknown>) {
 export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
   assertKnownImportParameters(value, ['psnId', 'status']);
   return {
-    psnId: parseExternalAccountIdentifier(value.psnId, 'psnId'),
+    psnId: parseExternalAccountIdentifier(
+      value.psnId, 'psnId', PSN_ACCOUNT_PATH_SEPARATOR_PATTERN,
+    ),
     status: parseRecordStatusParameter(value.status, null),
   };
 }

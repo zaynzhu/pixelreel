@@ -255,6 +255,7 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'true', OPENXBL_API_KEY: 'secret' }), null);
   assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'true', PSN_PROFILES_COOKIE: 'secret' }), null);
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player One' }), null);
+  assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player#1234' }), null);
   assert.equal(validateSettingValues({ PSN_PROFILES_ACCOUNT_ID: 'player_name-1' }), null);
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'player/name' }), 'OPENXBL_GAMERTAG 格式无效');
   assert.equal(validateSettingValues({ PSN_PROFILES_ACCOUNT_ID: 'a'.repeat(101) }), 'PSN_PROFILES_ACCOUNT_ID 不能超过 100 个字符');
@@ -393,6 +394,10 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
     gamertag: '玩家 One',
     status: RecordStatus.UNSET,
   });
+  assert.deepEqual(parseXboxOwnedImportParameters({ gamertag: 'Player#1234' }), {
+    gamertag: 'Player#1234',
+    status: null,
+  });
   assert.deepEqual(parseXboxOwnedImportParameters({}), { gamertag: null, status: null });
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'player/name' }), RequestValidationError);
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'a'.repeat(101) }), RequestValidationError);
@@ -451,6 +456,17 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
     achievementUnlocked: 0,
   }]);
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
+  assert.equal(extractXuid({
+    content: {
+      people: [
+        { xuid: '2533274792093122', gamertag: 'Player' },
+        { xuid: '2535473210914202', gamertag: 'Player#1234' },
+      ],
+    },
+  }, 'player#1234'), '2535473210914202');
+  assert.equal(extractXuid({
+    content: { people: [{ xuid: '2533274792093122', gamertag: 'Similar Player' }] },
+  }, 'Player#1234'), null);
   assert.equal(extractXuid({ xuid: '../titles' }), null);
   assert.equal(extractXuid({ xuid: '1'.repeat(21) }), null);
   assert.equal(extractXuid({ xuid: 0 }), null);

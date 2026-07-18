@@ -60,8 +60,7 @@ export async function importXboxOwnedGames(
       headers: { 'X-Authorization': config.openxbl.apiKey },
       ...buildPlatformGameRequestOptions(signal),
     });
-    // 尝试从返回数据中提取 xuid
-    xuid = extractXuid(searchRes.data);
+    xuid = extractXuid(searchRes.data, gamertag.trim());
   } catch (ex: any) {
     if (signal?.aborted) return summary;
     summary.errors.push(`Xbox 用户搜索失败: ${ex.message}`);
@@ -69,7 +68,7 @@ export async function importXboxOwnedGames(
   }
 
   if (!xuid) {
-    summary.errors.push('无法从 OpenXBL 搜索结果解析 XUID');
+    summary.errors.push('OpenXBL 搜索结果中没有完全匹配的 Gamertag');
     return summary;
   }
 
@@ -181,29 +180,39 @@ export async function importXboxOwnedGames(
   return summary;
 }
 
-export function extractXuid(data: unknown): string | null {
-  if (!data) return null;
-  if (typeof data === 'object') {
-    const record = data as Record<string, unknown>;
-    const lowercaseXuid = parseXboxXuid(record.xuid);
-    if (lowercaseXuid) return lowercaseXuid;
-    const uppercaseXuid = parseXboxXuid(record.Xuid);
-    if (uppercaseXuid) return uppercaseXuid;
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        const found = extractXuid(item);
-        if (found) return found;
-      }
-    } else {
-      for (const val of Object.values(record)) {
-        if (typeof val === 'object' && val !== null) {
-          const found = extractXuid(val);
-          if (found) return found;
-        }
-      }
+export function extractXuid(data: unknown, expectedGamertag?: string): string | null {
+  const normalizedExpected = expectedGamertag
+    ? normalizeXboxGamertag(expectedGamertag)
+    : null;
+  return findXboxXuid(data, normalizedExpected);
+}
+
+function findXboxXuid(data: unknown, normalizedExpected: string | null): string | null {
+  if (!data || typeof data !== 'object') return null;
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const found = findXboxXuid(item, normalizedExpected);
+      if (found) return found;
     }
+    return null;
+  }
+
+  const record = data as Record<string, unknown>;
+  const returnedGamertag = readString(record.gamertag ?? record.Gamertag);
+  if (normalizedExpected == null
+    || (returnedGamertag && normalizeXboxGamertag(returnedGamertag) === normalizedExpected)) {
+    const xuid = parseXboxXuid(record.xuid) ?? parseXboxXuid(record.Xuid);
+    if (xuid) return xuid;
+  }
+  for (const value of Object.values(record)) {
+    const found = findXboxXuid(value, normalizedExpected);
+    if (found) return found;
   }
   return null;
+}
+
+function normalizeXboxGamertag(value: string): string {
+  return value.trim().normalize('NFKC').toLocaleLowerCase('en-US');
 }
 
 export function buildOpenXblUrl(baseUrl: string, resourcePath: string): string {

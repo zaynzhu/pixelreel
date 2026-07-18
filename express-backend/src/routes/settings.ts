@@ -14,7 +14,8 @@ const MAX_TIMER_MILLISECONDS = 2_147_483_647;
 const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MILLISECONDS / 1000);
 const CRON_SETTING_KEYS = new Set(['RADAR_SYNC_CORE_CRON', 'RADAR_SYNC_SCRAPER_CRON']);
 const EXTERNAL_ACCOUNT_SETTING_KEYS = new Set(['OPENXBL_GAMERTAG', 'PSN_PROFILES_ACCOUNT_ID']);
-const EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
+const XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN = /[/?\\]/;
+const PSN_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
 
 // ── 分类定义 ──
 interface FieldDef {
@@ -206,7 +207,10 @@ export function validateSettingValues(values: Record<string, unknown>): string |
     if (/['"]/.test(value)) return `${key} 不能包含引号`;
     if (EXTERNAL_ACCOUNT_SETTING_KEYS.has(key)) {
       if (value.trim().length > 100) return `${key} 不能超过 100 个字符`;
-      if (EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN.test(value)) return `${key} 格式无效`;
+      const invalidPattern = key === 'OPENXBL_GAMERTAG'
+        ? XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN
+        : PSN_ACCOUNT_PATH_SEPARATOR_PATTERN;
+      if (invalidPattern.test(value)) return `${key} 格式无效`;
     }
     if (CRON_SETTING_KEYS.has(key) && value !== '' && !cron.validate(value)) {
       return `${key} 不是有效的 Cron 表达式`;

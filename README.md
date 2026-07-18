@@ -117,7 +117,7 @@ curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?status=WANT'
 curl -X POST 'http://localhost:18889/api/import/psn/owned/task?status=WANT'
 ```
 
-Xbox 通过 OpenXBL API 读取玩家和游戏历史；PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。
+Xbox 通过 OpenXBL API 读取玩家和游戏历史；现代 Gamertag 可填写完整的 `名称#数字后缀`，模糊搜索结果只有账号完全匹配时才会继续同步。PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。
 
 ### 雷达发现新片
 
