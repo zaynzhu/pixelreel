@@ -210,7 +210,8 @@ export function parsePsnProfilePage(data: unknown): PsnProfilePage {
   if (Number.isSafeInteger(explicitNextPage) && explicitNextPage >= 0) {
     return { html, hasNext: explicitNextPage > 0 };
   }
-  const marker = html.match(/\bnextPage\s*=\s*(\d+)/);
+  const markers = [...html.matchAll(/\bnextPage\s*=\s*(\d+)/g)];
+  const marker = markers.at(-1);
   return {
     html,
     hasNext: marker ? Number(marker[1]) > 0 : record != null,
@@ -233,14 +234,17 @@ export function parsePsnGames(html: string, baseUrl = config.psnProfiles.baseUrl
   const results: PsnGame[] = [];
   const seenIds = new Set<string>();
 
-  $('a[href*="/trophies/"]').each((_, el) => {
-    const href = $(el).attr('href') || '';
+  $('tr').each((_, el) => {
+    const row = $(el);
+    if (!row.find('picture.game').length) return;
+    const link = row.find('a.title[href*="/trophies/"]').first();
+    if (!link.length) return;
+    const href = link.attr('href') || '';
     const psnId = extractPsnGameId(href);
     if (!psnId || seenIds.has(psnId)) return;
     seenIds.add(psnId);
 
-    const row = $(el).closest('tr').length ? $(el).closest('tr') : ($(el).closest('li').length ? $(el).closest('li') : $(el).parent());
-    const title = extractTitle($, $(el), row);
+    const title = extractTitle($, link, row);
     const posterUrl = extractPosterUrl($, row, baseUrl);
     const progress = extractTrophyProgress($, row);
 

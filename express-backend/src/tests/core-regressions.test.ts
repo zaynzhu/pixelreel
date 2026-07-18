@@ -901,6 +901,9 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
     html: '<script>nextPage = 0;</script>',
     hasNext: false,
   });
+  assert.equal(parsePsnProfilePage({
+    html: '<script>nextPage = 0;</script><section>游戏列表</section><script>nextPage = 2;</script>',
+  }).hasNext, true);
   assert.equal(parsePsnProfilePage({ html: '<tr>无分页标记</tr>' }).hasNext, true);
   assert.equal(parsePsnProfilePage('<html>普通单页</html>').hasNext, false);
   assert.equal(isPsnProfilesChallengePage('<title>Just a moment...</title>'), true);
@@ -924,6 +927,12 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
   const games = parsePsnGames(`
     <table>
       <tr>
+        <td>
+          <a class="title" href="/trophy/10034-foxyland/1-first-trophy">First Trophy</a>
+          <a href="/trophies/10034-foxyland/TestPlayer">FoxyLand</a>
+        </td>
+      </tr>
+      <tr>
         <td><picture class="game"><img src="//cdn.example/cover.jpg" alt="FoxyLand"></picture></td>
         <td>
           <a class="title" href="/trophies/10034-foxyland/TestPlayer">FoxyLand</a>
@@ -932,10 +941,10 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
         </td>
       </tr>
       <tr data-earned="3" data-total="20">
-        <td><img src="/lib/img/games/second.png" alt="Second Game"></td>
+        <td><picture class="game"><img src="/lib/img/games/second.png" alt="Second Game"></picture></td>
         <td><a class="title" href="/trophies/20000-second-game-with-a-very-long-title-that-exceeds-the-database-identity-limit/TestPlayer">Second Game</a></td>
       </tr>
-      <tr><td><img src="javascript:alert(1)"><a class="title" href="/trophies/30000-third-game/TestPlayer">Third Game</a></td></tr>
+      <tr><td><picture class="game"><img src="javascript:alert(1)"></picture><a class="title" href="/trophies/30000-third-game/TestPlayer">Third Game</a></td></tr>
       <tr><td><a class="title" href="/trophies/not-a-game/TestPlayer">Invalid Game</a></td></tr>
     </table>
   `, 'https://psnprofiles.com');
