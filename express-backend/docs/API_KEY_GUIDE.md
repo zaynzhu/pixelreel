@@ -98,7 +98,7 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 2. 在同步中心输入 PSN 在线 ID，或调用 `POST /api/import/psn/owned/task?psnId=在线ID&status=WANT`
 3. 公开档案可能直接返回 Cloudflare 403；同步任务会明确提示更新 Cookie，此时在 Settings 的 PSN 分类填写新的 `PSN_PROFILES_COOKIE` 并重启后端
 
-服务按 `?ajax=1&page=N` 逐页读取公开档案，最多 100 页。新记录写入导入审核队列，不覆盖已有 PSN 记录。
+服务按 `?ajax=1&page=N` 逐页读取公开档案，最多 100 页，并以奖杯链接中的数字列表 ID 作为稳定 `psnId`。新记录写入导入审核队列，不覆盖已有 PSN 记录。
 
 `GET /api/import/platforms/status` 只返回两项来源的配置可用性，不返回 API Key 或 Cookie。外部服务响应可能变化，首次使用应先用真实账号做小范围核对。
 

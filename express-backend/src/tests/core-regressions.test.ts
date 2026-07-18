@@ -55,6 +55,7 @@ import {
 import { extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
 import {
   collectPsnProfilePages,
+  extractPsnGameId,
   importPsnOwnedGames,
   isPsnProfilesChallengePage,
   isPsnProfilesChallengeResponse,
@@ -749,6 +750,9 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
   assert.equal(parsePsnProfilePage({ html: '<tr>无分页标记</tr>' }).hasNext, true);
   assert.equal(parsePsnProfilePage('<html>普通单页</html>').hasNext, false);
   assert.equal(isPsnProfilesChallengePage('<title>Just a moment...</title>'), true);
+  assert.equal(extractPsnGameId('/trophies/3303-dying-light'), '3303');
+  assert.equal(extractPsnGameId('/trophies/19260-god-of-war-ragnar%C3%B6k/TestPlayer'), '19260');
+  assert.equal(extractPsnGameId('/trophies/not-a-game/TestPlayer'), null);
   const requestedPages: number[] = [];
   const combinedHtml = await collectPsnProfilePages(async (page) => {
     requestedPages.push(page);
@@ -774,20 +778,21 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
         </td>
       </tr>
       <tr data-earned="3" data-total="20">
-        <td><a class="title" href="/trophies/20000-second-game/TestPlayer">Second Game</a></td>
+        <td><a class="title" href="/trophies/20000-second-game-with-a-very-long-title-that-exceeds-the-database-identity-limit/TestPlayer">Second Game</a></td>
       </tr>
+      <tr><td><a class="title" href="/trophies/not-a-game/TestPlayer">Invalid Game</a></td></tr>
     </table>
   `);
   assert.deepEqual(games, [
     {
-      psnId: '10034-foxyland',
+      psnId: '10034',
       title: 'FoxyLand',
       posterUrl: 'https://cdn.example/cover.jpg',
       achievementTotal: 15,
       achievementUnlocked: 12,
     },
     {
-      psnId: '20000-second-game',
+      psnId: '20000',
       title: 'Second Game',
       posterUrl: null,
       achievementTotal: 20,

@@ -235,15 +235,15 @@ export function parsePsnGames(html: string): PsnGame[] {
   return results;
 }
 
-function extractPsnGameId(href: string): string | null {
+export function extractPsnGameId(href: string): string | null {
   if (!href) return null;
   const idx = href.indexOf('/trophies/');
   if (idx < 0) return null;
   let tail = href.substring(idx + 10);
   if (tail.startsWith('/')) tail = tail.substring(1);
   const slash = tail.indexOf('/');
-  const id = slash > 0 ? tail.substring(0, slash) : tail;
-  return id || null;
+  const segment = slash > 0 ? tail.substring(0, slash) : tail;
+  return segment.match(/^(\d+)(?:-|$)/)?.[1] ?? null;
 }
 
 function extractTitle($: any, link: any, row: any): string | null {
