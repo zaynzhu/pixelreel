@@ -176,7 +176,10 @@ import {
   parseSteamOwnedGamesResponse,
   resolveSteamImportStatus,
 } from '../services/import/SteamOwnedGamesImportService';
-import { assertTaskActive } from '../services/import/ImportSummaryTaskService';
+import {
+  assertTaskActive,
+  getImportSummaryFailure,
+} from '../services/import/ImportSummaryTaskService';
 import {
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
@@ -2170,6 +2173,30 @@ test('统一同步任务在取消后阻止继续调用外部服务或写库', ()
   controller.abort();
   assert.throws(() => assertTaskActive(controller.signal), /任务已取消/);
   assert.doesNotThrow(() => assertTaskActive(new AbortController().signal));
+});
+
+test('同步任务将完整失败与空账号数据、部分成功明确区分', () => {
+  assert.equal(getImportSummaryFailure({
+    total: 0,
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: ['  OpenXBL 请求失败  '],
+  }), 'OpenXBL 请求失败');
+  assert.equal(getImportSummaryFailure({
+    total: 0,
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+  }), null);
+  assert.equal(getImportSummaryFailure({
+    total: 3,
+    imported: 1,
+    updated: 1,
+    skipped: 0,
+    errors: ['一个条目解析失败'],
+  }), null);
 });
 
 test('外部平台标识可识别历史导入游戏', () => {

@@ -1,11 +1,11 @@
 import type { ImportSummary } from '../../dto/import-summary';
 import type { RecordStatus } from '../../enums/RecordStatus';
 import {
-  completeTask,
   createTask,
   failTask,
   updateProgress,
 } from '../task-manager';
+import { settleImportSummaryTask } from './ImportSummaryTaskService';
 import { importXboxOwnedGames } from './OpenXblImportService';
 import { importPsnOwnedGames } from './PsnProfilesImportService';
 
@@ -32,7 +32,7 @@ function startPlatformImportTask(
     },
     task.abortController.signal,
   ).then((result) => {
-    completeTask(task.taskId, result);
+    settleImportSummaryTask(task.taskId, result);
   }).catch((error: unknown) => {
     failTask(task.taskId, error instanceof Error ? error.message : `${label}失败`);
   });
