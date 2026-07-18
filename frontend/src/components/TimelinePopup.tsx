@@ -17,6 +17,36 @@ interface TimelinePopupProps {
   onRescrape?: (record: LibraryRecord) => void;
 }
 
+const GENRE_KEYS = {
+  28: "detail.genre.28",
+  12: "detail.genre.12",
+  16: "detail.genre.16",
+  35: "detail.genre.35",
+  80: "detail.genre.80",
+  99: "detail.genre.99",
+  18: "detail.genre.18",
+  10751: "detail.genre.10751",
+  14: "detail.genre.14",
+  36: "detail.genre.36",
+  27: "detail.genre.27",
+  10402: "detail.genre.10402",
+  9648: "detail.genre.9648",
+  10749: "detail.genre.10749",
+  878: "detail.genre.878",
+  10770: "detail.genre.10770",
+  53: "detail.genre.53",
+  10752: "detail.genre.10752",
+  37: "detail.genre.37",
+  10759: "detail.genre.10759",
+  10762: "detail.genre.10762",
+  10763: "detail.genre.10763",
+  10764: "detail.genre.10764",
+  10765: "detail.genre.10765",
+  10766: "detail.genre.10766",
+  10767: "detail.genre.10767",
+  10768: "detail.genre.10768",
+} as const;
+
 export default function TimelinePopup({ lightweightRecord, fullRecord, loading, error, onRetry, onClose, onRescrape }: TimelinePopupProps) {
   const { t } = useI18nStore();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -97,19 +127,18 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
   const doubanIntro = fullRecord?.doubanIntro ?? null;
   const doubanDate = fullRecord?.doubanDate ?? null;
 
-  // TMDB genre ID → 名称映射
   const genreNames = (ids: string | null | undefined): string[] => {
     if (!ids) return [];
-    const map: Record<number, string> = {
-      28: '动作', 12: '冒险', 16: '动画', 35: '喜剧', 80: '犯罪',
-      99: '纪录', 18: '剧情', 10751: '家庭', 14: '奇幻', 36: '历史',
-      27: '恐怖', 10402: '音乐', 9648: '悬疑', 10749: '爱情', 878: '科幻',
-      10770: '电视电影', 53: '惊悚', 10752: '战争', 37: '西部',
-      10759: '动作冒险', 10762: '儿童', 10763: '新闻', 10764: '综艺',
-      10765: '科幻奇幻', 10766: '肥皂剧', 10767: '谈话', 10768: '战争政治',
-    };
-    return ids.split(',').map(Number).map(id => map[id] || `G${id}`).filter(Boolean);
+    return ids
+      .split(',')
+      .map(Number)
+      .map(id => {
+        const key = GENRE_KEYS[id as keyof typeof GENRE_KEYS];
+        return key ? t(key) : `G${id}`;
+      })
+      .filter(Boolean);
   };
+  const genres = genreNames(tmdbGenreIds);
 
   return (
     <div
@@ -197,9 +226,9 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
             </div>
 
             {/* TMDB 类型标签 */}
-            {genreNames(tmdbGenreIds).length > 0 && (
+            {genres.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {genreNames(tmdbGenreIds).map(name => (
+                {genres.map(name => (
                   <span key={name} className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-[var(--line)] text-[var(--muted)]">
                     {name}
                   </span>
@@ -210,7 +239,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
             {/* 个人评分（星星） */}
             {rating != null && (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">MY RATING</span>
+                <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">{t("detail.my_rating")}</span>
                 <span className="text-xs sm:text-sm font-bold text-[var(--accent)]"><StarRating value={rating} /></span>
               </div>
             )}
@@ -253,7 +282,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
           {/* 平台评分行 */}
           <div className="flex flex-wrap gap-4">
             {hasDouban && (
-              <PlatformScore label="豆瓣" rating={doubanAvgRating} />
+              <PlatformScore label={t("detail.douban")} rating={doubanAvgRating} />
             )}
             {hasTmdb && (
               <PlatformScore label="TMDB" rating={tmdbVoteAverage} extra={tmdbPopularity != null ? `POP ${tmdbPopularity.toFixed(1)}` : undefined} />
@@ -266,7 +295,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
           {/* TMDB 原始标题 */}
           {tmdbTitle && tmdbTitle !== title && (
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">TMDB TITLE</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">{t("detail.tmdb_title")}</p>
               <p className="text-[11px] leading-relaxed text-[var(--muted)]">{tmdbTitle}</p>
             </div>
           )}
@@ -274,7 +303,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
           {/* 简介 */}
           {tmdbOverview && (
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">OVERVIEW</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">{t("detail.overview")}</p>
               <p className="text-[11px] leading-relaxed text-[var(--muted)]">
                 {tmdbOverview}
               </p>
@@ -284,7 +313,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
           {/* 豆瓣 intro（原始信息：导演/类型等） */}
           {doubanIntro && (
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">DOUBAN INFO</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-1">{t("detail.douban_info")}</p>
               <p className="text-[11px] leading-relaxed text-[var(--muted)]">
                 {doubanIntro}
               </p>
@@ -303,7 +332,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
                 <span>→</span>
               </Link>
               {doubanDate && (
-                <span>豆瓣标记 {doubanDate}</span>
+                <span>{t("detail.douban_marked", doubanDate)}</span>
               )}
               {fullRecord && (
                 <button

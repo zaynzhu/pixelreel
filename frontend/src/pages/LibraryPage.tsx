@@ -547,7 +547,7 @@ export default function LibraryPage() {
                 onClick={() => setShowHistory(!showHistory)}
                 className="text-xs text-[var(--accent)] border border-[var(--accent)]/30 px-3 py-1.5 hover:bg-[var(--accent)]/10 transition-colors uppercase tracking-wider"
               >
-                {showHistory ? '收起历史' : '变更历史'}
+                {showHistory ? t("lib.edit.hide_history") : t("lib.edit.show_history")}
               </button>
               {showHistory && selectedRecord && (
                 <div className="mt-3 border border-[var(--line)] max-h-[300px] overflow-y-auto">
