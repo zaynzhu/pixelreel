@@ -4,6 +4,10 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 import { assertTaskActive } from './ImportSummaryTaskService';
+import {
+  buildPlatformGameMetricUpdate,
+  hasPlatformGameMetricUpdate,
+} from './PlatformGameSyncService';
 
 interface SteamOwnedGame {
   appId: number;
@@ -103,7 +107,7 @@ export async function importSteamOwnedGames(
   signal?: AbortSignal,
 ): Promise<ImportSummary> {
   assertTaskActive(signal);
-  const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
+  const summary: ImportSummary = { total: 0, imported: 0, updated: 0, skipped: 0, errors: [] };
 
   if (!config.steam.apiKey) {
     summary.errors.push('缺少 Steam Web API Key');
@@ -155,8 +159,21 @@ export async function importSteamOwnedGames(
   for (const [index, owned] of games.entries()) {
     assertTaskActive(signal);
     onProgress?.(index + 1, games.length, owned.title);
-    if (existingMap.has(owned.appId)) {
-      summary.skipped++;
+    const existing = existingMap.get(owned.appId);
+    if (existing) {
+      const update = buildPlatformGameMetricUpdate(existing, {
+        platform: 'STEAM',
+        posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appId}/header.jpg`,
+        playtimeMinutes: owned.playtimeMinutes,
+        achievementTotal: null,
+        achievementUnlocked: null,
+      });
+      if (!hasPlatformGameMetricUpdate(update)) {
+        summary.skipped++;
+        continue;
+      }
+      await getDb().game.update({ where: { id: existing.id }, data: update });
+      summary.updated = (summary.updated ?? 0) + 1;
       continue;
     }
 
@@ -164,6 +181,7 @@ export async function importSteamOwnedGames(
       steamAppId: BigInt(owned.appId),
       title: owned.title,
       posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appId}/header.jpg`,
+      platform: 'STEAM',
       playtimeMinutes: owned.playtimeMinutes,
       importedAt: new Date(),
       importReviewState: 'PENDING',

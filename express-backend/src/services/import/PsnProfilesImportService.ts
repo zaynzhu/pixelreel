@@ -5,6 +5,10 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
+import {
+  buildPlatformGameMetricUpdate,
+  hasPlatformGameMetricUpdate,
+} from './PlatformGameSyncService';
 
 type ImportProgress = (processed: number, total: number, currentTitle: string) => void;
 const MAX_PROFILE_PAGES = 100;
@@ -21,7 +25,7 @@ export async function importPsnOwnedGames(
   onProgress?: ImportProgress,
   signal?: AbortSignal,
 ): Promise<ImportSummary> {
-  const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
+  const summary: ImportSummary = { total: 0, imported: 0, updated: 0, skipped: 0, errors: [] };
 
   if (!config.psnProfiles.enabled) {
     summary.errors.push('PSNProfiles 未启用');
@@ -55,7 +59,7 @@ export async function importPsnOwnedGames(
 
   for (const [index, game] of games.entries()) {
     if (signal?.aborted) return summary;
-    onProgress?.(index, summary.total, game.title || game.psnId || '未知游戏');
+    onProgress?.(index + 1, summary.total, game.title || game.psnId || '未知游戏');
     if (!game.psnId) {
       summary.errors.push(`缺少 PSN 游戏 ID，已跳过: ${game.title || '未知游戏'}`);
       summary.skipped++;
@@ -66,8 +70,25 @@ export async function importPsnOwnedGames(
       summary.skipped++;
       continue;
     }
-    if (existingMap.has(game.psnId)) {
-      summary.skipped++;
+    const existing = existingMap.get(game.psnId);
+    if (existing) {
+      const posterUrl = existing.posterUrl
+        ? null
+        : game.posterUrl ?? await lookupRawgPosterUrl(game.title, signal);
+      if (signal?.aborted) return summary;
+      const update = buildPlatformGameMetricUpdate(existing, {
+        platform: 'PSN',
+        posterUrl,
+        playtimeMinutes: null,
+        achievementTotal: game.achievementTotal,
+        achievementUnlocked: game.achievementUnlocked,
+      });
+      if (!hasPlatformGameMetricUpdate(update)) {
+        summary.skipped++;
+        continue;
+      }
+      await getDb().game.update({ where: { id: existing.id }, data: update });
+      summary.updated = (summary.updated ?? 0) + 1;
       continue;
     }
 

@@ -27,7 +27,7 @@
 ## ✨ Features
 
 - **Multi-Source Search** -- Search TMDB, OMDb, Douban, IMDb, Trakt, RAWG, and Steam from a single interface
-- **One-Click Import** -- Bulk import from Douban, Trakt, Steam, Xbox, and PSN with automatic poster and detail fetching
+- **One-Click Import** -- Bulk import from Douban, Trakt, Steam, Xbox, and PSN; repeated game-platform syncs refresh source metrics and report updates separately
 - **Unified Library** -- Movies, TV shows, and games in one list with category/year/status filters and ratings
 - **Timeline Poster Wall** -- Monthly grouped poster gallery with year switching and detail popups
 - **Radar Discovery** -- Browse TMDB now-playing/trending + Youku/Tencent listings, add to wishlist instantly

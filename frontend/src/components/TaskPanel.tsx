@@ -197,6 +197,9 @@ function TaskCard({ task, cancelling }: {
       {(task.status === 'completed' || task.status === 'cancelled') && task.result && (
         <div className="flex gap-3 text-[10px] text-[var(--muted)]">
           <span>{t('task.panel.result.imported')} <span className="text-white">{task.result.imported}</span></span>
+          {task.result.updated != null && (
+            <span>{t('task.panel.result.updated')} <span className="text-white">{task.result.updated}</span></span>
+          )}
           <span>{t('task.panel.result.skipped')} <span className="text-white">{task.result.skipped}</span></span>
           {task.result.errors.length > 0 && (
             <span>{t('task.panel.result.errors')} <span className="text-red-400">{task.result.errors.length}</span></span>

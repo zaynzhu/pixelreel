@@ -543,6 +543,7 @@ function ResultSummary({ result, completedAt, compact = false }: { result: SyncR
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         <span>{t('sync.result.total')} <strong className="text-white">{result.total}</strong></span>
         <span>{t('sync.result.imported')} <strong className="text-[var(--accent)]">{result.imported}</strong></span>
+        {result.updated != null && <span>{t('sync.result.updated')} <strong className="text-[var(--accent)]">{result.updated}</strong></span>}
         <span>{t('sync.result.skipped')} <strong className="text-white">{result.skipped}</strong></span>
         <span>{t('sync.result.errors')} <strong className={result.errors.length ? 'text-red-400' : 'text-white'}>{result.errors.length}</strong></span>
       </div>
@@ -578,6 +579,7 @@ function TaskRow({ task, lang, cancelling, onCancel }: {
       ) : task.result ? (
         <div className="flex gap-3 font-mono text-[9px] text-[var(--muted)]">
           <span>+{task.result.imported}</span>
+          {task.result.updated != null && <span>~{task.result.updated}</span>}
           <span>={task.result.skipped}</span>
           <span className={task.result.errors.length ? 'text-red-400' : ''}>!{task.result.errors.length}</span>
         </div>

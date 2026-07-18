@@ -4,6 +4,10 @@ import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
+import {
+  buildPlatformGameMetricUpdate,
+  hasPlatformGameMetricUpdate,
+} from './PlatformGameSyncService';
 
 export interface XboxImportedTitle {
   titleId: string;
@@ -23,7 +27,7 @@ export async function importXboxOwnedGames(
   onProgress?: ImportProgress,
   signal?: AbortSignal,
 ): Promise<ImportSummary> {
-  const summary: ImportSummary = { total: 0, imported: 0, skipped: 0, errors: [] };
+  const summary: ImportSummary = { total: 0, imported: 0, updated: 0, skipped: 0, errors: [] };
 
   if (!config.openxbl.enabled) {
     summary.errors.push('OpenXBL 未启用');
@@ -87,7 +91,7 @@ export async function importXboxOwnedGames(
   const toSave: any[] = [];
   for (const [index, title] of titleHistory.entries()) {
     if (signal?.aborted) return summary;
-    onProgress?.(index, summary.total, title.name || title.titleId);
+    onProgress?.(index + 1, summary.total, title.name || title.titleId);
     if (!title.titleId) {
       summary.errors.push(`缺少 Xbox titleId，已跳过: ${title.name || '未知游戏'}`);
       summary.skipped++;
@@ -98,8 +102,25 @@ export async function importXboxOwnedGames(
       summary.skipped++;
       continue;
     }
-    if (existingMap.has(title.titleId)) {
-      summary.skipped++;
+    const existing = existingMap.get(title.titleId);
+    if (existing) {
+      const posterUrl = existing.posterUrl
+        ? null
+        : title.posterUrl ?? await lookupRawgPosterUrl(title.name, signal);
+      if (signal?.aborted) return summary;
+      const update = buildPlatformGameMetricUpdate(existing, {
+        platform: 'XBOX',
+        posterUrl,
+        playtimeMinutes: title.playtimeMinutes,
+        achievementTotal: title.achievementTotal,
+        achievementUnlocked: title.achievementUnlocked,
+      });
+      if (!hasPlatformGameMetricUpdate(update)) {
+        summary.skipped++;
+        continue;
+      }
+      await getDb().game.update({ where: { id: existing.id }, data: update });
+      summary.updated = (summary.updated ?? 0) + 1;
       continue;
     }
 

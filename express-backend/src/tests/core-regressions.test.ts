@@ -178,6 +178,10 @@ import {
 } from '../services/import/SteamOwnedGamesImportService';
 import { assertTaskActive } from '../services/import/ImportSummaryTaskService';
 import {
+  buildPlatformGameMetricUpdate,
+  hasPlatformGameMetricUpdate,
+} from '../services/import/PlatformGameSyncService';
+import {
   getExternalServiceKey,
   RateLimiter,
   shouldRateLimitRequest,
@@ -372,6 +376,46 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏条目', () => 
     achievementUnlocked: 0,
   }]);
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
+});
+
+test('游戏平台重复同步只刷新来源指标并保留已有展示字段', () => {
+  const update = buildPlatformGameMetricUpdate({
+    platform: null,
+    posterUrl: null,
+    playtimeMinutes: 30,
+    achievementTotal: 20,
+    achievementUnlocked: 5,
+  }, {
+    platform: 'XBOX',
+    posterUrl: 'https://images.example/game.jpg',
+    playtimeMinutes: 45,
+    achievementTotal: 25,
+    achievementUnlocked: 8,
+  });
+  assert.deepEqual(update, {
+    platform: 'XBOX',
+    posterUrl: 'https://images.example/game.jpg',
+    playtimeMinutes: 45,
+    achievementTotal: 25,
+    achievementUnlocked: 8,
+  });
+  assert.equal(hasPlatformGameMetricUpdate(update), true);
+
+  const unchanged = buildPlatformGameMetricUpdate({
+    platform: 'PSN',
+    posterUrl: 'https://images.example/existing.jpg',
+    playtimeMinutes: null,
+    achievementTotal: 10,
+    achievementUnlocked: 3,
+  }, {
+    platform: 'PSN',
+    posterUrl: 'https://images.example/new.jpg',
+    playtimeMinutes: null,
+    achievementTotal: null,
+    achievementUnlocked: 3,
+  });
+  assert.deepEqual(unchanged, {});
+  assert.equal(hasPlatformGameMetricUpdate(unchanged), false);
 });
 
 test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
@@ -1490,7 +1534,7 @@ test('同步历史按来源持久化最近一次终态且忽略非同步任务',
     type: 'douban-harvest',
     label: '豆瓣增量同步',
     status: 'completed',
-    result: { total: 10, imported: 2, skipped: 8, errors: [] },
+    result: { total: 10, imported: 2, updated: 1, skipped: 7, errors: [] },
     error: null,
     startedAt: '2026-07-15T10:00:00.000Z',
     completedAt: '2026-07-15T10:05:00.000Z',
@@ -1528,7 +1572,13 @@ test('同步历史按来源持久化最近一次终态且忽略非同步任务',
 
     const history = new SyncHistoryStore(storagePath).list();
     assert.equal(history.douban?.taskId, 'douban-2');
-    assert.deepEqual(history.douban?.result, { total: 10, imported: 2, skipped: 8, errors: [] });
+    assert.deepEqual(history.douban?.result, {
+      total: 10,
+      imported: 2,
+      updated: 1,
+      skipped: 7,
+      errors: [],
+    });
     assert.equal(history.trakt?.status, 'failed');
     assert.equal(history.trakt?.error, '令牌失效');
     assert.equal(history.steam, null);

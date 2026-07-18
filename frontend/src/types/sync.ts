@@ -33,6 +33,7 @@ export interface SyncSourceStatus {
 export interface SyncResult {
   total: number
   imported: number
+  updated?: number
   skipped: number
   errors: string[]
 }

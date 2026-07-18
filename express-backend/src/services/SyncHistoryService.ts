@@ -49,6 +49,7 @@ function isImportSummary(value: unknown): value is ImportSummary {
   const result = value as Partial<ImportSummary>;
   return Number.isFinite(result.total)
     && Number.isFinite(result.imported)
+    && (result.updated === undefined || Number.isFinite(result.updated))
     && Number.isFinite(result.skipped)
     && Array.isArray(result.errors)
     && result.errors.every(error => typeof error === 'string');

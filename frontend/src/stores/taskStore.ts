@@ -7,7 +7,7 @@ export interface Task {
   label: string;
   status: 'running' | 'completed' | 'failed' | 'cancelled';
   progress: { processed: number; total: number; currentTitle: string };
-  result: { total: number; imported: number; skipped: number; errors: string[] } | null;
+  result: { total: number; imported: number; updated?: number; skipped: number; errors: string[] } | null;
   error: string | null;
   startedAt: string;
   completedAt: string | null;
