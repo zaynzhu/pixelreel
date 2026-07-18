@@ -46,8 +46,9 @@ export function assertEmptyImportRequestBody(value: unknown) {
   }
 }
 
-function parseExternalAccountIdentifier(value: unknown, name: string): string {
-  const parsed = parseBoundedStringParameter(value, name, 100, true)!;
+function parseExternalAccountIdentifier(value: unknown, name: string): string | null {
+  const parsed = parseBoundedStringParameter(value, name, 100);
+  if (!parsed) return null;
   if (EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN.test(parsed)) {
     throw new RequestValidationError(`${name} 格式无效`);
   }
@@ -80,6 +81,10 @@ export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
     psnId: parseExternalAccountIdentifier(value.psnId, 'psnId'),
     status: parseRecordStatusParameter(value.status, null),
   };
+}
+
+export function resolvePlatformImportAccount(requestAccount: string | null, defaultAccount: string): string {
+  return requestAccount ?? defaultAccount.trim();
 }
 
 export function parseImportLimitParameters(value: Record<string, unknown>): number {
@@ -118,19 +123,26 @@ type ImportSourceStatusConfig = {
   doubanCollectExists: boolean;
   openxblEnabled: boolean;
   openxblApiKey: string;
+  openxblGamertag: string;
   psnProfilesEnabled: boolean;
+  psnProfilesAccountId: string;
 };
 
 type PlatformImportStatusConfig = Pick<
   ImportSourceStatusConfig,
-  'openxblEnabled' | 'openxblApiKey' | 'psnProfilesEnabled'
+  'openxblEnabled' | 'openxblApiKey' | 'openxblGamertag'
+  | 'psnProfilesEnabled' | 'psnProfilesAccountId'
 >;
 
 export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) {
   const xboxReason = !settings.openxblEnabled
     ? 'disabled'
-    : settings.openxblApiKey.trim() ? null : 'missing_api_key';
-  const psnReason = settings.psnProfilesEnabled ? null : 'disabled';
+    : !settings.openxblApiKey.trim()
+      ? 'missing_api_key'
+      : settings.openxblGamertag.trim() ? null : 'missing_account';
+  const psnReason = !settings.psnProfilesEnabled
+    ? 'disabled'
+    : settings.psnProfilesAccountId.trim() ? null : 'missing_account';
 
   return {
     xbox: {
@@ -190,11 +202,13 @@ export function buildImportSourceStatus(settings: ImportSourceStatusConfig) {
   };
 }
 
-function getCurrentPlatformImportStatus() {
+function getCurrentPlatformImportStatus(accounts?: { gamertag?: string | null; psnId?: string | null }) {
   return buildPlatformImportStatus({
     openxblEnabled: config.openxbl.enabled,
     openxblApiKey: config.openxbl.apiKey,
+    openxblGamertag: accounts?.gamertag ?? config.openxbl.gamertag,
     psnProfilesEnabled: config.psnProfiles.enabled,
+    psnProfilesAccountId: accounts?.psnId ?? config.psnProfiles.accountId,
   });
 }
 
@@ -209,7 +223,9 @@ function getCurrentImportSourceStatus() {
     doubanCollectExists: fs.existsSync(path.join(config.douban.dataDir, 'collect.json')),
     openxblEnabled: config.openxbl.enabled,
     openxblApiKey: config.openxbl.apiKey,
+    openxblGamertag: config.openxbl.gamertag,
     psnProfilesEnabled: config.psnProfiles.enabled,
+    psnProfilesAccountId: config.psnProfiles.accountId,
   });
 }
 
@@ -278,14 +294,17 @@ router.post('/steam/owned/task', (req: Request, res: Response) => {
 router.post('/xbox/owned/task', (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
   const { gamertag, status } = parseXboxOwnedImportParameters(req.query);
-  const availability = getCurrentPlatformImportStatus().xbox;
+  const account = resolvePlatformImportAccount(gamertag, config.openxbl.gamertag);
+  const availability = getCurrentPlatformImportStatus({ gamertag: account }).xbox;
   if (!availability.available) {
     res.status(403).json({
-      error: availability.reason === 'missing_api_key' ? '缺少 OpenXBL API Key' : 'OpenXBL 未启用',
+      error: availability.reason === 'missing_api_key'
+        ? '缺少 OpenXBL API Key'
+        : availability.reason === 'missing_account' ? '缺少 Xbox Gamertag' : 'OpenXBL 未启用',
     });
     return;
   }
-  const task = startXboxOwnedImportTask(gamertag, status);
+  const task = startXboxOwnedImportTask(account, status);
   res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 
@@ -293,12 +312,15 @@ router.post('/xbox/owned/task', (req: Request, res: Response) => {
 router.post('/psn/owned/task', (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
   const { psnId, status } = parsePsnOwnedImportParameters(req.query);
-  const availability = getCurrentPlatformImportStatus().psn;
+  const account = resolvePlatformImportAccount(psnId, config.psnProfiles.accountId);
+  const availability = getCurrentPlatformImportStatus({ psnId: account }).psn;
   if (!availability.available) {
-    res.status(403).json({ error: 'PSNProfiles 未启用' });
+    res.status(403).json({
+      error: availability.reason === 'missing_account' ? '缺少 PSN 在线 ID' : 'PSNProfiles 未启用',
+    });
     return;
   }
-  const task = startPsnOwnedImportTask(psnId, status);
+  const task = startPsnOwnedImportTask(account, status);
   res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 

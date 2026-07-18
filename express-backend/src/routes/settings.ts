@@ -13,6 +13,8 @@ const ENV_TEMP_PATH = path.resolve(__dirname, '../../.env.tmp.local');
 const MAX_TIMER_MILLISECONDS = 2_147_483_647;
 const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MILLISECONDS / 1000);
 const CRON_SETTING_KEYS = new Set(['RADAR_SYNC_CORE_CRON', 'RADAR_SYNC_SCRAPER_CRON']);
+const EXTERNAL_ACCOUNT_SETTING_KEYS = new Set(['OPENXBL_GAMERTAG', 'PSN_PROFILES_ACCOUNT_ID']);
+const EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
 
 // ── 分类定义 ──
 interface FieldDef {
@@ -151,6 +153,7 @@ const CATEGORIES: CategoryDef[] = [
     fields: [
       { key: 'OPENXBL_API_KEY', labelZh: 'API 密钥', labelEn: 'API Key', sensitive: true, type: 'text' },
       { key: 'OPENXBL_BASE_URL', labelZh: 'API 地址', labelEn: 'API Base URL', sensitive: false, type: 'text' },
+      { key: 'OPENXBL_GAMERTAG', labelZh: '默认 Gamertag', labelEn: 'Default Gamertag', sensitive: false, type: 'text' },
       { key: 'OPENXBL_ENABLED', labelZh: '启用 Xbox 同步', labelEn: 'Enable Xbox Sync', sensitive: false, type: 'boolean' },
     ],
   },
@@ -160,6 +163,7 @@ const CATEGORIES: CategoryDef[] = [
       { key: 'PSN_PROFILES_BASE_URL', labelZh: '站点地址', labelEn: 'Site URL', sensitive: false, type: 'text' },
       { key: 'PSN_PROFILES_USER_AGENT', labelZh: 'User-Agent', labelEn: 'User-Agent', sensitive: false, type: 'text' },
       { key: 'PSN_PROFILES_COOKIE', labelZh: 'Cookie', labelEn: 'Cookie', sensitive: true, type: 'text' },
+      { key: 'PSN_PROFILES_ACCOUNT_ID', labelZh: '默认在线 ID', labelEn: 'Default Online ID', sensitive: false, type: 'text' },
       { key: 'PSN_PROFILES_ENABLED', labelZh: '启用 PSN 同步', labelEn: 'Enable PSN Sync', sensitive: false, type: 'boolean' },
     ],
   },
@@ -200,6 +204,10 @@ export function validateSettingValues(values: Record<string, unknown>): string |
     if (typeof value !== 'string') return `${key} 必须是字符串`;
     if (/\r|\n/.test(value)) return `${key} 不能包含换行`;
     if (/['"]/.test(value)) return `${key} 不能包含引号`;
+    if (EXTERNAL_ACCOUNT_SETTING_KEYS.has(key)) {
+      if (value.trim().length > 100) return `${key} 不能超过 100 个字符`;
+      if (EXTERNAL_ACCOUNT_PATH_SEPARATOR_PATTERN.test(value)) return `${key} 格式无效`;
+    }
     if (CRON_SETTING_KEYS.has(key) && value !== '' && !cron.validate(value)) {
       return `${key} 不是有效的 Cron 表达式`;
     }
@@ -275,12 +283,14 @@ interface RuntimePlatformConfig {
   openxbl: {
     apiKey: string;
     baseUrl: string;
+    gamertag: string;
     enabled: boolean;
   };
   psnProfiles: {
     baseUrl: string;
     userAgent: string;
     cookie: string;
+    accountId: string;
     enabled: boolean;
   };
 }
@@ -295,10 +305,12 @@ export function applyRuntimeSettingValues(
     switch (key) {
       case 'OPENXBL_API_KEY': runtimeConfig.openxbl.apiKey = value; break;
       case 'OPENXBL_BASE_URL': runtimeConfig.openxbl.baseUrl = value; break;
+      case 'OPENXBL_GAMERTAG': runtimeConfig.openxbl.gamertag = value; break;
       case 'OPENXBL_ENABLED': runtimeConfig.openxbl.enabled = value === 'true'; break;
       case 'PSN_PROFILES_BASE_URL': runtimeConfig.psnProfiles.baseUrl = value; break;
       case 'PSN_PROFILES_USER_AGENT': runtimeConfig.psnProfiles.userAgent = value; break;
       case 'PSN_PROFILES_COOKIE': runtimeConfig.psnProfiles.cookie = value; break;
+      case 'PSN_PROFILES_ACCOUNT_ID': runtimeConfig.psnProfiles.accountId = value; break;
       case 'PSN_PROFILES_ENABLED': runtimeConfig.psnProfiles.enabled = value === 'true'; break;
       default: restartRequired = true;
     }

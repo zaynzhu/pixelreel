@@ -314,7 +314,7 @@ export default function SyncPage() {
                 `/import/xbox/owned/task?gamertag=${encodeURIComponent(platformAccounts.xbox.trim())}&status=${directStatuses.xbox}`,
                 'xbox-owned',
               )}
-              disabled={!sourceStatusReady || !taskStateReady || !status.xbox.available || !platformAccounts.xbox.trim() || activeAction != null || latestTask('xbox')?.status === 'running'}
+              disabled={!sourceStatusReady || !taskStateReady || !status.xbox.available || activeAction != null || latestTask('xbox')?.status === 'running'}
               active={activeAction === 'xbox-owned'}
               className="mt-3 w-full"
             />
@@ -342,7 +342,7 @@ export default function SyncPage() {
                 `/import/psn/owned/task?psnId=${encodeURIComponent(platformAccounts.psn.trim())}&status=${directStatuses.psn}`,
                 'psn-owned',
               )}
-              disabled={!sourceStatusReady || !taskStateReady || !status.psn.available || !platformAccounts.psn.trim() || activeAction != null || latestTask('psn')?.status === 'running'}
+              disabled={!sourceStatusReady || !taskStateReady || !status.psn.available || activeAction != null || latestTask('psn')?.status === 'running'}
               active={activeAction === 'psn-owned'}
               className="mt-3 w-full"
             />

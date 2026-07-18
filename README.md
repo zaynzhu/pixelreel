@@ -110,14 +110,14 @@ curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 # Steam 已购游戏导入任务
 curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
 
-# Xbox 游戏历史导入任务（需配置并启用 OpenXBL）
-curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?gamertag=你的玩家代号&status=WANT'
+# Xbox 游戏历史导入任务（默认 Gamertag 在 Settings 配置）
+curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?status=WANT'
 
-# PSN 游戏导入任务（需启用 PSNProfiles）
-curl -X POST 'http://localhost:18889/api/import/psn/owned/task?psnId=你的在线ID&status=WANT'
+# PSN 游戏导入任务（默认在线 ID 在 Settings 配置）
+curl -X POST 'http://localhost:18889/api/import/psn/owned/task?status=WANT'
 ```
 
-Xbox 通过 OpenXBL API 读取玩家和游戏历史；PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置并启用后使用。
+Xbox 通过 OpenXBL API 读取玩家和游戏历史；PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。
 
 ### 雷达发现新片
 

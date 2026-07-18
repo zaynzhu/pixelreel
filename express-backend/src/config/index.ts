@@ -121,6 +121,7 @@ export const config = {
   openxbl: {
     apiKey: process.env.OPENXBL_API_KEY || '',
     baseUrl: process.env.OPENXBL_BASE_URL || 'https://api.xbl.io/v2',
+    gamertag: process.env.OPENXBL_GAMERTAG || '',
     enabled: process.env.OPENXBL_ENABLED === 'true',
   },
 
@@ -130,6 +131,7 @@ export const config = {
       process.env.PSN_PROFILES_USER_AGENT ||
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
     cookie: process.env.PSN_PROFILES_COOKIE || '',
+    accountId: process.env.PSN_PROFILES_ACCOUNT_ID || '',
     enabled: process.env.PSN_PROFILES_ENABLED === 'true',
   },
 

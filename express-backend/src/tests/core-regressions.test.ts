@@ -51,6 +51,7 @@ import {
   parsePsnOwnedImportParameters,
   parseSteamOwnedImportParameters,
   parseXboxOwnedImportParameters,
+  resolvePlatformImportAccount,
 } from '../routes/import';
 import { buildOpenXblUrl, extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
 import {
@@ -253,6 +254,10 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'yes' }), 'PSN_PROFILES_ENABLED 必须是 true 或 false');
   assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'true', OPENXBL_API_KEY: 'secret' }), null);
   assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'true', PSN_PROFILES_COOKIE: 'secret' }), null);
+  assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player One' }), null);
+  assert.equal(validateSettingValues({ PSN_PROFILES_ACCOUNT_ID: 'player_name-1' }), null);
+  assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'player/name' }), 'OPENXBL_GAMERTAG 格式无效');
+  assert.equal(validateSettingValues({ PSN_PROFILES_ACCOUNT_ID: 'a'.repeat(101) }), 'PSN_PROFILES_ACCOUNT_ID 不能超过 100 个字符');
   assert.equal(validateSettingValues({ UNKNOWN_SETTING: 'value' }), '未知配置项: UNKNOWN_SETTING');
   assert.equal(validateSettingValues({ AUTH_ENABLED: 'false', PORT: '18889' }), null);
 });
@@ -279,11 +284,12 @@ test('配置值仅在需要时添加引号', () => {
 
 test('主机平台设置即时更新运行时配置并区分重启项', () => {
   const runtimeConfig = {
-    openxbl: { apiKey: '', baseUrl: 'https://old.xbl.test', enabled: false },
+    openxbl: { apiKey: '', baseUrl: 'https://old.xbl.test', gamertag: '', enabled: false },
     psnProfiles: {
       baseUrl: 'https://old.psn.test',
       userAgent: 'old-agent',
       cookie: '',
+      accountId: '',
       enabled: false,
     },
   };
@@ -291,18 +297,26 @@ test('主机平台设置即时更新运行时配置并区分重启项', () => {
   assert.equal(applyRuntimeSettingValues({
     OPENXBL_API_KEY: 'xbox-key',
     OPENXBL_BASE_URL: 'https://api.xbl.test/v2',
+    OPENXBL_GAMERTAG: 'Player One',
     OPENXBL_ENABLED: 'true',
     PSN_PROFILES_BASE_URL: 'https://psn.test',
     PSN_PROFILES_USER_AGENT: 'new-agent',
     PSN_PROFILES_COOKIE: 'session=value',
+    PSN_PROFILES_ACCOUNT_ID: 'player_name-1',
     PSN_PROFILES_ENABLED: 'true',
   }, runtimeConfig), false);
   assert.deepEqual(runtimeConfig, {
-    openxbl: { apiKey: 'xbox-key', baseUrl: 'https://api.xbl.test/v2', enabled: true },
+    openxbl: {
+      apiKey: 'xbox-key',
+      baseUrl: 'https://api.xbl.test/v2',
+      gamertag: 'Player One',
+      enabled: true,
+    },
     psnProfiles: {
       baseUrl: 'https://psn.test',
       userAgent: 'new-agent',
       cookie: 'session=value',
+      accountId: 'player_name-1',
       enabled: true,
     },
   });
@@ -379,6 +393,7 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
     gamertag: '玩家 One',
     status: RecordStatus.UNSET,
   });
+  assert.deepEqual(parseXboxOwnedImportParameters({}), { gamertag: null, status: null });
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'player/name' }), RequestValidationError);
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'a'.repeat(101) }), RequestValidationError);
 
@@ -386,8 +401,11 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
     psnId: 'player_name-1',
     status: null,
   });
+  assert.deepEqual(parsePsnOwnedImportParameters({}), { psnId: null, status: null });
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: 'player?name' }), RequestValidationError);
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: [] }), RequestValidationError);
+  assert.equal(resolvePlatformImportAccount(null, ' Default Player '), 'Default Player');
+  assert.equal(resolvePlatformImportAccount('Override Player', 'Default Player'), 'Override Player');
 });
 
 test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目', () => {
@@ -516,7 +534,9 @@ test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
   assert.deepEqual(buildPlatformImportStatus({
     openxblEnabled: false,
     openxblApiKey: '',
+    openxblGamertag: '',
     psnProfilesEnabled: false,
+    psnProfilesAccountId: '',
   }), {
     xbox: { available: false, reason: 'disabled' },
     psn: { available: false, reason: 'disabled' },
@@ -524,9 +544,21 @@ test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
   assert.deepEqual(buildPlatformImportStatus({
     openxblEnabled: true,
     openxblApiKey: '',
+    openxblGamertag: '',
     psnProfilesEnabled: true,
+    psnProfilesAccountId: '',
   }), {
     xbox: { available: false, reason: 'missing_api_key' },
+    psn: { available: false, reason: 'missing_account' },
+  });
+  assert.deepEqual(buildPlatformImportStatus({
+    openxblEnabled: true,
+    openxblApiKey: 'openxbl-key',
+    openxblGamertag: '',
+    psnProfilesEnabled: true,
+    psnProfilesAccountId: 'player_name-1',
+  }), {
+    xbox: { available: false, reason: 'missing_account' },
     psn: { available: true, reason: null },
   });
 });
@@ -542,7 +574,9 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     doubanCollectExists: false,
     openxblEnabled: false,
     openxblApiKey: '',
+    openxblGamertag: '',
     psnProfilesEnabled: false,
+    psnProfilesAccountId: '',
   });
   assert.deepEqual(unavailable.steam, { available: false, reason: 'missing_api_key' });
   assert.deepEqual(unavailable.trakt, { available: false, reason: 'missing_access_token' });
@@ -561,7 +595,9 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     doubanCollectExists: true,
     openxblEnabled: true,
     openxblApiKey: 'openxbl-key',
+    openxblGamertag: 'Player One',
     psnProfilesEnabled: true,
+    psnProfilesAccountId: 'player_name-1',
   });
   assert.equal(available.steam.available, true);
   assert.equal(available.trakt.available, true);
