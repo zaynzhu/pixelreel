@@ -549,6 +549,7 @@ function TaskSummary({ task }: { task: Task }) {
 
 function ResultSummary({ result, completedAt, compact = false }: { result: SyncResult; completedAt: string | null; compact?: boolean }) {
   const { t, lang } = useI18nStore()
+  const [errorsExpanded, setErrorsExpanded] = useState(false)
   return (
     <div className={`${compact ? 'mt-2' : 'mt-4 border-t border-[var(--line)] pt-4'} text-[10px] text-[var(--muted)]`}>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -559,7 +560,24 @@ function ResultSummary({ result, completedAt, compact = false }: { result: SyncR
         <span>{t('sync.result.errors')} <strong className={result.errors.length ? 'text-red-400' : 'text-white'}>{result.errors.length}</strong></span>
       </div>
       {completedAt && <p className="mt-1">{new Date(completedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</p>}
-      {result.errors[0] && <p className="mt-2 text-red-400">{result.errors[0]}</p>}
+      {result.errors[0] && !errorsExpanded && <p className="mt-2 break-words text-red-400">{result.errors[0]}</p>}
+      {result.errors.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setErrorsExpanded(current => !current)}
+          aria-expanded={errorsExpanded}
+          className="mt-2 font-bold uppercase tracking-widest text-red-300 hover:text-red-200"
+        >
+          {errorsExpanded ? t('sync.result.hide_errors') : t('sync.result.show_errors', result.errors.length)}
+        </button>
+      )}
+      {errorsExpanded && (
+        <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto border border-red-500/30 bg-red-500/5 p-3 text-red-300">
+          {result.errors.map((error, index) => (
+            <li key={`${index}:${error}`} className="break-words">{index + 1}. {error}</li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
