@@ -199,6 +199,7 @@ export function extractXuid(data: unknown): string | null {
 
 export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
   const array = findXboxTitleArray(data);
+  if (!array) throw new Error('OpenXBL 返回的游戏列表格式无效');
   const seenTitleIds = new Set<string>();
   return array.flatMap((value) => {
     if (!value || typeof value !== 'object') return [];
@@ -234,8 +235,8 @@ export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
   });
 }
 
-function findXboxTitleArray(data: unknown): unknown[] {
-  if (!data || typeof data !== 'object') return [];
+function findXboxTitleArray(data: unknown): unknown[] | null {
+  if (!data || typeof data !== 'object') return null;
   const record = data as Record<string, unknown>;
   const content = record.content && typeof record.content === 'object'
     ? record.content as Record<string, unknown>
@@ -248,7 +249,7 @@ function findXboxTitleArray(data: unknown): unknown[] {
       && ('titleId' in item || 'titleID' in item)
     ))) return value;
   }
-  return [];
+  return null;
 }
 
 function readString(value: unknown): string | null {

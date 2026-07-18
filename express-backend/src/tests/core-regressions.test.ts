@@ -396,6 +396,11 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
     achievementUnlocked: 0,
   }]);
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
+  assert.deepEqual(parseXboxTitles({ content: { titles: [] }, code: 200 }), []);
+  assert.throws(
+    () => parseXboxTitles({ content: { titles: 'invalid' }, code: 200 }),
+    /OpenXBL 返回的游戏列表格式无效/,
+  );
 });
 
 test('游戏平台重复同步只刷新来源指标并保留已有展示字段', () => {

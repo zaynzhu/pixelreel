@@ -148,7 +148,7 @@ frontend/src/
 - **重新刮削：** 搜索结果必须绑定当前关键词、Provider 和最新请求；选择候选后必须锁定为单次详情读取与写入，完成前不能关闭弹窗或并发选择另一候选。
 - **命令抽屉：** 豆瓣、Trakt、Steam 快捷操作必须复用与同步中心相同的持久化任务端点，并由全局 `taskStore` 显示运行状态和冲突；不能调用旧同步接口或在抽屉内自行轮询。长时间数据修复统一跳转 `/data-health`，不在抽屉内直接执行。
 - **导入审核：** 历史记录和手动新增默认 `ACCEPTED`；豆瓣、Trakt、Steam 等外部导入的新记录显式写入 `PENDING`。`/sync/review` 可批量改为 `ACCEPTED` 或 `IGNORED`，忽略仅修改 `importReviewState`，不能删除记录或改写豆瓣原始字段。标签切换、分页和决定后的刷新必须同时校验当前标签与最新请求，不能让旧标签响应覆盖当前列表；首屏读取失败必须显示具体原因和重试，已有队列的刷新或分页失败必须保留已读记录并可重试原请求。
-- **主机游戏完整性：** Xbox 同批次响应按 `titleId` 去重，只保留首次出现的游戏。PSNProfiles 按 `?ajax=1&page=N` 读取全部游戏页，直到页面声明 `nextPage = 0`，最多 100 页；`psnId` 只保存 `/trophies/{数字ID}-{slug}` 中稳定的数字 ID，不保存可变标题 slug；相对封面路径必须按 PSNProfiles 站点地址解析为绝对 HTTP(S) URL，非法协议不入库；HTTP 200 验证页和 Cloudflare 403 验证响应都必须提示更新 Cookie。OpenXBL、PSNProfiles 和 RAWG 回退请求均限制为 30 秒并支持任务取消；同服务请求仍遵守两秒限流。
+- **主机游戏完整性：** Xbox 同批次响应按 `titleId` 去重，只保留首次出现的游戏；合法空 `titles` 数组可正常完成，缺失或类型错误的游戏列表必须失败，不能伪装成空账号。PSNProfiles 按 `?ajax=1&page=N` 读取全部游戏页，直到页面声明 `nextPage = 0`，最多 100 页；`psnId` 只保存 `/trophies/{数字ID}-{slug}` 中稳定的数字 ID，不保存可变标题 slug；相对封面路径必须按 PSNProfiles 站点地址解析为绝对 HTTP(S) URL，非法协议不入库；HTTP 200 验证页和 Cloudflare 403 验证响应都必须提示更新 Cookie。OpenXBL、PSNProfiles 和 RAWG 回退请求均限制为 30 秒并支持任务取消；同服务请求仍遵守两秒限流。
 - **记录编辑：** 路径 `id` 必须是 JavaScript 安全范围内的正整数；Library PATCH 只接受 `status`、`rating`、`shortReview`，评分限定 1-5，短评最长 1000 字符，非法请求在写库前返回 400。
 - **HTTP 错误边界：** 路由内部异常统一交给 `errorHandler`；4xx 保留可操作提示且只记录单行警告，5xx 客户端固定返回“内部服务器错误”，详细堆栈只写服务端日志。Express 框架指纹响应头已关闭。
 - **活动日志参数：** `/api/activity` 的 `limit`、游标、实体 ID 和日期必须通过格式校验；非法值及反向日期范围返回 400，不能进入 Prisma 或被记录成 500。
