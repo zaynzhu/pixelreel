@@ -460,7 +460,7 @@ function SyncHistorySummary({ entry }: { entry: SyncHistoryEntry }) {
       </div>
       <p className="mt-2">{new Date(entry.completedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</p>
       {entry.result && <ResultSummary result={entry.result} completedAt={null} compact />}
-      {entry.error && <p className="mt-2 text-red-400">{entry.error}</p>}
+      {entry.error && !isPrimaryResultError(entry.error, entry.result) && <p className="mt-2 text-red-400">{entry.error}</p>}
     </div>
   )
 }
@@ -542,7 +542,7 @@ function TaskSummary({ task }: { task: Task }) {
       </div>
       {task.status === 'running' && <p className="mt-2">{t('sync.progress')}: {progress} {task.progress.currentTitle}</p>}
       {task.result && <ResultSummary result={task.result} completedAt={task.completedAt} compact />}
-      {task.error && <p className="mt-2 text-red-400">{task.error}</p>}
+      {task.error && !isPrimaryResultError(task.error, task.result) && <p className="mt-2 text-red-400">{task.error}</p>}
     </div>
   )
 }
@@ -642,4 +642,8 @@ function reasonLabel(reason: SyncUnavailableReason, t: ReturnType<typeof useI18n
 
 function taskStatusLabel(status: Task['status'] | SyncHistoryEntry['status'], t: ReturnType<typeof useI18nStore.getState>['t']) {
   return t(`task.panel.status.${status === 'completed' ? 'done' : status}`)
+}
+
+function isPrimaryResultError(error: string, result: SyncResult | null | undefined): boolean {
+  return result?.errors.find(item => item.trim())?.trim() === error.trim()
 }

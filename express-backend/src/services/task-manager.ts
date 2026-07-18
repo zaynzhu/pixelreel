@@ -215,17 +215,18 @@ export class TaskManager {
     this.logTaskActivity('TASK_DONE', task, { result });
   }
 
-  failTask(taskId: string, error: string): void {
+  failTask(taskId: string, error: string, result?: ImportSummary): void {
     this.ensureInitialized();
     const task = this.tasks.get(taskId);
     if (!task || task.status !== 'running') return;
     task.status = 'failed';
     task.error = error;
+    if (result) task.result = result;
     task.progress.currentTitle = '';
     task.completedAt = this.now().toISOString();
     this.persistNow();
     this.notifyTerminalTask(task);
-    this.logTaskActivity('TASK_FAIL', task, { error });
+    this.logTaskActivity('TASK_FAIL', task, { error, ...(result ? { result } : {}) });
   }
 
   cancelTask(taskId: string): { ok: boolean; error?: string } {
@@ -345,8 +346,8 @@ export function completeTask(taskId: string, result: ImportSummary): void {
   taskManager.completeTask(taskId, result);
 }
 
-export function failTask(taskId: string, error: string): void {
-  taskManager.failTask(taskId, error);
+export function failTask(taskId: string, error: string, result?: ImportSummary): void {
+  taskManager.failTask(taskId, error, result);
 }
 
 export function cancelTask(taskId: string): { ok: boolean; error?: string } {

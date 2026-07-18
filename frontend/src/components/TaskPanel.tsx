@@ -124,6 +124,7 @@ function TaskCard({ task, cancelling }: {
 }) {
   const { lang, t } = useI18nStore()
   const [errorsExpanded, setErrorsExpanded] = useState(false)
+  const primaryResultError = task.result?.errors.find(error => error.trim())?.trim()
   const pct = task.progress.total > 0
     ? Math.round((task.progress.processed / task.progress.total) * 100)
     : 0;
@@ -195,7 +196,7 @@ function TaskCard({ task, cancelling }: {
       )}
 
       {/* 完成结果 */}
-      {(task.status === 'completed' || task.status === 'cancelled') && task.result && (
+      {task.status !== 'running' && task.result && (
         <div>
           <div className="flex gap-3 text-[10px] text-[var(--muted)]">
             <span>{t('task.panel.result.imported')} <span className="text-white">{task.result.imported}</span></span>
@@ -231,7 +232,7 @@ function TaskCard({ task, cancelling }: {
       )}
 
       {/* 失败信息 */}
-      {task.status === 'failed' && (
+      {task.status === 'failed' && task.error?.trim() !== primaryResultError && (
         <p className="text-[10px] text-red-400 mt-1">{task.error}</p>
       )}
 

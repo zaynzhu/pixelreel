@@ -25,7 +25,7 @@ export function getImportSummaryFailure(result: ImportSummary): string | null {
 export function settleImportSummaryTask(taskId: string, result: ImportSummary): void {
   const failure = getImportSummaryFailure(result);
   if (failure) {
-    failTask(taskId, failure);
+    failTask(taskId, failure, result);
     return;
   }
   completeTask(taskId, result);

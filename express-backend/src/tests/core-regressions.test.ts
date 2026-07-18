@@ -1901,6 +1901,33 @@ test('任务状态可跨进程恢复且终态不会被后续回调覆盖', () =>
   }
 });
 
+test('失败任务持久化完整同步结果摘要', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-failed-task-summary-'));
+  const storagePath = path.join(tempDir, 'tasks.json');
+  const result = {
+    total: 0,
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: ['OpenXBL API Key 无效', '请检查 Settings 配置'],
+  };
+
+  try {
+    const manager = new TaskManager({ storagePath, activityLogger: async () => {} });
+    const task = manager.createTask('xbox-owned', 'Xbox 导入');
+    manager.failTask(task.taskId, result.errors[0], result);
+    const failedTask = manager.getTask(task.taskId);
+    assert.equal(failedTask?.status, 'failed');
+    assert.deepEqual(failedTask?.result, result);
+    assert.equal(failedTask?.error, result.errors[0]);
+
+    const reloadedManager = new TaskManager({ storagePath, activityLogger: async () => {} });
+    assert.deepEqual(reloadedManager.getTask(task.taskId)?.result, result);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('同步历史按来源持久化最近一次终态且忽略非同步任务', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-sync-history-'));
   const storagePath = path.join(tempDir, 'sync-history.json');
