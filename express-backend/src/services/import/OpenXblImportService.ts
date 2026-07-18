@@ -53,17 +53,10 @@ export async function importXboxOwnedGames(
   let xuid: string | null = null;
   onProgress?.(0, 0, '解析 Xbox 账号');
   try {
-    const searchRes = await axios.get(buildOpenXblUrl(
-      config.openxbl.baseUrl,
-      `search/${encodeURIComponent(gamertag.trim())}`,
-    ), {
-      headers: { 'X-Authorization': config.openxbl.apiKey },
-      ...buildPlatformGameRequestOptions(signal),
-    });
-    xuid = extractXuid(searchRes.data, gamertag.trim());
+    xuid = await fetchOpenXblXuid(gamertag.trim(), signal);
   } catch (ex: any) {
     if (signal?.aborted) return summary;
-    summary.errors.push(`Xbox 用户搜索失败: ${getOpenXblRequestError(ex)}`);
+    summary.errors.push(`Xbox 用户搜索失败: ${ex.message}`);
     return summary;
   }
 
@@ -76,17 +69,10 @@ export async function importXboxOwnedGames(
   let titleHistory: XboxImportedTitle[] = [];
   try {
     onProgress?.(0, 0, '读取 Xbox 游戏库');
-    const titleRes = await axios.get(buildOpenXblUrl(
-      config.openxbl.baseUrl,
-      `player/titleHistory/${encodeURIComponent(xuid)}`,
-    ), {
-      headers: { 'X-Authorization': config.openxbl.apiKey },
-      ...buildPlatformGameRequestOptions(signal),
-    });
-    titleHistory = parseXboxTitles(titleRes.data);
+    titleHistory = await fetchOpenXblTitleHistory(xuid, signal);
   } catch (ex: any) {
     if (signal?.aborted) return summary;
-    summary.errors.push(`获取 Xbox 游戏列表失败: ${getOpenXblRequestError(ex)}`);
+    summary.errors.push(`获取 Xbox 游戏列表失败: ${ex.message}`);
     return summary;
   }
 
@@ -178,6 +164,53 @@ export async function importXboxOwnedGames(
   onProgress?.(summary.total, summary.total, '');
 
   return summary;
+}
+
+export async function verifyOpenXblConnection(
+  gamertag: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  if (!config.openxbl.enabled) throw new Error('OpenXBL 未启用');
+  if (!config.openxbl.apiKey) throw new Error('缺少 OpenXBL API Key');
+  if (!gamertag.trim()) throw new Error('缺少 Xbox Gamertag');
+
+  const xuid = await fetchOpenXblXuid(gamertag.trim(), signal);
+  if (!xuid) throw new Error('OpenXBL 搜索结果中没有完全匹配的 Gamertag');
+  await fetchOpenXblTitleHistory(xuid, signal);
+  return { ok: true };
+}
+
+async function fetchOpenXblXuid(gamertag: string, signal?: AbortSignal): Promise<string | null> {
+  try {
+    const response = await axios.get(buildOpenXblUrl(
+      config.openxbl.baseUrl,
+      `search/${encodeURIComponent(gamertag)}`,
+    ), {
+      headers: { 'X-Authorization': config.openxbl.apiKey },
+      ...buildPlatformGameRequestOptions(signal),
+    });
+    return extractXuid(response.data, gamertag);
+  } catch (error) {
+    throw new Error(getOpenXblRequestError(error));
+  }
+}
+
+async function fetchOpenXblTitleHistory(
+  xuid: string,
+  signal?: AbortSignal,
+): Promise<XboxImportedTitle[]> {
+  try {
+    const response = await axios.get(buildOpenXblUrl(
+      config.openxbl.baseUrl,
+      `player/titleHistory/${encodeURIComponent(xuid)}`,
+    ), {
+      headers: { 'X-Authorization': config.openxbl.apiKey },
+      ...buildPlatformGameRequestOptions(signal),
+    });
+    return parseXboxTitles(response.data);
+  } catch (error) {
+    throw new Error(getOpenXblRequestError(error));
+  }
 }
 
 export function getOpenXblRequestError(error: unknown): string {

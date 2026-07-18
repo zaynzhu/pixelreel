@@ -155,32 +155,56 @@ async function fetchPsnProfileHtml(
   onProgress?: ImportProgress,
   signal?: AbortSignal,
 ): Promise<string> {
-  const baseUrl = config.psnProfiles.baseUrl.replace(/\/+$/, '');
   return collectPsnProfilePages(async (page) => {
-    try {
-      const response = await axios.get(`${baseUrl}/${encodeURIComponent(psnId)}`, {
-        params: {
-          ajax: 1,
-          completion: 'all',
-          order: 'last-played',
-          pf: 'all',
-          page,
-        },
-        headers: {
-          'User-Agent': config.psnProfiles.userAgent,
-          'X-Requested-With': 'XMLHttpRequest',
-          Accept: 'application/json, text/javascript, */*; q=0.01',
-          ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
-        },
-        ...buildPlatformGameRequestOptions(signal),
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(getPsnProfilesRequestError(error));
-    }
+    return fetchPsnProfilePage(psnId, page, signal);
   }, MAX_PROFILE_PAGES, (page) => {
     onProgress?.(0, 0, `读取 PSNProfiles 第 ${page} 页`);
   });
+}
+
+export async function verifyPsnProfilesConnection(
+  psnId: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  if (!config.psnProfiles.enabled) throw new Error('PSNProfiles 未启用');
+  if (!psnId.trim()) throw new Error('缺少 PSN ID');
+
+  const parsed = parsePsnProfilePage(await fetchPsnProfilePage(psnId.trim(), 1, signal));
+  if (!parsed.html.trim()) throw new Error('PSNProfiles 返回空页面');
+  if (isPsnProfilesChallengePage(parsed.html)) {
+    throw new Error('PSNProfiles 访问被验证页面拦截，请更新 Cookie');
+  }
+  parsePsnGames(parsed.html);
+  return { ok: true };
+}
+
+async function fetchPsnProfilePage(
+  psnId: string,
+  page: number,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const baseUrl = config.psnProfiles.baseUrl.replace(/\/+$/, '');
+  try {
+    const response = await axios.get(`${baseUrl}/${encodeURIComponent(psnId)}`, {
+      params: {
+        ajax: 1,
+        completion: 'all',
+        order: 'last-played',
+        pf: 'all',
+        page,
+      },
+      headers: {
+        'User-Agent': config.psnProfiles.userAgent,
+        'X-Requested-With': 'XMLHttpRequest',
+        Accept: 'application/json, text/javascript, */*; q=0.01',
+        ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
+      },
+      ...buildPlatformGameRequestOptions(signal),
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(getPsnProfilesRequestError(error));
+  }
 }
 
 export function getPsnProfilesRequestError(error: unknown): string {

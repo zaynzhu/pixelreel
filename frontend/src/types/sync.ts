@@ -69,6 +69,10 @@ export interface SyncTaskResponse {
   label: string
 }
 
+export interface PlatformConnectionResponse {
+  ok: true
+}
+
 export interface SyncSourceForm {
   accountId: string
   status: RecordStatus

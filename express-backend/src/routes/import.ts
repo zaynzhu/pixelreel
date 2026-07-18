@@ -14,6 +14,8 @@ import {
   startPsnOwnedImportTask,
   startXboxOwnedImportTask,
 } from '../services/import/PlatformGameImportTaskService';
+import { verifyOpenXblConnection } from '../services/import/OpenXblImportService';
+import { verifyPsnProfilesConnection } from '../services/import/PsnProfilesImportService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { getSyncHistory } from '../services/SyncHistoryService';
 import { config } from '../config';
@@ -78,6 +80,15 @@ export function parseXboxOwnedImportParameters(value: Record<string, unknown>) {
   };
 }
 
+export function parseXboxConnectionParameters(value: Record<string, unknown>) {
+  assertKnownImportParameters(value, ['gamertag']);
+  return {
+    gamertag: parseExternalAccountIdentifier(
+      value.gamertag, 'gamertag', XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN,
+    ),
+  };
+}
+
 export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
   assertKnownImportParameters(value, ['psnId', 'status']);
   return {
@@ -85,6 +96,15 @@ export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
       value.psnId, 'psnId', PSN_ACCOUNT_PATH_SEPARATOR_PATTERN,
     ),
     status: parseRecordStatusParameter(value.status, null),
+  };
+}
+
+export function parsePsnConnectionParameters(value: Record<string, unknown>) {
+  assertKnownImportParameters(value, ['psnId']);
+  return {
+    psnId: parseExternalAccountIdentifier(
+      value.psnId, 'psnId', PSN_ACCOUNT_PATH_SEPARATOR_PATTERN,
+    ),
   };
 }
 
@@ -234,6 +254,15 @@ function getCurrentImportSourceStatus() {
   });
 }
 
+class PlatformConnectionError extends Error {
+  readonly status = 424;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'PlatformConnectionError';
+  }
+}
+
 // multer 内存存储，用于豆瓣 CSV 上传
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -313,6 +342,29 @@ router.post('/xbox/owned/task', (req: Request, res: Response) => {
   res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 
+// POST /api/import/xbox/verify?gamertag=xxx — 只读验证账号和 title history
+router.post('/xbox/verify', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
+  const { gamertag } = parseXboxConnectionParameters(req.query);
+  const account = resolvePlatformImportAccount(gamertag, config.openxbl.gamertag);
+  const availability = getCurrentPlatformImportStatus({ gamertag: account }).xbox;
+  if (!availability.available) {
+    res.status(403).json({
+      error: availability.reason === 'missing_api_key'
+        ? '缺少 OpenXBL API Key'
+        : availability.reason === 'missing_account' ? '缺少 Xbox Gamertag' : 'OpenXBL 未启用',
+    });
+    return;
+  }
+  try {
+    res.json(await verifyOpenXblConnection(account));
+  } catch (error) {
+    throw new PlatformConnectionError(
+      error instanceof Error ? error.message : 'OpenXBL 连接验证失败',
+    );
+  }
+});
+
 // POST /api/import/psn/owned/task?psnId=xxx&status=WANT
 router.post('/psn/owned/task', (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
@@ -327,6 +379,27 @@ router.post('/psn/owned/task', (req: Request, res: Response) => {
   }
   const task = startPsnOwnedImportTask(account, status);
   res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
+});
+
+// POST /api/import/psn/verify?psnId=xxx — 只读验证 PSNProfiles 档案首页
+router.post('/psn/verify', async (req: Request, res: Response) => {
+  assertEmptyImportRequestBody(req.body);
+  const { psnId } = parsePsnConnectionParameters(req.query);
+  const account = resolvePlatformImportAccount(psnId, config.psnProfiles.accountId);
+  const availability = getCurrentPlatformImportStatus({ psnId: account }).psn;
+  if (!availability.available) {
+    res.status(403).json({
+      error: availability.reason === 'missing_account' ? '缺少 PSN 在线 ID' : 'PSNProfiles 未启用',
+    });
+    return;
+  }
+  try {
+    res.json(await verifyPsnProfilesConnection(account));
+  } catch (error) {
+    throw new PlatformConnectionError(
+      error instanceof Error ? error.message : 'PSNProfiles 连接验证失败',
+    );
+  }
 });
 
 // POST /api/import/steam/backfill — 回填已有 Steam 游戏的海报和游玩时间

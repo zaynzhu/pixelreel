@@ -7,6 +7,7 @@ import { useTaskStore, type Task } from '../stores/taskStore'
 import { toast } from '../stores/toastStore'
 import type { RecordStatus } from '../types/library'
 import type {
+  PlatformConnectionResponse,
   SyncAvailability,
   SyncHistoryEntry,
   SyncHistoryResponse,
@@ -28,6 +29,8 @@ const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
 }
 
 type DirectSource = 'steam' | 'trakt' | 'xbox' | 'psn'
+type PlatformSource = 'xbox' | 'psn'
+type ConnectionResult = { ok: true } | { ok: false; error: string }
 
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
@@ -45,6 +48,8 @@ export default function SyncPage() {
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const latestStatusRequest = useRef(0)
   const latestHistoryRequest = useRef(0)
+  const latestConnectionRequest = useRef(0)
+  const pageMounted = useRef(true)
   const actionRequestActive = useRef(false)
   const [directStatuses, setDirectStatuses] = useState<Record<DirectSource, RecordStatus>>({
     steam: 'WANT',
@@ -53,12 +58,15 @@ export default function SyncPage() {
     psn: 'WANT',
   })
   const [platformAccounts, setPlatformAccounts] = useState({ xbox: '', psn: '' })
+  const [connectionResults, setConnectionResults] = useState<Partial<Record<PlatformSource, ConnectionResult>>>({})
   const taskStateReady = tasksInitialized && taskPollError === null
   const sourceStatusReady = status !== null && statusError === null && !loading
 
   const loadStatus = useCallback(async () => {
     const requestId = ++latestStatusRequest.current
+    latestConnectionRequest.current++
     setLoading(true)
+    setConnectionResults({})
     try {
       const nextStatus = await apiFetch<SyncSourceStatus>('/import/sources/status')
       if (requestId !== latestStatusRequest.current) return
@@ -89,8 +97,17 @@ export default function SyncPage() {
     void loadStatus()
     return () => {
       latestStatusRequest.current++
+      latestConnectionRequest.current++
     }
   }, [loadStatus])
+
+  useEffect(() => {
+    pageMounted.current = true
+    return () => {
+      pageMounted.current = false
+      latestConnectionRequest.current++
+    }
+  }, [])
 
   const sourceTasks = useMemo(() => tasks.filter(task =>
     Object.values(TASK_TYPES).includes(task.type)
@@ -144,7 +161,7 @@ export default function SyncPage() {
       toast(reason instanceof Error ? reason.message : t('sync.start_error'), 'error')
     } finally {
       actionRequestActive.current = false
-      setActiveAction(null)
+      if (pageMounted.current) setActiveAction(null)
     }
   }
 
@@ -167,6 +184,43 @@ export default function SyncPage() {
       actionRequestActive.current = false
       setActiveAction(null)
     }
+  }
+
+  const verifyPlatformConnection = async (source: PlatformSource) => {
+    if (actionRequestActive.current) return
+    actionRequestActive.current = true
+    const requestId = ++latestConnectionRequest.current
+    const actionKey = `${source}-verify`
+    const accountKey = source === 'xbox' ? 'gamertag' : 'psnId'
+    const account = platformAccounts[source].trim()
+    setActiveAction(actionKey)
+    setConnectionResults(current => ({ ...current, [source]: undefined }))
+    try {
+      await apiFetch<PlatformConnectionResponse>(
+        `/import/${source}/verify?${accountKey}=${encodeURIComponent(account)}`,
+        { method: 'POST' },
+      )
+      if (requestId !== latestConnectionRequest.current) return
+      setConnectionResults(current => ({ ...current, [source]: { ok: true } }))
+    } catch (reason) {
+      if (requestId !== latestConnectionRequest.current) return
+      setConnectionResults(current => ({
+        ...current,
+        [source]: {
+          ok: false,
+          error: reason instanceof Error ? reason.message : t('sync.connection.failed'),
+        },
+      }))
+    } finally {
+      actionRequestActive.current = false
+      setActiveAction(null)
+    }
+  }
+
+  const updatePlatformAccount = (source: PlatformSource, value: string) => {
+    latestConnectionRequest.current++
+    setPlatformAccounts(current => ({ ...current, [source]: value }))
+    setConnectionResults(current => ({ ...current, [source]: undefined }))
   }
 
   if (loading && !status) return <SyncState label={t('sync.loading')} />
@@ -313,8 +367,16 @@ export default function SyncPage() {
             <AccountInput
               source="xbox"
               value={platformAccounts.xbox}
-              onChange={value => setPlatformAccounts(current => ({ ...current, xbox: value }))}
+              onChange={value => updatePlatformAccount('xbox', value)}
             />
+            <SyncButton
+              label={t('sync.connection.verify')}
+              onClick={() => void verifyPlatformConnection('xbox')}
+              disabled={!sourceStatusReady || !xboxAvailability?.available || activeAction != null || latestTask('xbox')?.status === 'running'}
+              active={activeAction === 'xbox-verify'}
+              className="mb-3 w-full"
+            />
+            {connectionResults.xbox && <ConnectionStatus result={connectionResults.xbox} />}
             <StatusSelect
               value={directStatuses.xbox}
               onChange={value => setDirectStatuses(current => ({ ...current, xbox: value }))}
@@ -341,8 +403,16 @@ export default function SyncPage() {
             <AccountInput
               source="psn"
               value={platformAccounts.psn}
-              onChange={value => setPlatformAccounts(current => ({ ...current, psn: value }))}
+              onChange={value => updatePlatformAccount('psn', value)}
             />
+            <SyncButton
+              label={t('sync.connection.verify')}
+              onClick={() => void verifyPlatformConnection('psn')}
+              disabled={!sourceStatusReady || !psnAvailability?.available || activeAction != null || latestTask('psn')?.status === 'running'}
+              active={activeAction === 'psn-verify'}
+              className="mb-3 w-full"
+            />
+            {connectionResults.psn && <ConnectionStatus result={connectionResults.psn} />}
             <StatusSelect
               value={directStatuses.psn}
               onChange={value => setDirectStatuses(current => ({ ...current, psn: value }))}
@@ -489,6 +559,20 @@ function SyncButton({ label, onClick, disabled, active, title, className = '' }:
     >
       <span>{active ? '…' : '▶'} {label}</span>
     </button>
+  )
+}
+
+function ConnectionStatus({ result }: { result: ConnectionResult }) {
+  const { t } = useI18nStore()
+  return (
+    <p
+      role="status"
+      className={`mb-3 border p-3 text-[10px] ${result.ok
+        ? 'border-[var(--accent)]/30 bg-[var(--accent)]/5 text-[var(--accent)]'
+        : 'border-red-500/30 bg-red-500/10 text-red-300'}`}
+    >
+      {result.ok ? t('sync.connection.success') : result.error}
+    </p>
   )
 }
 

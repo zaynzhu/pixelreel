@@ -48,8 +48,10 @@ import {
   parseDoubanHarvestParameters,
   parseImportLimitParameters,
   parseImportTaskStatusParameters,
+  parsePsnConnectionParameters,
   parsePsnOwnedImportParameters,
   parseSteamOwnedImportParameters,
+  parseXboxConnectionParameters,
   parseXboxOwnedImportParameters,
   resolvePlatformImportAccount,
 } from '../routes/import';
@@ -59,6 +61,7 @@ import {
   getOpenXblRequestError,
   importXboxOwnedGames,
   parseXboxTitles,
+  verifyOpenXblConnection,
 } from '../services/import/OpenXblImportService';
 import {
   collectPsnProfilePages,
@@ -69,6 +72,7 @@ import {
   isPsnProfilesChallengeResponse,
   parsePsnGames,
   parsePsnProfilePage,
+  verifyPsnProfilesConnection,
 } from '../services/import/PsnProfilesImportService';
 import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
 import { toSafeTmdbId } from '../services/import/TmdbId';
@@ -457,6 +461,13 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   assert.deepEqual(parseXboxOwnedImportParameters({}), { gamertag: null, status: null });
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'player/name' }), RequestValidationError);
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'a'.repeat(101) }), RequestValidationError);
+  assert.deepEqual(parseXboxConnectionParameters({ gamertag: ' Player#1234 ' }), {
+    gamertag: 'Player#1234',
+  });
+  assert.throws(
+    () => parseXboxConnectionParameters({ gamertag: 'Player', status: 'WANT' }),
+    /未知参数/,
+  );
 
   assert.deepEqual(parsePsnOwnedImportParameters({ psnId: 'player_name-1' }), {
     psnId: 'player_name-1',
@@ -465,6 +476,10 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   assert.deepEqual(parsePsnOwnedImportParameters({}), { psnId: null, status: null });
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: 'player?name' }), RequestValidationError);
   assert.throws(() => parsePsnOwnedImportParameters({ psnId: [] }), RequestValidationError);
+  assert.deepEqual(parsePsnConnectionParameters({ psnId: ' player_name-1 ' }), {
+    psnId: 'player_name-1',
+  });
+  assert.throws(() => parsePsnConnectionParameters({ psnId: 'player/name' }), RequestValidationError);
   assert.equal(resolvePlatformImportAccount(null, ' Default Player '), 'Default Player');
   assert.equal(resolvePlatformImportAccount('Override Player', 'Default Player'), 'Override Player');
 });
@@ -596,6 +611,38 @@ test('Xbox 导入使用 OpenXBL 当前玩家游戏历史端点', async () => {
     mutableConfig.openxbl.enabled = originalEnabled;
     mutableConfig.openxbl.apiKey = originalApiKey;
     mutableConfig.openxbl.baseUrl = originalBaseUrl;
+  }
+});
+
+test('Xbox 连接验证读取账号和游戏历史但不启动导入', async () => {
+  const mutableConfig = config as unknown as {
+    openxbl: { enabled: boolean; apiKey: string; baseUrl: string };
+  };
+  const original = { ...mutableConfig.openxbl };
+  const axiosClient = axios as unknown as { get: typeof axios.get };
+  const originalGet = axiosClient.get;
+  const requests: Array<{ url: string; options: any }> = [];
+
+  try {
+    mutableConfig.openxbl.enabled = true;
+    mutableConfig.openxbl.apiKey = 'test-api-key';
+    mutableConfig.openxbl.baseUrl = 'https://api.xbl.io/v2';
+    axiosClient.get = async (url, options) => {
+      requests.push({ url, options });
+      return requests.length === 1
+        ? { data: { content: { people: [{ gamertag: 'Player', xuid: '2535473210914202' }] } } } as any
+        : { data: { content: { titles: [] } } } as any;
+    };
+
+    assert.deepEqual(await verifyOpenXblConnection('Player'), { ok: true });
+    assert.deepEqual(requests.map(request => request.url), [
+      'https://api.xbl.io/v2/search/Player',
+      'https://api.xbl.io/v2/player/titleHistory/2535473210914202',
+    ]);
+    assert.equal(requests[0].options.headers['X-Authorization'], 'test-api-key');
+  } finally {
+    axiosClient.get = originalGet;
+    Object.assign(mutableConfig.openxbl, original);
   }
 });
 
@@ -1100,6 +1147,47 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
       achievementUnlocked: null,
     },
   ]);
+});
+
+test('PSNProfiles 连接验证只读取档案第一页', async () => {
+  const mutableConfig = config as unknown as {
+    psnProfiles: {
+      enabled: boolean;
+      baseUrl: string;
+      userAgent: string;
+      cookie: string;
+    };
+  };
+  const original = { ...mutableConfig.psnProfiles };
+  const axiosClient = axios as unknown as { get: typeof axios.get };
+  const originalGet = axiosClient.get;
+  const requests: Array<{ url: string; options: any }> = [];
+
+  try {
+    mutableConfig.psnProfiles.enabled = true;
+    mutableConfig.psnProfiles.baseUrl = 'https://psnprofiles.com';
+    mutableConfig.psnProfiles.userAgent = 'test-agent';
+    mutableConfig.psnProfiles.cookie = 'session=value';
+    axiosClient.get = async (url, options) => {
+      requests.push({ url, options });
+      return {
+        data: {
+          html: '<table><tr><td>公开档案</td></tr></table>',
+          nextPage: 2,
+        },
+      } as any;
+    };
+
+    assert.deepEqual(await verifyPsnProfilesConnection('Player_1'), { ok: true });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, 'https://psnprofiles.com/Player_1');
+    assert.equal(requests[0].options.params.page, 1);
+    assert.equal(requests[0].options.headers.Cookie, 'session=value');
+    assert.equal(requests[0].options.headers['User-Agent'], 'test-agent');
+  } finally {
+    axiosClient.get = originalGet;
+    Object.assign(mutableConfig.psnProfiles, original);
+  }
 });
 
 test('PSNProfiles 将 Cloudflare 403 识别为需要更新 Cookie', () => {

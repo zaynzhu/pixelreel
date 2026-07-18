@@ -120,9 +120,13 @@ curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?status=WANT'
 
 # PSN 游戏导入任务（默认在线 ID 在 Settings 配置）
 curl -X POST 'http://localhost:18889/api/import/psn/owned/task?status=WANT'
+
+# 只读验证默认 Xbox / PSN 账号（不会启动任务或写入资料库）
+curl -X POST 'http://localhost:18889/api/import/xbox/verify'
+curl -X POST 'http://localhost:18889/api/import/psn/verify'
 ```
 
-Xbox 通过 OpenXBL API 的 `/search/{gamertag}` 与 `/player/titleHistory/{xuid}` 读取玩家和游戏历史；现代 Gamertag 可填写完整的 `名称#数字后缀`，模糊搜索结果只有账号完全匹配时才会继续同步。PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。
+Xbox 通过 OpenXBL API 的 `/search/{gamertag}` 与 `/player/titleHistory/{xuid}` 读取玩家和游戏历史；现代 Gamertag 可填写完整的 `名称#数字后缀`，模糊搜索结果只有账号完全匹配时才会继续同步。PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务与验证接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。同步中心提供只读连接验证，Xbox 会确认游戏历史可读，PSN 只检查档案第一页，不启动任务也不写入资料库。
 
 首次接入建议：
 
@@ -234,6 +238,8 @@ POST   /api/trakt/import/shows/task?status=WANT
 POST   /api/import/steam/owned/task?status=WANT
 POST   /api/import/xbox/owned/task?gamertag=&status=WANT
 POST   /api/import/psn/owned/task?psnId=&status=WANT
+POST   /api/import/xbox/verify?gamertag=
+POST   /api/import/psn/verify?psnId=
 GET    /api/import/platforms/status  # Xbox/PSN 配置可用性，不返回密钥或 Cookie
 POST   /api/import/tmdb-enrich/backfill?limit=50
 POST   /api/import/tmdb-detail/backfill?limit=50
