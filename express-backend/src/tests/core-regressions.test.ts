@@ -55,7 +55,9 @@ import {
 import { extractXuid, parseXboxTitles } from '../services/import/OpenXblImportService';
 import {
   collectPsnProfilePages,
+  importPsnOwnedGames,
   isPsnProfilesChallengePage,
+  isPsnProfilesChallengeResponse,
   parsePsnGames,
   parsePsnProfilePage,
 } from '../services/import/PsnProfilesImportService';
@@ -792,6 +794,46 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
       achievementUnlocked: 3,
     },
   ]);
+});
+
+test('PSNProfiles 将 Cloudflare 403 识别为需要更新 Cookie', () => {
+  const challengeHtml = '<html><head><title>Attention Required! | Cloudflare</title></head></html>';
+  assert.equal(isPsnProfilesChallengeResponse(403, challengeHtml), true);
+  assert.equal(isPsnProfilesChallengeResponse(403, '<html><title>Profile not found</title></html>'), false);
+  assert.equal(isPsnProfilesChallengeResponse(404, challengeHtml), false);
+  assert.equal(isPsnProfilesChallengeResponse(403, { error: 'forbidden' }), false);
+});
+
+test('PSN 导入把 Cloudflare 403 转换为可操作的同步错误', async () => {
+  const mutableConfig = config as unknown as { psnProfiles: { enabled: boolean } };
+  const originalEnabled = mutableConfig.psnProfiles.enabled;
+  const axiosClient = axios as unknown as { get: typeof axios.get };
+  const originalGet = axiosClient.get;
+
+  try {
+    mutableConfig.psnProfiles.enabled = true;
+    axiosClient.get = async () => {
+      throw {
+        isAxiosError: true,
+        message: 'Request failed with status code 403',
+        response: {
+          status: 403,
+          data: '<html><head><title>Attention Required! | Cloudflare</title></head></html>',
+        },
+      };
+    };
+    const result = await importPsnOwnedGames('test-account');
+    assert.deepEqual(result, {
+      total: 0,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      errors: ['无法获取 PSNProfiles 页面: PSNProfiles 访问被验证页面拦截，请更新 Cookie'],
+    });
+  } finally {
+    axiosClient.get = originalGet;
+    mutableConfig.psnProfiles.enabled = originalEnabled;
+  }
 });
 
 test('RAWG 封面响应只接受非空图片地址并补全协议', () => {

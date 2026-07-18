@@ -136,15 +136,23 @@ async function fetchPsnProfileHtml(
 ): Promise<string> {
   const baseUrl = config.psnProfiles.baseUrl.replace(/\/+$/, '');
   return collectPsnProfilePages(async (page) => {
-    const response = await axios.get(`${baseUrl}/${encodeURIComponent(psnId)}`, {
-      params: { ajax: 1, page },
-      headers: {
-        'User-Agent': config.psnProfiles.userAgent,
-        ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
-      },
-      signal,
-    });
-    return response.data;
+    try {
+      const response = await axios.get(`${baseUrl}/${encodeURIComponent(psnId)}`, {
+        params: { ajax: 1, page },
+        headers: {
+          'User-Agent': config.psnProfiles.userAgent,
+          ...(config.psnProfiles.cookie ? { Cookie: config.psnProfiles.cookie } : {}),
+        },
+        signal,
+      });
+      return response.data;
+    } catch (error) {
+      const response = axios.isAxiosError(error) ? error.response : undefined;
+      if (isPsnProfilesChallengeResponse(response?.status, response?.data)) {
+        throw new Error('PSNProfiles 访问被验证页面拦截，请更新 Cookie');
+      }
+      throw error;
+    }
   }, MAX_PROFILE_PAGES, (page) => {
     onProgress?.(0, 0, `读取 PSNProfiles 第 ${page} 页`);
   });
@@ -191,6 +199,12 @@ export function parsePsnProfilePage(data: unknown): PsnProfilePage {
 export function isPsnProfilesChallengePage(html: string): boolean {
   return /<title>\s*(just a moment|attention required)/i.test(html)
     || /\bcf-chl-/i.test(html);
+}
+
+export function isPsnProfilesChallengeResponse(status: unknown, data: unknown): boolean {
+  return status === 403
+    && typeof data === 'string'
+    && isPsnProfilesChallengePage(data);
 }
 
 export function parsePsnGames(html: string): PsnGame[] {
