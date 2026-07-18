@@ -466,7 +466,7 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   assert.equal(resolvePlatformImportAccount('Override Player', 'Default Player'), 'Override Player');
 });
 
-test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目', () => {
+test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非 Xbox 游戏及重复条目', () => {
   const response = {
     content: {
       xuid: '2535473210914202',
@@ -475,6 +475,7 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
           titleId: '1632510060',
           name: 'The Sims 4',
           type: 'Game',
+          devices: ['PC', 'XboxOne', 'Mobile'],
           displayImage: 'https://images.example/game.jpg',
           minutesPlayed: '2147483648',
           achievement: {
@@ -486,6 +487,12 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非游戏及重复条目
           titleId: 'app-1',
           name: 'Streaming App',
           type: 'App',
+        },
+        {
+          titleId: 'pc-only-1',
+          name: 'PC Only Game',
+          type: 'Game',
+          devices: ['Win32'],
         },
         {
           titleId: '1632510060',

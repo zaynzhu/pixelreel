@@ -246,6 +246,10 @@ export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
     const item = value as Record<string, unknown>;
     const type = readString(item.type);
     if (type && type.toLowerCase() !== 'game') return [];
+    const devices = Array.isArray(item.devices)
+      ? item.devices.map(readString).filter((device): device is string => device != null)
+      : [];
+    if (devices.length === 1 && devices[0].toLowerCase() === 'win32') return [];
 
     const titleId = readString(item.titleId ?? item.titleID ?? item.id ?? item.title_id);
     if (!titleId || seenTitleIds.has(titleId)) return [];
