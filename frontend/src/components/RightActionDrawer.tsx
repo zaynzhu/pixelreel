@@ -17,6 +17,7 @@ export default function RightActionDrawer() {
   const pollTasks = useTaskStore(state => state.pollTasks)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const taskStartActive = useRef(false)
   const closeDrawer = useCallback(() => setIsOpen(false), [])
   const taskStateReady = tasksInitialized && taskPollError === null
   const doubanRunning = tasks.some(task => task.type === 'douban-harvest' && task.status === 'running')
@@ -194,11 +195,13 @@ export default function RightActionDrawer() {
   );
 
   async function startTask(target: Exclude<SyncTarget, null>, path: string) {
+    if (taskStartActive.current) return
     const taskState = useTaskStore.getState()
     if (!taskState.initialized || taskState.pollError !== null) {
       toast(t('task.panel.unavailable_hint'), 'error')
       return
     }
+    taskStartActive.current = true
     setSyncing(target)
     try {
       await apiFetch<{ taskId: string }>(path, { method: 'POST' })
@@ -207,6 +210,7 @@ export default function RightActionDrawer() {
     } catch (error) {
       toast(error instanceof Error ? error.message : t('drawer.status.task_failed'), 'error')
     } finally {
+      taskStartActive.current = false
       setSyncing(null)
     }
   }

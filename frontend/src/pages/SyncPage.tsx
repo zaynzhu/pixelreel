@@ -42,6 +42,7 @@ export default function SyncPage() {
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const latestStatusRequest = useRef(0)
   const latestHistoryRequest = useRef(0)
+  const actionRequestActive = useRef(false)
   const [directStatuses, setDirectStatuses] = useState<Record<DirectSource, RecordStatus>>({
     steam: 'WANT',
     trakt: 'WANT',
@@ -110,11 +111,13 @@ export default function SyncPage() {
   }
 
   const startDouban = async (mode: 'json' | 'incremental' | 'full') => {
+    if (actionRequestActive.current) return
     const taskState = useTaskStore.getState()
     if (!taskState.initialized || taskState.pollError !== null) {
       toast(t('task.panel.unavailable_hint'), 'error')
       return
     }
+    actionRequestActive.current = true
     const actionKey = `douban-${mode}`
     setActiveAction(actionKey)
     try {
@@ -124,16 +127,19 @@ export default function SyncPage() {
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : t('sync.start_error'), 'error')
     } finally {
+      actionRequestActive.current = false
       setActiveAction(null)
     }
   }
 
   const startSourceTask = async (path: string, actionKey: string) => {
+    if (actionRequestActive.current) return
     const taskState = useTaskStore.getState()
     if (!taskState.initialized || taskState.pollError !== null) {
       toast(t('task.panel.unavailable_hint'), 'error')
       return
     }
+    actionRequestActive.current = true
     setActiveAction(actionKey)
     try {
       await apiFetch<SyncTaskResponse>(path, { method: 'POST' })
@@ -142,6 +148,7 @@ export default function SyncPage() {
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : t('sync.start_error'), 'error')
     } finally {
+      actionRequestActive.current = false
       setActiveAction(null)
     }
   }
