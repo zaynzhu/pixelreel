@@ -85,6 +85,11 @@ OMDB_API_KEY="your_omdb_key"             # OMDb API Key
 TRAKT_CLIENT_ID="your_trakt_client_id"   # Trakt API
 RAWG_API_KEY="your_rawg_key"             # RAWG API
 STEAM_WEB_API_KEY="your_steam_key"       # Steam Web API
+OPENXBL_API_KEY="your_openxbl_key"       # OpenXBL API Key
+OPENXBL_GAMERTAG="name#1234"             # 默认 Xbox Gamertag
+OPENXBL_ENABLED="true"                   # 启用 Xbox 同步
+PSN_PROFILES_ACCOUNT_ID="online-id"       # 默认 PSN Online ID
+PSN_PROFILES_ENABLED="true"               # 启用 PSN 同步
 HTTPS_PROXY="http://127.0.0.1:7897"      # TMDB 国内必需
 ```
 
@@ -118,6 +123,15 @@ curl -X POST 'http://localhost:18889/api/import/psn/owned/task?status=WANT'
 ```
 
 Xbox 通过 OpenXBL API 的 `/search/{gamertag}` 与 `/player/titleHistory/{xuid}` 读取玩家和游戏历史；现代 Gamertag 可填写完整的 `名称#数字后缀`，模糊搜索结果只有账号完全匹配时才会继续同步。PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。
+
+首次接入建议：
+
+1. 在 Settings 的 OpenXBL 区域填写 API Key、默认 Gamertag 并启用 Xbox；如账号带现代后缀，请填写完整的 `名称#数字后缀`。
+2. 在 PSNProfiles 区域填写默认 Online ID 并启用 PSN。公开档案通常无需 Cookie；遇到 Cloudflare 验证页时再更新 Cookie，User-Agent 可先保留默认值。
+3. 返回 `/sync`，确认来源状态为可用。单次同步其他账号时，可在来源卡片中填写临时 Gamertag 或 Online ID，不会覆盖 Settings 的默认账号。
+4. 启动同步后，在持久化任务结果中检查完整错误，再到 `/sync/review` 审核新导入的 `PENDING` 记录。
+
+Xbox 会写入游戏与成就摘要；只有 OpenXBL 游戏历史响应提供游玩时长时，才会写入 `playtimeMinutes`。首次真实同步会创建游戏记录，建议通过 `/sync` 页面发起并在审核队列确认结果。
 
 ### 雷达发现新片
 
@@ -291,6 +305,15 @@ PUT    /api/settings
 | `TRAKT_CLIENT_ID` | Trakt Client ID | -- |
 | `RAWG_API_KEY` | RAWG API Key | -- |
 | `STEAM_WEB_API_KEY` | Steam Web API Key | -- |
+| `OPENXBL_API_KEY` | OpenXBL API Key | -- |
+| `OPENXBL_BASE_URL` | OpenXBL API 根地址 | `https://api.xbl.io/v2` |
+| `OPENXBL_GAMERTAG` | 默认 Xbox Gamertag | -- |
+| `OPENXBL_ENABLED` | 启用 Xbox 同步 | `false` |
+| `PSN_PROFILES_BASE_URL` | PSNProfiles 站点地址 | `https://psnprofiles.com` |
+| `PSN_PROFILES_USER_AGENT` | 请求 PSNProfiles 时使用的 User-Agent | 内置浏览器 User-Agent |
+| `PSN_PROFILES_COOKIE` | 可选 Cookie，遇到 Cloudflare 验证时更新 | -- |
+| `PSN_PROFILES_ACCOUNT_ID` | 默认 PSN Online ID | -- |
+| `PSN_PROFILES_ENABLED` | 启用 PSN 同步 | `false` |
 | `HTTPS_PROXY` | HTTPS 代理（TMDB 国内必需） | -- |
 | `DOUBAN_USER_ID` | 豆瓣用户 ID | -- |
 | `DOUBAN_HARVEST_ENABLED` | 启用浏览器收割 | `true` |
