@@ -7,6 +7,7 @@ import { assertTaskActive } from './ImportSummaryTaskService';
 import {
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
+  isPlatformGameTitleValid,
 } from './PlatformGameSyncService';
 
 interface SteamOwnedGame {
@@ -74,7 +75,7 @@ export function parseSteamOwnedGamesResponse(data: unknown): ParsedSteamOwnedGam
     }
 
     const title = typeof item.name === 'string' ? item.name.trim() : '';
-    if (!title || title.length > 255) {
+    if (!isPlatformGameTitleValid(title)) {
       skipped++;
       errors.push(`Steam appid ${appId} 缺少有效标题，已跳过`);
       continue;

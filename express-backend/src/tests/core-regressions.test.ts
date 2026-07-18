@@ -186,6 +186,9 @@ import {
 import {
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
+  isPlatformGameExternalIdValid,
+  isPlatformGameTitleValid,
+  normalizePlatformGamePosterUrl,
 } from '../services/import/PlatformGameSyncService';
 import {
   getExternalServiceKey,
@@ -422,6 +425,12 @@ test('游戏平台重复同步只刷新来源指标并保留已有展示字段',
   });
   assert.deepEqual(unchanged, {});
   assert.equal(hasPlatformGameMetricUpdate(unchanged), false);
+  assert.equal(isPlatformGameExternalIdValid('x'.repeat(50)), true);
+  assert.equal(isPlatformGameExternalIdValid('x'.repeat(51)), false);
+  assert.equal(isPlatformGameTitleValid('游'.repeat(255)), true);
+  assert.equal(isPlatformGameTitleValid('游'.repeat(256)), false);
+  assert.equal(normalizePlatformGamePosterUrl(`https://example.com/${'a'.repeat(480)}`), 'https://example.com/' + 'a'.repeat(480));
+  assert.equal(normalizePlatformGamePosterUrl(`https://example.com/${'a'.repeat(481)}`), null);
 });
 
 test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {

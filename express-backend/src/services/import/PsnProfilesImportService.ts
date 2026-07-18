@@ -8,6 +8,11 @@ import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
+  isPlatformGameExternalIdValid,
+  isPlatformGameTitleValid,
+  normalizePlatformGamePosterUrl,
+  PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH,
+  PLATFORM_GAME_TITLE_MAX_LENGTH,
 } from './PlatformGameSyncService';
 
 type ImportProgress = (processed: number, total: number, currentTitle: string) => void;
@@ -65,16 +70,30 @@ export async function importPsnOwnedGames(
       summary.skipped++;
       continue;
     }
+    if (!isPlatformGameExternalIdValid(game.psnId)) {
+      summary.errors.push(`PSN 游戏 ID 超过 ${PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH} 个字符，已跳过: ${game.title || '未知游戏'}`);
+      summary.skipped++;
+      continue;
+    }
     if (!game.title) {
       summary.errors.push(`缺少游戏名称，已跳过: ${game.psnId}`);
       summary.skipped++;
       continue;
     }
+    if (!isPlatformGameTitleValid(game.title)) {
+      summary.errors.push(`PSN 游戏标题超过 ${PLATFORM_GAME_TITLE_MAX_LENGTH} 个字符，已跳过: ${game.psnId}`);
+      summary.skipped++;
+      continue;
+    }
+    const sourcePosterUrl = normalizePlatformGamePosterUrl(game.posterUrl);
+    if (game.posterUrl && !sourcePosterUrl) {
+      summary.errors.push(`PSN 封面 URL 超过字段长度，已改用回退封面: ${game.title}`);
+    }
     const existing = existingMap.get(game.psnId);
     if (existing) {
       const posterUrl = existing.posterUrl
         ? null
-        : game.posterUrl ?? await lookupRawgPosterUrl(game.title, signal);
+        : sourcePosterUrl ?? await lookupRawgPosterUrl(game.title, signal);
       if (signal?.aborted) return summary;
       const update = buildPlatformGameMetricUpdate(existing, {
         platform: 'PSN',
@@ -92,7 +111,7 @@ export async function importPsnOwnedGames(
       continue;
     }
 
-    const posterUrl = game.posterUrl
+    const posterUrl = sourcePosterUrl
       ?? await lookupRawgPosterUrl(game.title, signal);
     if (signal?.aborted) return summary;
 

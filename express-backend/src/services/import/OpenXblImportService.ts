@@ -7,6 +7,11 @@ import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
   buildPlatformGameMetricUpdate,
   hasPlatformGameMetricUpdate,
+  isPlatformGameExternalIdValid,
+  isPlatformGameTitleValid,
+  normalizePlatformGamePosterUrl,
+  PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH,
+  PLATFORM_GAME_TITLE_MAX_LENGTH,
 } from './PlatformGameSyncService';
 
 export interface XboxImportedTitle {
@@ -97,16 +102,30 @@ export async function importXboxOwnedGames(
       summary.skipped++;
       continue;
     }
+    if (!isPlatformGameExternalIdValid(title.titleId)) {
+      summary.errors.push(`Xbox titleId 超过 ${PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH} 个字符，已跳过: ${title.name || '未知游戏'}`);
+      summary.skipped++;
+      continue;
+    }
     if (!title.name) {
       summary.errors.push(`缺少游戏名称，已跳过: ${title.titleId}`);
       summary.skipped++;
       continue;
     }
+    if (!isPlatformGameTitleValid(title.name)) {
+      summary.errors.push(`Xbox 游戏标题超过 ${PLATFORM_GAME_TITLE_MAX_LENGTH} 个字符，已跳过: ${title.titleId}`);
+      summary.skipped++;
+      continue;
+    }
+    const sourcePosterUrl = normalizePlatformGamePosterUrl(title.posterUrl);
+    if (title.posterUrl && !sourcePosterUrl) {
+      summary.errors.push(`Xbox 封面 URL 超过字段长度，已改用回退封面: ${title.name}`);
+    }
     const existing = existingMap.get(title.titleId);
     if (existing) {
       const posterUrl = existing.posterUrl
         ? null
-        : title.posterUrl ?? await lookupRawgPosterUrl(title.name, signal);
+        : sourcePosterUrl ?? await lookupRawgPosterUrl(title.name, signal);
       if (signal?.aborted) return summary;
       const update = buildPlatformGameMetricUpdate(existing, {
         platform: 'XBOX',
@@ -124,7 +143,7 @@ export async function importXboxOwnedGames(
       continue;
     }
 
-    const posterUrl = title.posterUrl
+    const posterUrl = sourcePosterUrl
       ?? await lookupRawgPosterUrl(title.name, signal);
     if (signal?.aborted) return summary;
 

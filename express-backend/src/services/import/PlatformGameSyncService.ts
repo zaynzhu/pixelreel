@@ -1,3 +1,19 @@
+export const PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH = 50;
+export const PLATFORM_GAME_TITLE_MAX_LENGTH = 255;
+export const PLATFORM_GAME_POSTER_URL_MAX_LENGTH = 500;
+
+export function isPlatformGameExternalIdValid(value: string): boolean {
+  return value.length > 0 && value.length <= PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH;
+}
+
+export function isPlatformGameTitleValid(value: string): boolean {
+  return value.length > 0 && value.length <= PLATFORM_GAME_TITLE_MAX_LENGTH;
+}
+
+export function normalizePlatformGamePosterUrl(value: string | null): string | null {
+  return value && value.length <= PLATFORM_GAME_POSTER_URL_MAX_LENGTH ? value : null;
+}
+
 export interface PlatformGameMetricSnapshot {
   platform: string | null;
   posterUrl: string | null;
