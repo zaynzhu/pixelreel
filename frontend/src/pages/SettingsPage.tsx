@@ -99,7 +99,7 @@ export default function SettingsPage() {
       if (requestId !== latestSaveRequest.current) return;
       if (data.success) {
         toast(t('settings.saved'));
-        setRestartRequired(data.restartRequired);
+        setRestartRequired(current => current || data.restartRequired);
         setEditValues(current => {
           const next = { ...current };
           for (const key of sensitiveKeys) next[key] = '';

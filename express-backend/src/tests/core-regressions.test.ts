@@ -133,6 +133,7 @@ import {
   parseRecordListParameters,
 } from '../routes/record-list';
 import {
+  applyRuntimeSettingValues,
   formatEnvLine,
   parseSettingsUpdateBody,
   serializeSettingValue,
@@ -272,6 +273,39 @@ test('配置值仅在需要时添加引号', () => {
   assert.equal(formatEnvLine('HOST', '127.0.0.1'), 'HOST=127.0.0.1');
   assert.equal(formatEnvLine('DOUBAN_DATA_DIR', '/path/with space'), 'DOUBAN_DATA_DIR="/path/with space"');
   assert.equal(formatEnvLine('CORS_ALLOWED_ORIGINS', 'http://localhost:18888#local'), 'CORS_ALLOWED_ORIGINS="http://localhost:18888#local"');
+});
+
+test('主机平台设置即时更新运行时配置并区分重启项', () => {
+  const runtimeConfig = {
+    openxbl: { apiKey: '', baseUrl: 'https://old.xbl.test', enabled: false },
+    psnProfiles: {
+      baseUrl: 'https://old.psn.test',
+      userAgent: 'old-agent',
+      cookie: '',
+      enabled: false,
+    },
+  };
+
+  assert.equal(applyRuntimeSettingValues({
+    OPENXBL_API_KEY: 'xbox-key',
+    OPENXBL_BASE_URL: 'https://api.xbl.test/v2',
+    OPENXBL_ENABLED: 'true',
+    PSN_PROFILES_BASE_URL: 'https://psn.test',
+    PSN_PROFILES_USER_AGENT: 'new-agent',
+    PSN_PROFILES_COOKIE: 'session=value',
+    PSN_PROFILES_ENABLED: 'true',
+  }, runtimeConfig), false);
+  assert.deepEqual(runtimeConfig, {
+    openxbl: { apiKey: 'xbox-key', baseUrl: 'https://api.xbl.test/v2', enabled: true },
+    psnProfiles: {
+      baseUrl: 'https://psn.test',
+      userAgent: 'new-agent',
+      cookie: 'session=value',
+      enabled: true,
+    },
+  });
+  assert.equal(applyRuntimeSettingValues({ OPENXBL_ENABLED: 'false', PORT: '18890' }, runtimeConfig), true);
+  assert.equal(runtimeConfig.openxbl.enabled, false);
 });
 
 test('导入参数拒绝无效 limit、status 和标识值', () => {

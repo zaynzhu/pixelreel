@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import cron from 'node-cron';
-import { validateAuthConfiguration } from '../config';
+import { config, validateAuthConfiguration } from '../config';
 import { assertNoQueryParameters, RequestValidationError } from './request-validation';
 
 const router = Router();
@@ -271,6 +271,41 @@ export function validateAuthSettingValues(
   });
 }
 
+interface RuntimePlatformConfig {
+  openxbl: {
+    apiKey: string;
+    baseUrl: string;
+    enabled: boolean;
+  };
+  psnProfiles: {
+    baseUrl: string;
+    userAgent: string;
+    cookie: string;
+    enabled: boolean;
+  };
+}
+
+export function applyRuntimeSettingValues(
+  values: Record<string, unknown>,
+  runtimeConfig = config as unknown as RuntimePlatformConfig,
+): boolean {
+  let restartRequired = false;
+  for (const [key, rawValue] of Object.entries(values)) {
+    const value = rawValue as string;
+    switch (key) {
+      case 'OPENXBL_API_KEY': runtimeConfig.openxbl.apiKey = value; break;
+      case 'OPENXBL_BASE_URL': runtimeConfig.openxbl.baseUrl = value; break;
+      case 'OPENXBL_ENABLED': runtimeConfig.openxbl.enabled = value === 'true'; break;
+      case 'PSN_PROFILES_BASE_URL': runtimeConfig.psnProfiles.baseUrl = value; break;
+      case 'PSN_PROFILES_USER_AGENT': runtimeConfig.psnProfiles.userAgent = value; break;
+      case 'PSN_PROFILES_COOKIE': runtimeConfig.psnProfiles.cookie = value; break;
+      case 'PSN_PROFILES_ENABLED': runtimeConfig.psnProfiles.enabled = value === 'true'; break;
+      default: restartRequired = true;
+    }
+  }
+  return restartRequired;
+}
+
 // ── GET /api/settings ──
 router.get('/', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -350,7 +385,8 @@ router.put('/', (req: Request, res: Response, next: NextFunction) => {
     fs.writeFileSync(ENV_TEMP_PATH, updated, 'utf-8');
     fs.renameSync(ENV_TEMP_PATH, ENV_PATH);
 
-    res.json({ success: true, restartRequired: true });
+    const restartRequired = applyRuntimeSettingValues(values);
+    res.json({ success: true, restartRequired });
   } catch (err) {
     next(err);
   }

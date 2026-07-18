@@ -96,7 +96,7 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 
 1. 将 `PSN_PROFILES_ENABLED` 设为 `true`
 2. 在同步中心输入 PSN 在线 ID，或调用 `POST /api/import/psn/owned/task?psnId=在线ID&status=WANT`
-3. 公开档案可能直接返回 Cloudflare 403；同步任务会明确提示更新 Cookie，此时在 Settings 的 PSN 分类填写新的 `PSN_PROFILES_COOKIE` 并重启后端
+3. 公开档案可能直接返回 Cloudflare 403；同步任务会明确提示更新 Cookie，此时在 Settings 的 PSN 分类填写新的 `PSN_PROFILES_COOKIE`，保存后即可重试
 
 服务按 `?ajax=1&page=N` 逐页读取公开档案，最多 100 页，并以奖杯链接中的数字列表 ID 作为稳定 `psnId`。新记录写入导入审核队列，不覆盖已有 PSN 记录。
 
@@ -153,7 +153,7 @@ OMDB_API_KEY=你的OMDB_KEY
 OMDB_BASE_URL=https://www.omdbapi.com
 ```
 
-配置完后重启 Express 后端即可生效：
+OpenXBL 与 PSNProfiles 配置在 Settings 保存后即时生效；其他环境配置完成后重启 Express 后端即可生效：
 
 ```bash
 cd express-backend

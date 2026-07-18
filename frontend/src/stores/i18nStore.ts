@@ -651,7 +651,7 @@ const dictionaries = {
 
     "settings.kicker": "CONFIG // SYSTEM",
     "settings.title": "ENV_REGISTRY",
-    "settings.desc": "/// Runtime environment configuration. Changes require service restart.",
+    "settings.desc": "/// Runtime environment configuration. Some changes require service restart.",
     "settings.save": "COMMIT_CHANGES",
     "settings.saving": "COMMITTING...",
     "settings.saved": "DATA_COMMITTED",
@@ -1409,7 +1409,7 @@ const dictionaries = {
 
     "settings.kicker": "配置 // 系统",
     "settings.title": "环境变量注册表",
-    "settings.desc": "/// 运行时环境配置。更改需要重启服务后生效。",
+    "settings.desc": "/// 运行时环境配置。部分更改需要重启服务后生效。",
     "settings.save": "提交更改",
     "settings.saving": "提交中...",
     "settings.saved": "数据已提交",
