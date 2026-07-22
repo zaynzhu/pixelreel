@@ -88,6 +88,10 @@ STEAM_WEB_API_KEY="your_steam_key"       # Steam Web API
 OPENXBL_API_KEY="your_openxbl_key"       # OpenXBL API Key
 OPENXBL_GAMERTAG="name#1234"             # 默认 Xbox Gamertag
 OPENXBL_ENABLED="true"                   # 启用 Xbox 同步
+MICROSOFT_XBOX_CLIENT_ID="your_client_id" # Azure 应用 Client ID
+MICROSOFT_XBOX_CLIENT_SECRET="secret"     # Azure 应用 Client Secret
+MICROSOFT_XBOX_REDIRECT_URI="http://localhost:18889/api/xbox/callback"
+MICROSOFT_XBOX_ENABLED="true"             # 启用 Microsoft 账号直连
 PSN_PROFILES_ACCOUNT_ID="online-id"       # 默认 PSN Online ID
 PSN_PROFILES_ENABLED="true"               # 启用 PSN 同步
 HTTPS_PROXY="http://127.0.0.1:7897"      # TMDB 国内必需
@@ -115,27 +119,31 @@ curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 # Steam 已购游戏导入任务
 curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
 
-# Xbox 游戏历史导入任务（默认 Gamertag 在 Settings 配置）
-curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?status=WANT'
+# Xbox 游戏历史导入任务（Microsoft 官方授权直连）
+curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?provider=microsoft&status=WANT'
+
+# OpenXBL 兼容方式（默认 Gamertag 在 Settings 配置）
+curl -X POST 'http://localhost:18889/api/import/xbox/owned/task?provider=openxbl&status=WANT'
 
 # PSN 游戏导入任务（默认在线 ID 在 Settings 配置）
 curl -X POST 'http://localhost:18889/api/import/psn/owned/task?status=WANT'
 
 # 只读验证默认 Xbox / PSN 账号（不会启动任务或写入资料库）
-curl -X POST 'http://localhost:18889/api/import/xbox/verify'
+curl -X POST 'http://localhost:18889/api/import/xbox/verify?provider=microsoft'
 curl -X POST 'http://localhost:18889/api/import/psn/verify'
 ```
 
-Xbox 通过 OpenXBL API 的 `/search/{gamertag}` 与 `/player/titleHistory/{xuid}` 读取玩家和游戏历史；现代 Gamertag 可填写完整的 `名称#数字后缀`，模糊搜索结果只有账号完全匹配时才会继续同步。PSN 逐页读取公开 PSNProfiles 档案。两者默认关闭，需在 Settings 中配置默认账号并启用；任务与验证接口仍可通过 `gamertag` 或 `psnId` 临时覆盖默认账号。同步中心提供只读连接验证，Xbox 会确认游戏历史可读，PSN 只检查档案第一页，不启动任务也不写入资料库。
+Xbox 支持两种来源：推荐使用 Microsoft 官方 OAuth，经 Xbox User Token 与 XSTS 读取当前账号的 title history；OpenXBL 继续作为兼容方式。Microsoft 密码不会交给 PixelReel，refresh token 仅以 `0600` 权限保存在本机 `express-backend/data/xbox-microsoft-auth.json`，API 与 Settings 均不回传令牌。PSN 逐页读取公开 PSNProfiles 档案。同步中心的连接验证只读，不启动任务也不写入资料库。
 
 首次接入建议：
 
-1. 在 Settings 的 OpenXBL 区域填写 API Key、默认 Gamertag 并启用 Xbox；如账号带现代后缀，请填写完整的 `名称#数字后缀`。
-2. 在 PSNProfiles 区域填写默认 Online ID 并启用 PSN。公开档案通常无需 Cookie；遇到 Cloudflare 验证页时再更新 Cookie，User-Agent 可先保留默认值。
-3. 返回 `/sync`，确认来源状态为可用。单次同步其他账号时，可在来源卡片中填写临时 Gamertag 或 Online ID，不会覆盖 Settings 的默认账号。
-4. 启动同步后，在持久化任务结果中检查完整错误，再到 `/sync/review` 审核新导入的 `PENDING` 记录。
+1. 在 Microsoft Entra 管理中心注册“仅个人 Microsoft 账号”Web 应用，将回调 URI 设为 `http://localhost:18889/api/xbox/callback`，创建 Client Secret。
+2. 在 Settings 的 Microsoft Xbox 区域填写 Client ID、Client Secret、回调地址并启用，然后到 `/sync` 选择“Microsoft 账号直连”，点击“连接 Microsoft 账号”。
+3. 如继续使用 OpenXBL，在 OpenXBL 区域填写 API Key、默认 Gamertag 并启用；现代 Gamertag 请填写完整的 `名称#数字后缀`。
+4. 在 PSNProfiles 区域填写默认 Online ID 并启用 PSN。公开档案通常无需 Cookie；遇到 Cloudflare 验证页时再更新 Cookie。
+5. 在 `/sync` 先验证连接，再启动正式同步；新记录进入 `/sync/review` 审核队列。
 
-Xbox 会写入游戏与成就摘要；只有 OpenXBL 游戏历史响应提供游玩时长时，才会写入 `playtimeMinutes`。首次真实同步会创建游戏记录，建议通过 `/sync` 页面发起并在审核队列确认结果。
+Xbox 会写入游戏与成就摘要；只有所选来源的游戏历史响应提供游玩时长时，才会写入 `playtimeMinutes`。首次真实同步会创建游戏记录，建议通过 `/sync` 页面发起并在审核队列确认结果。
 
 ### 雷达发现新片
 
@@ -315,6 +323,10 @@ PUT    /api/settings
 | `OPENXBL_BASE_URL` | OpenXBL API 根地址 | `https://api.xbl.io/v2` |
 | `OPENXBL_GAMERTAG` | 默认 Xbox Gamertag | -- |
 | `OPENXBL_ENABLED` | 启用 Xbox 同步 | `false` |
+| `MICROSOFT_XBOX_CLIENT_ID` | Microsoft Entra 应用 Client ID | -- |
+| `MICROSOFT_XBOX_CLIENT_SECRET` | Microsoft Entra 应用 Client Secret | -- |
+| `MICROSOFT_XBOX_REDIRECT_URI` | Microsoft OAuth 回调地址 | `http://localhost:18889/api/xbox/callback` |
+| `MICROSOFT_XBOX_ENABLED` | 启用 Microsoft Xbox 直连 | `false` |
 | `PSN_PROFILES_BASE_URL` | PSNProfiles 站点地址 | `https://psnprofiles.com` |
 | `PSN_PROFILES_USER_AGENT` | 请求 PSNProfiles 时使用的 User-Agent | 内置浏览器 User-Agent |
 | `PSN_PROFILES_COOKIE` | 可选 Cookie，遇到 Cloudflare 验证时更新 | -- |

@@ -9,6 +9,7 @@ import libraryRoutes from '../routes/library';
 import profileRoutes from '../routes/profile';
 import authRoutes from '../routes/auth';
 import traktRoutes from '../routes/trakt';
+import xboxRoutes from '../routes/xbox';
 import activityRoutes from '../routes/activity';
 import analyticsRoutes from '../routes/analytics';
 import settingsRoutes from '../routes/settings';
@@ -32,6 +33,7 @@ router.use(authMiddleware);
 
 // Trakt OAuth + 导入路由
 router.use('/trakt', traktRoutes);
+router.use('/xbox', xboxRoutes);
 
 // 业务路由
 router.use('/movies', movieRoutes);

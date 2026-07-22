@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 
-const AUTH_EXEMPT_PATHS = new Set(['/trakt/callback']);
+const AUTH_EXEMPT_PATHS = new Set(['/trakt/callback', '/xbox/callback']);
 
 // JWT 鉴权中间件
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {

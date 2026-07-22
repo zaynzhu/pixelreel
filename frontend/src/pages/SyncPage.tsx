@@ -30,6 +30,7 @@ const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
 
 type DirectSource = 'steam' | 'trakt' | 'xbox' | 'psn'
 type PlatformSource = 'xbox' | 'psn'
+type XboxProvider = 'microsoft' | 'openxbl'
 type ConnectionResult = { ok: true } | { ok: false; error: string }
 
 export default function SyncPage() {
@@ -58,6 +59,7 @@ export default function SyncPage() {
     psn: 'WANT',
   })
   const [platformAccounts, setPlatformAccounts] = useState({ xbox: '', psn: '' })
+  const [xboxProvider, setXboxProvider] = useState<XboxProvider>('microsoft')
   const [connectionResults, setConnectionResults] = useState<Partial<Record<PlatformSource, ConnectionResult>>>({})
   const taskStateReady = tasksInitialized && taskPollError === null
   const sourceStatusReady = status !== null && statusError === null && !loading
@@ -95,6 +97,10 @@ export default function SyncPage() {
 
   useEffect(() => {
     void loadStatus()
+    if (new URLSearchParams(window.location.search).get('xboxAuth') === 'success') {
+      toast(t('sync.xbox.auth_success'))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     return () => {
       latestStatusRequest.current++
       latestConnectionRequest.current++
@@ -125,7 +131,9 @@ export default function SyncPage() {
 
   const runningCount = sourceTasks.filter(task => task.status === 'running').length
   const xboxAvailability = status
-    ? applyPlatformAccountOverride(status.xbox, platformAccounts.xbox)
+    ? xboxProvider === 'openxbl'
+      ? applyPlatformAccountOverride(status.xbox.providers.openxbl, platformAccounts.xbox)
+      : status.xbox.providers.microsoft
     : null
   const psnAvailability = status
     ? applyPlatformAccountOverride(status.psn, platformAccounts.psn)
@@ -197,7 +205,9 @@ export default function SyncPage() {
     setConnectionResults(current => ({ ...current, [source]: undefined }))
     try {
       await apiFetch<PlatformConnectionResponse>(
-        `/import/${source}/verify?${accountKey}=${encodeURIComponent(account)}`,
+        source === 'xbox'
+          ? `/import/xbox/verify?provider=${xboxProvider}&gamertag=${encodeURIComponent(account)}`
+          : `/import/psn/verify?${accountKey}=${encodeURIComponent(account)}`,
         { method: 'POST' },
       )
       if (requestId !== latestConnectionRequest.current) return
@@ -212,6 +222,20 @@ export default function SyncPage() {
         },
       }))
     } finally {
+      actionRequestActive.current = false
+      setActiveAction(null)
+    }
+  }
+
+  const connectMicrosoftXbox = async () => {
+    if (actionRequestActive.current) return
+    actionRequestActive.current = true
+    setActiveAction('xbox-auth')
+    try {
+      const result = await apiFetch<{ url: string }>('/xbox/auth-url', { method: 'POST' })
+      window.location.assign(result.url)
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : t('sync.xbox.auth_failed'), 'error')
       actionRequestActive.current = false
       setActiveAction(null)
     }
@@ -362,13 +386,41 @@ export default function SyncPage() {
             availability={xboxAvailability ?? status.xbox}
             task={latestTask('xbox')}
             history={history?.xbox}
-            settingsCategory="openxbl"
+            settingsCategory={xboxProvider === 'microsoft' ? 'microsoftXbox' : 'openxbl'}
           >
-            <AccountInput
-              source="xbox"
-              value={platformAccounts.xbox}
-              onChange={value => updatePlatformAccount('xbox', value)}
-            />
+            <label className="mb-3 block text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
+              {t('sync.xbox.provider')}
+              <select
+                value={xboxProvider}
+                onChange={event => {
+                  latestConnectionRequest.current++
+                  setConnectionResults(current => ({ ...current, xbox: undefined }))
+                  setXboxProvider(event.target.value as XboxProvider)
+                }}
+                className="tech-input mt-2 w-full"
+              >
+                <option value="microsoft">{t('sync.xbox.provider.microsoft')}</option>
+                <option value="openxbl">OpenXBL</option>
+              </select>
+            </label>
+            {xboxProvider === 'openxbl' ? (
+              <AccountInput
+                source="xbox"
+                value={platformAccounts.xbox}
+                onChange={value => updatePlatformAccount('xbox', value)}
+              />
+            ) : (
+              <SyncButton
+                label={xboxAvailability?.available ? t('sync.xbox.reauthorize') : t('sync.xbox.authorize')}
+                onClick={() => void connectMicrosoftXbox()}
+                disabled={!sourceStatusReady
+                  || !['missing_authorization', null].includes(xboxAvailability?.reason ?? 'disabled')
+                  || activeAction != null
+                  || latestTask('xbox')?.status === 'running'}
+                active={activeAction === 'xbox-auth'}
+                className="mb-3 w-full"
+              />
+            )}
             <SyncButton
               label={t('sync.connection.verify')}
               onClick={() => void verifyPlatformConnection('xbox')}
@@ -384,7 +436,7 @@ export default function SyncPage() {
             <SyncButton
               label={t('sync.xbox.owned')}
               onClick={() => void startSourceTask(
-                `/import/xbox/owned/task?gamertag=${encodeURIComponent(platformAccounts.xbox.trim())}&status=${directStatuses.xbox}`,
+                `/import/xbox/owned/task?provider=${xboxProvider}&gamertag=${encodeURIComponent(platformAccounts.xbox.trim())}&status=${directStatuses.xbox}`,
                 'xbox-owned',
               )}
               disabled={!sourceStatusReady || !taskStateReady || !xboxAvailability?.available || activeAction != null || latestTask('xbox')?.status === 'running'}

@@ -15,6 +15,8 @@ import {
   startXboxOwnedImportTask,
 } from '../services/import/PlatformGameImportTaskService';
 import { verifyOpenXblConnection } from '../services/import/OpenXblImportService';
+import { verifyMicrosoftXboxConnection } from '../services/xbox/MicrosoftXboxService';
+import { microsoftXboxAuthStore } from '../services/xbox/MicrosoftXboxAuthStore';
 import { verifyPsnProfilesConnection } from '../services/import/PsnProfilesImportService';
 import { listTasks, cancelTask, getTask } from '../services/task-manager';
 import { getSyncHistory } from '../services/SyncHistoryService';
@@ -71,22 +73,32 @@ export function parseSteamOwnedImportParameters(value: Record<string, unknown>) 
 }
 
 export function parseXboxOwnedImportParameters(value: Record<string, unknown>) {
-  assertKnownImportParameters(value, ['gamertag', 'status']);
+  assertKnownImportParameters(value, ['gamertag', 'status', 'provider']);
   return {
     gamertag: parseExternalAccountIdentifier(
       value.gamertag, 'gamertag', XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN,
     ),
     status: parseRecordStatusParameter(value.status, null),
+    provider: parseXboxProvider(value.provider),
   };
 }
 
 export function parseXboxConnectionParameters(value: Record<string, unknown>) {
-  assertKnownImportParameters(value, ['gamertag']);
+  assertKnownImportParameters(value, ['gamertag', 'provider']);
   return {
     gamertag: parseExternalAccountIdentifier(
       value.gamertag, 'gamertag', XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN,
     ),
+    provider: parseXboxProvider(value.provider),
   };
+}
+
+function parseXboxProvider(value: unknown): 'openxbl' | 'microsoft' {
+  const provider = parseBoundedStringParameter(value, 'provider', 20) ?? 'openxbl';
+  if (provider !== 'openxbl' && provider !== 'microsoft') {
+    throw new RequestValidationError('provider 必须是 openxbl 或 microsoft');
+  }
+  return provider;
 }
 
 export function parsePsnOwnedImportParameters(value: Record<string, unknown>) {
@@ -149,6 +161,10 @@ type ImportSourceStatusConfig = {
   openxblEnabled: boolean;
   openxblApiKey: string;
   openxblGamertag: string;
+  microsoftXboxEnabled: boolean;
+  microsoftXboxClientId: string;
+  microsoftXboxClientSecret: string;
+  microsoftXboxAuthorized: boolean;
   psnProfilesEnabled: boolean;
   psnProfilesAccountId: string;
 };
@@ -156,6 +172,8 @@ type ImportSourceStatusConfig = {
 type PlatformImportStatusConfig = Pick<
   ImportSourceStatusConfig,
   'openxblEnabled' | 'openxblApiKey' | 'openxblGamertag'
+  | 'microsoftXboxEnabled' | 'microsoftXboxClientId' | 'microsoftXboxClientSecret'
+  | 'microsoftXboxAuthorized'
   | 'psnProfilesEnabled' | 'psnProfilesAccountId'
 >;
 
@@ -168,11 +186,23 @@ export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) 
   const psnReason = !settings.psnProfilesEnabled
     ? 'disabled'
     : settings.psnProfilesAccountId.trim() ? null : 'missing_account';
+  const microsoftReason = !settings.microsoftXboxEnabled
+    ? 'disabled'
+    : !settings.microsoftXboxClientId.trim()
+      ? 'missing_client_id'
+      : !settings.microsoftXboxClientSecret.trim()
+        ? 'missing_client_secret'
+        : settings.microsoftXboxAuthorized ? null : 'missing_authorization';
+  const xboxAvailable = xboxReason == null || microsoftReason == null;
 
   return {
     xbox: {
-      available: xboxReason == null,
-      reason: xboxReason,
+      available: xboxAvailable,
+      reason: xboxAvailable ? null : microsoftReason !== 'disabled' ? microsoftReason : xboxReason,
+      providers: {
+        openxbl: { available: xboxReason == null, reason: xboxReason },
+        microsoft: { available: microsoftReason == null, reason: microsoftReason },
+      },
     },
     psn: {
       available: psnReason == null,
@@ -232,6 +262,10 @@ function getCurrentPlatformImportStatus(accounts?: { gamertag?: string | null; p
     openxblEnabled: config.openxbl.enabled,
     openxblApiKey: config.openxbl.apiKey,
     openxblGamertag: accounts?.gamertag ?? config.openxbl.gamertag,
+    microsoftXboxEnabled: config.microsoftXbox.enabled,
+    microsoftXboxClientId: config.microsoftXbox.clientId,
+    microsoftXboxClientSecret: config.microsoftXbox.clientSecret,
+    microsoftXboxAuthorized: microsoftXboxAuthStore.hasRefreshToken(),
     psnProfilesEnabled: config.psnProfiles.enabled,
     psnProfilesAccountId: accounts?.psnId ?? config.psnProfiles.accountId,
   });
@@ -249,6 +283,10 @@ function getCurrentImportSourceStatus() {
     openxblEnabled: config.openxbl.enabled,
     openxblApiKey: config.openxbl.apiKey,
     openxblGamertag: config.openxbl.gamertag,
+    microsoftXboxEnabled: config.microsoftXbox.enabled,
+    microsoftXboxClientId: config.microsoftXbox.clientId,
+    microsoftXboxClientSecret: config.microsoftXbox.clientSecret,
+    microsoftXboxAuthorized: microsoftXboxAuthStore.hasRefreshToken(),
     psnProfilesEnabled: config.psnProfiles.enabled,
     psnProfilesAccountId: config.psnProfiles.accountId,
   });
@@ -327,43 +365,49 @@ router.post('/steam/owned/task', (req: Request, res: Response) => {
 // POST /api/import/xbox/owned/task?gamertag=xxx&status=WANT
 router.post('/xbox/owned/task', (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
-  const { gamertag, status } = parseXboxOwnedImportParameters(req.query);
+  const { gamertag, status, provider } = parseXboxOwnedImportParameters(req.query);
   const account = resolvePlatformImportAccount(gamertag, config.openxbl.gamertag);
-  const availability = getCurrentPlatformImportStatus({ gamertag: account }).xbox;
+  const availability = getCurrentPlatformImportStatus({ gamertag: account }).xbox.providers[provider];
   if (!availability.available) {
-    res.status(403).json({
-      error: availability.reason === 'missing_api_key'
-        ? '缺少 OpenXBL API Key'
-        : availability.reason === 'missing_account' ? '缺少 Xbox Gamertag' : 'OpenXBL 未启用',
-    });
+    res.status(403).json({ error: getXboxUnavailableMessage(provider, availability.reason) });
     return;
   }
-  const task = startXboxOwnedImportTask(account, status);
+  const task = startXboxOwnedImportTask(provider, account, status);
   res.json({ taskId: task.taskId, status: task.status, type: task.type, label: task.label });
 });
 
 // POST /api/import/xbox/verify?gamertag=xxx — 只读验证账号和 title history
 router.post('/xbox/verify', async (req: Request, res: Response) => {
   assertEmptyImportRequestBody(req.body);
-  const { gamertag } = parseXboxConnectionParameters(req.query);
+  const { gamertag, provider } = parseXboxConnectionParameters(req.query);
   const account = resolvePlatformImportAccount(gamertag, config.openxbl.gamertag);
-  const availability = getCurrentPlatformImportStatus({ gamertag: account }).xbox;
+  const availability = getCurrentPlatformImportStatus({ gamertag: account }).xbox.providers[provider];
   if (!availability.available) {
-    res.status(403).json({
-      error: availability.reason === 'missing_api_key'
-        ? '缺少 OpenXBL API Key'
-        : availability.reason === 'missing_account' ? '缺少 Xbox Gamertag' : 'OpenXBL 未启用',
-    });
+    res.status(403).json({ error: getXboxUnavailableMessage(provider, availability.reason) });
     return;
   }
   try {
-    res.json(await verifyOpenXblConnection(account));
+    res.json(provider === 'microsoft'
+      ? await verifyMicrosoftXboxConnection()
+      : await verifyOpenXblConnection(account));
   } catch (error) {
     throw new PlatformConnectionError(
-      error instanceof Error ? error.message : 'OpenXBL 连接验证失败',
+      error instanceof Error ? error.message : 'Xbox 连接验证失败',
     );
   }
 });
+
+function getXboxUnavailableMessage(provider: 'openxbl' | 'microsoft', reason: string | null): string {
+  if (provider === 'openxbl') {
+    if (reason === 'missing_api_key') return '缺少 OpenXBL API Key';
+    if (reason === 'missing_account') return '缺少 Xbox Gamertag';
+    return 'OpenXBL 未启用';
+  }
+  if (reason === 'missing_client_id') return '缺少 Microsoft Xbox Client ID';
+  if (reason === 'missing_client_secret') return '缺少 Microsoft Xbox Client Secret';
+  if (reason === 'missing_authorization') return 'Microsoft Xbox 账号尚未授权';
+  return 'Microsoft Xbox 同步未启用';
+}
 
 // POST /api/import/psn/owned/task?psnId=xxx&status=WANT
 router.post('/psn/owned/task', (req: Request, res: Response) => {

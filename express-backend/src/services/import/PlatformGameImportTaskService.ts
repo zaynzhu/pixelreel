@@ -8,6 +8,7 @@ import {
 import { settleImportSummaryTask } from './ImportSummaryTaskService';
 import { importXboxOwnedGames } from './OpenXblImportService';
 import { importPsnOwnedGames } from './PsnProfilesImportService';
+import { importMicrosoftXboxGames } from '../xbox/MicrosoftXboxService';
 
 type PlatformImporter = (
   accountId: string,
@@ -39,13 +40,17 @@ function startPlatformImportTask(
   return task;
 }
 
-export function startXboxOwnedImportTask(gamertag: string, status: RecordStatus | null) {
+export function startXboxOwnedImportTask(
+  provider: 'openxbl' | 'microsoft',
+  gamertag: string,
+  status: RecordStatus | null,
+) {
   return startPlatformImportTask(
     'xbox-owned',
-    'Xbox 导入',
+    provider === 'microsoft' ? 'Xbox Microsoft 导入' : 'Xbox OpenXBL 导入',
     gamertag,
     status,
-    importXboxOwnedGames,
+    provider === 'microsoft' ? importMicrosoftXboxGames : importXboxOwnedGames,
   );
 }
 

@@ -6,6 +6,8 @@ export type SyncUnavailableReason =
   | 'missing_api_key'
   | 'missing_account'
   | 'missing_client_id'
+  | 'missing_client_secret'
+  | 'missing_authorization'
   | 'missing_access_token'
   | 'missing_data'
   | 'disabled'
@@ -34,7 +36,12 @@ export interface SyncSourceStatus {
       full: SyncAvailability
     }
   }
-  xbox: SyncAvailability
+  xbox: SyncAvailability & {
+    providers: {
+      openxbl: SyncAvailability
+      microsoft: SyncAvailability
+    }
+  }
   psn: SyncAvailability
 }
 
@@ -71,6 +78,7 @@ export interface SyncTaskResponse {
 
 export interface PlatformConnectionResponse {
   ok: true
+  gamertag?: string | null
 }
 
 export interface SyncSourceForm {

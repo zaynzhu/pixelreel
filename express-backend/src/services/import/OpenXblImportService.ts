@@ -76,7 +76,17 @@ export async function importXboxOwnedGames(
     return summary;
   }
 
-  summary.total = titleHistory.length;
+  return importXboxTitleHistory(titleHistory, status, onProgress, signal);
+}
+
+export async function importXboxTitleHistory(
+  titleHistory: XboxImportedTitle[],
+  status?: string | null,
+  onProgress?: ImportProgress,
+  signal?: AbortSignal,
+): Promise<ImportSummary> {
+  const summary: ImportSummary = { total: titleHistory.length, imported: 0, updated: 0, skipped: 0, errors: [] };
+
   const effectiveStatus = resolvePlatformGameImportStatus(status);
   const now = new Date();
 

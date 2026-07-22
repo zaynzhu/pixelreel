@@ -125,6 +125,13 @@ export const config = {
     enabled: process.env.OPENXBL_ENABLED === 'true',
   },
 
+  microsoftXbox: {
+    clientId: process.env.MICROSOFT_XBOX_CLIENT_ID || '',
+    clientSecret: process.env.MICROSOFT_XBOX_CLIENT_SECRET || '',
+    redirectUri: process.env.MICROSOFT_XBOX_REDIRECT_URI || 'http://localhost:18889/api/xbox/callback',
+    enabled: process.env.MICROSOFT_XBOX_ENABLED === 'true',
+  },
+
   psnProfiles: {
     baseUrl: process.env.PSN_PROFILES_BASE_URL || 'https://psnprofiles.com',
     userAgent:

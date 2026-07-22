@@ -63,6 +63,11 @@ import {
   parseXboxTitles,
   verifyOpenXblConnection,
 } from '../services/import/OpenXblImportService';
+import { MicrosoftXboxAuthStore } from '../services/xbox/MicrosoftXboxAuthStore';
+import {
+  parseMicrosoftXboxIdentity,
+  XboxOAuthStateStore,
+} from '../services/xbox/MicrosoftXboxService';
 import {
   collectPsnProfilePages,
   extractPsnGameId,
@@ -113,6 +118,7 @@ import {
   parseTraktPageData,
   TraktOAuthStateStore,
 } from '../routes/trakt';
+import { buildXboxAuthorizationSuccessUrl } from '../routes/xbox';
 import {
   assertConvertedSourceDeleted,
   parseConvertCategoryBody,
@@ -267,6 +273,12 @@ test('配置更新拒绝无效类型和危险字符', () => {
   assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'yes' }), 'OPENXBL_ENABLED 必须是 true 或 false');
   assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'yes' }), 'PSN_PROFILES_ENABLED 必须是 true 或 false');
   assert.equal(validateSettingValues({ OPENXBL_ENABLED: 'true', OPENXBL_API_KEY: 'secret' }), null);
+  assert.equal(validateSettingValues({ MICROSOFT_XBOX_ENABLED: 'true' }), null);
+  assert.equal(validateSettingValues({ MICROSOFT_XBOX_REDIRECT_URI: 'http://localhost:18889/api/xbox/callback' }), null);
+  assert.match(
+    validateSettingValues({ MICROSOFT_XBOX_REDIRECT_URI: 'file:///tmp/callback' }) ?? '',
+    /必须是绝对 HTTP\(S\) 地址/,
+  );
   assert.equal(validateSettingValues({ PSN_PROFILES_ENABLED: 'true', PSN_PROFILES_COOKIE: 'secret' }), null);
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player One' }), null);
   assert.equal(validateSettingValues({ OPENXBL_GAMERTAG: 'Player#1234' }), null);
@@ -314,6 +326,7 @@ test('配置值仅在需要时添加引号', () => {
 test('主机平台设置即时更新运行时配置并区分重启项', () => {
   const runtimeConfig = {
     openxbl: { apiKey: '', baseUrl: 'https://old.xbl.test', gamertag: '', enabled: false },
+    microsoftXbox: { clientId: '', clientSecret: '', redirectUri: 'http://old.test/callback', enabled: false },
     psnProfiles: {
       baseUrl: 'https://old.psn.test',
       userAgent: 'old-agent',
@@ -328,6 +341,10 @@ test('主机平台设置即时更新运行时配置并区分重启项', () => {
     OPENXBL_BASE_URL: 'https://api.xbl.test/v2',
     OPENXBL_GAMERTAG: 'Player One',
     OPENXBL_ENABLED: 'true',
+    MICROSOFT_XBOX_CLIENT_ID: 'client-id',
+    MICROSOFT_XBOX_CLIENT_SECRET: 'client-secret',
+    MICROSOFT_XBOX_REDIRECT_URI: 'http://localhost:18889/api/xbox/callback',
+    MICROSOFT_XBOX_ENABLED: 'true',
     PSN_PROFILES_BASE_URL: 'https://psn.test',
     PSN_PROFILES_USER_AGENT: 'new-agent',
     PSN_PROFILES_COOKIE: 'session=value',
@@ -339,6 +356,12 @@ test('主机平台设置即时更新运行时配置并区分重启项', () => {
       apiKey: 'xbox-key',
       baseUrl: 'https://api.xbl.test/v2',
       gamertag: 'Player One',
+      enabled: true,
+    },
+    microsoftXbox: {
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      redirectUri: 'http://localhost:18889/api/xbox/callback',
       enabled: true,
     },
     psnProfiles: {
@@ -453,16 +476,20 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   assert.deepEqual(parseXboxOwnedImportParameters({ gamertag: ' 玩家 One ', status: 'UNSET' }), {
     gamertag: '玩家 One',
     status: RecordStatus.UNSET,
+    provider: 'openxbl',
   });
-  assert.deepEqual(parseXboxOwnedImportParameters({ gamertag: 'Player#1234' }), {
+  assert.deepEqual(parseXboxOwnedImportParameters({ gamertag: 'Player#1234', provider: 'microsoft' }), {
     gamertag: 'Player#1234',
     status: null,
+    provider: 'microsoft',
   });
-  assert.deepEqual(parseXboxOwnedImportParameters({}), { gamertag: null, status: null });
+  assert.deepEqual(parseXboxOwnedImportParameters({}), { gamertag: null, status: null, provider: 'openxbl' });
+  assert.throws(() => parseXboxOwnedImportParameters({ provider: 'unknown' }), RequestValidationError);
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'player/name' }), RequestValidationError);
   assert.throws(() => parseXboxOwnedImportParameters({ gamertag: 'a'.repeat(101) }), RequestValidationError);
   assert.deepEqual(parseXboxConnectionParameters({ gamertag: ' Player#1234 ' }), {
     gamertag: 'Player#1234',
+    provider: 'openxbl',
   });
   assert.throws(
     () => parseXboxConnectionParameters({ gamertag: 'Player', status: 'WANT' }),
@@ -736,35 +763,117 @@ test('主机平台导入未指定状态时默认为想玩', () => {
   assert.equal(resolvePlatformGameImportStatus(RecordStatus.DONE), RecordStatus.DONE);
 });
 
+test('Microsoft Xbox OAuth 状态只能消费一次且会过期', () => {
+  const store = new XboxOAuthStateStore(1000);
+  const state = store.create(100);
+  assert.equal(store.consume(state, 500), true);
+  assert.equal(store.consume(state, 500), false);
+  const expiredState = store.create(100);
+  assert.equal(store.consume(expiredState, 1101), false);
+});
+
+test('Microsoft Xbox 授权完成后只重定向到允许的前端来源', () => {
+  assert.equal(
+    buildXboxAuthorizationSuccessUrl(['http://192.168.1.20:18888/path']),
+    'http://192.168.1.20:18888/sync?xboxAuth=success',
+  );
+  assert.equal(
+    buildXboxAuthorizationSuccessUrl(['*', 'file:///tmp/app']),
+    'http://localhost:18888/sync?xboxAuth=success',
+  );
+});
+
+test('Microsoft Xbox 刷新令牌仅写入本地权限文件并可清除', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-xbox-auth-'));
+  const filePath = path.join(directory, 'auth.json');
+  const store = new MicrosoftXboxAuthStore(filePath);
+  try {
+    assert.equal(store.hasRefreshToken(), false);
+    store.writeRefreshToken('refresh-token');
+    assert.equal(store.readRefreshToken(), 'refresh-token');
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
+    store.clear();
+    assert.equal(store.hasRefreshToken(), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('Microsoft Xbox XSTS 响应提取账号身份', () => {
+  assert.deepEqual(parseMicrosoftXboxIdentity({
+    Token: 'xsts-token',
+    DisplayClaims: { xui: [{ xid: '123456789', uhs: 'user-hash', gtg: 'Player One' }] },
+  }), {
+    token: 'xsts-token',
+    userHash: 'user-hash',
+    xuid: '123456789',
+    gamertag: 'Player One',
+  });
+  assert.throws(() => parseMicrosoftXboxIdentity({ Token: 'token' }), /XSTS 用户哈希响应无效/);
+});
+
 test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
   assert.deepEqual(buildPlatformImportStatus({
     openxblEnabled: false,
     openxblApiKey: '',
     openxblGamertag: '',
+    microsoftXboxEnabled: false,
+    microsoftXboxClientId: '',
+    microsoftXboxClientSecret: '',
+    microsoftXboxAuthorized: false,
     psnProfilesEnabled: false,
     psnProfilesAccountId: '',
   }), {
-    xbox: { available: false, reason: 'disabled' },
+    xbox: {
+      available: false,
+      reason: 'disabled',
+      providers: {
+        openxbl: { available: false, reason: 'disabled' },
+        microsoft: { available: false, reason: 'disabled' },
+      },
+    },
     psn: { available: false, reason: 'disabled' },
   });
   assert.deepEqual(buildPlatformImportStatus({
     openxblEnabled: true,
     openxblApiKey: '',
     openxblGamertag: '',
+    microsoftXboxEnabled: false,
+    microsoftXboxClientId: '',
+    microsoftXboxClientSecret: '',
+    microsoftXboxAuthorized: false,
     psnProfilesEnabled: true,
     psnProfilesAccountId: '',
   }), {
-    xbox: { available: false, reason: 'missing_api_key' },
+    xbox: {
+      available: false,
+      reason: 'missing_api_key',
+      providers: {
+        openxbl: { available: false, reason: 'missing_api_key' },
+        microsoft: { available: false, reason: 'disabled' },
+      },
+    },
     psn: { available: false, reason: 'missing_account' },
   });
   assert.deepEqual(buildPlatformImportStatus({
     openxblEnabled: true,
     openxblApiKey: 'openxbl-key',
     openxblGamertag: '',
+    microsoftXboxEnabled: true,
+    microsoftXboxClientId: 'client-id',
+    microsoftXboxClientSecret: 'client-secret',
+    microsoftXboxAuthorized: true,
     psnProfilesEnabled: true,
     psnProfilesAccountId: 'player_name-1',
   }), {
-    xbox: { available: false, reason: 'missing_account' },
+    xbox: {
+      available: true,
+      reason: null,
+      providers: {
+        openxbl: { available: false, reason: 'missing_account' },
+        microsoft: { available: true, reason: null },
+      },
+    },
     psn: { available: true, reason: null },
   });
 });
@@ -781,6 +890,10 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     openxblEnabled: false,
     openxblApiKey: '',
     openxblGamertag: '',
+    microsoftXboxEnabled: false,
+    microsoftXboxClientId: '',
+    microsoftXboxClientSecret: '',
+    microsoftXboxAuthorized: false,
     psnProfilesEnabled: false,
     psnProfilesAccountId: '',
   });
@@ -788,7 +901,8 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
   assert.deepEqual(unavailable.trakt, { available: false, reason: 'missing_access_token' });
   assert.deepEqual(unavailable.douban.modes.json, { available: false, reason: 'missing_data' });
   assert.deepEqual(unavailable.douban.modes.full, { available: false, reason: 'disabled' });
-  assert.deepEqual(unavailable.xbox, { available: false, reason: 'disabled' });
+  assert.equal(unavailable.xbox.available, false);
+  assert.equal(unavailable.xbox.reason, 'disabled');
   assert.deepEqual(unavailable.psn, { available: false, reason: 'disabled' });
 
   const available = buildImportSourceStatus({
@@ -802,13 +916,18 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
     openxblEnabled: true,
     openxblApiKey: 'openxbl-key',
     openxblGamertag: 'Player One',
+    microsoftXboxEnabled: false,
+    microsoftXboxClientId: '',
+    microsoftXboxClientSecret: '',
+    microsoftXboxAuthorized: false,
     psnProfilesEnabled: true,
     psnProfilesAccountId: 'player_name-1',
   });
   assert.equal(available.steam.available, true);
   assert.equal(available.trakt.available, true);
   assert.equal(available.douban.available, true);
-  assert.deepEqual(available.xbox, { available: true, reason: null });
+  assert.equal(available.xbox.available, true);
+  assert.deepEqual(available.xbox.providers.openxbl, { available: true, reason: null });
   assert.deepEqual(available.psn, { available: true, reason: null });
   assert.equal(available.douban.modes.incremental.available, true);
 });
@@ -2119,6 +2238,11 @@ test('关闭认证时放行请求，开启认证时拒绝无令牌请求', () =>
     const traktCallbackPost = { headers: {}, method: 'POST', path: '/trakt/callback' } as Request;
     authMiddleware(traktCallbackPost, response, () => { nextCalled = true; });
     assert.equal(nextCalled, false);
+
+    nextCalled = false;
+    const xboxCallbackRequest = { headers: {}, method: 'GET', path: '/xbox/callback' } as Request;
+    authMiddleware(xboxCallbackRequest, response, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
   } finally {
     mutableConfig.authEnabled = originalAuthEnabled;
   }

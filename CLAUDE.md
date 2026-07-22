@@ -111,7 +111,8 @@ frontend/src/
 | — | `GET /api/import/douban-harvest/status` (任务进度) |
 | — | `GET /api/import/tasks` (所有任务列表) |
 | — | `GET /api/import/platforms/status`（Xbox/PSN 导入可用性，不返回敏感配置） |
-| — | `POST /api/import/xbox/owned/task?gamertag=&status=`（OpenXBL Xbox 游戏历史导入任务） |
+| — | `POST /api/import/xbox/owned/task?provider=&gamertag=&status=`（Microsoft 直连或 OpenXBL Xbox 游戏历史导入任务） |
+| — | `POST /api/xbox/auth-url`、`GET /api/xbox/callback`（Microsoft Xbox OAuth） |
 | — | `POST /api/import/psn/owned/task?psnId=&status=`（PSNProfiles 游戏导入任务） |
 | — | `POST /api/import/xbox/verify?gamertag=`、`POST /api/import/psn/verify?psnId=`（只读连接验证） |
 | — | `DELETE /api/import/tasks/:taskId` (取消任务) |
@@ -122,14 +123,14 @@ frontend/src/
 ## 关键模式
 
 - **服务边界：** 后端默认监听 `127.0.0.1`，CORS 默认只允许 `localhost:18888` 和 `127.0.0.1:18888`；如需局域网访问，必须显式配置 `HOST` 和 `CORS_ALLOWED_ORIGINS`。
-- **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。启用前必须设置至少 32 个字符的 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`，否则配置接口拒绝保存且服务拒绝启动。设为 `true` 后，除 `/api/auth/login`、`/api/auth/status`、`/api/health` 和带一次性 `state` 校验的 `/api/trakt/callback` 外，API 都必须携带有效 Bearer Token。
+- **认证：** 简单 JWT，默认 `AUTH_ENABLED=false`。启用前必须设置至少 32 个字符的 `JWT_SECRET` 和至少 8 个字符的非默认 `JWT_PASSWORD`，否则配置接口拒绝保存且服务拒绝启动。设为 `true` 后，除 `/api/auth/login`、`/api/auth/status`、`/api/health` 和带一次性 `state` 校验的 `/api/trakt/callback`、`/api/xbox/callback` 外，API 都必须携带有效 Bearer Token。
 - **健康检查：** `GET /api/health` 无需鉴权；数据库正常返回 200，数据库不可用时返回 503，响应不包含底层错误或连接信息。
 - **前端鉴权门禁：** 应用启动时先读取 `GET /api/auth/status`；关闭认证时直接进入系统且隐藏退出按钮，开启认证时才要求本地 Token。
 - **认证状态失败：** `GET /api/auth/status` 读取失败时必须显示连接错误与重试，不能静默当作“认证已开启”并把用户误导到登录页；并发初始化请求必须采用最新请求获胜。
 - **登录失败：** 登录页必须区分凭据错误、限流、认证服务不可达和无效响应，显示后端可操作提示；同一页面只允许一个在途登录请求，退出或更新请求后旧响应不能重新写入 Token。
 - **路由加载：** 页面和搜索组件统一通过 `React.lazy` 按路由加载；不要把 Recharts 等页面级重依赖重新静态引入首屏。
 - **路由失败：** 懒加载等待状态必须使用 i18n；页面模块或渲染失败时由全局错误边界显示原因和重新加载入口，不能白屏或永久停留在加载提示。
-- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。保存期间锁定整个表单且只允许一个在途请求，页面卸载后旧响应不能更新状态；敏感值保存成功后必须立即从前端状态和输入框清除，只保留已配置标记。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。OpenXBL 与 PSNProfiles 字段保存后同时更新运行时配置且不要求重启；混合请求中的其他字段仍提示重启，已有重启提示不能被后续即时生效的保存清除。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、psn。
+- **Settings 页面：** 分类编辑环境变量，字段类型支持 `text`/`boolean`/`password`/`number`。敏感配置只返回 `configured` 状态，不回传现有明文；密码框留空表示保留原值。保存期间锁定整个表单且只允许一个在途请求，页面卸载后旧响应不能更新状态；敏感值保存成功后必须立即从前端状态和输入框清除，只保留已配置标记。写入时校验已知字段、布尔/数字类型及危险字符，并通过同目录临时文件原子替换 `.env`。OpenXBL、Microsoft Xbox 与 PSNProfiles 字段保存后同时更新运行时配置且不要求重启；混合请求中的其他字段仍提示重启，已有重启提示不能被后续即时生效的保存清除。所有字段带 `labelZh`/`labelEn` 国际化标签，前端根据语言显示。分类：general、proxy（HTTP_PROXY/HTTPS_PROXY）、auth、tmdb、omdb、trakt、douban（含收割机运行参数）、radar（含同步配置）、rawg、steam、openxbl、microsoftXbox、psn。
 - **Settings 读取：** 配置读取必须采用最新请求获胜，页面卸载时使在途请求失效；已有配置的重新读取失败时保留当前表单并持续显示错误与重试入口，不能只弹 Toast 后留下空白配置区；读取期间临时锁定表单，存在未保存改动时不能直接重试覆盖。
 - **国际化：** Zustand `i18nStore`，提供 `t()` 函数，EN/ZH 字典，持久化到 localStorage。所有新组件必须 i18n。
 - **操作日志：** Prisma `$extends` 中间件自动记录 Movie/TvShow/Game 的 CREATE/UPDATE/DELETE，支持撤销；任务记录 `TASK_START|TASK_DONE|TASK_FAIL|TASK_CANCEL` 完整生命周期。“数据变更”筛选覆盖 `CREATE|UPDATE|DELETE|UNDO`，“任务”筛选按 `TASK` 实体查询全部任务事件。`/activity` 页面带筛选和无限滚动，筛选与分页请求必须采用最新请求获胜；切换筛选时立即清空旧记录和游标，同条件刷新失败时保留已有记录，分页失败时保留列表和原游标并只允许显式重试原请求，旧分页不能追加到新筛选；记录级历史也必须绑定当前实体并在切换或卸载时使旧请求失效；全局与记录级读取失败必须显示错误和重试，不能伪装为空状态，撤销失败必须反馈原因且不能显示读取重试入口。
@@ -141,8 +142,9 @@ frontend/src/
 - **工具页搜索：** 类型转换前的记录搜索失败必须持续显示具体原因和重试入口；同关键词刷新失败时保留已有结果，重试必须复用失败时的关键词，新关键词失败不能显示旧结果或伪装成“未找到”；页面卸载时必须使在途搜索失效。分类转换的进行中状态必须按类别和 ID 唯一标识，成功后移除旧搜索结果，不能保留已失效的源类别和旧 ID。
 - **外部 API 限流：** 服务启动时注册全局 Axios `RateLimiter`，同一外部服务请求起始时间至少间隔 2 秒；图片代理的 HEAD 与 `arraybuffer` 下载不计入 API 限流，429 仍按各服务原有策略退避。
 - **导入参数：** 导入和回填接口的 `limit` 默认 50、范围 1-100；`status` 只能使用 `RecordStatus` 枚举；无效豆瓣模式和数组/空标识参数统一返回 400，不能静默回退或启动任务。
-- **主机平台导入：** Xbox 通过 OpenXBL 的 `/search/{gamertag}` → XUID → `/player/titleHistory/{xuid}` 链路导入，要求启用 OpenXBL 并配置 API Key；PSN 逐页读取公开 PSNProfiles 档案，要求启用 PSNProfiles，遇 Cloudflare 验证页时更新 Cookie。Xbox 与 PSN 默认账号保存在 Settings 并即时生效，同步页可按次临时覆盖；新记录统一进入导入审核队列，未显式指定个人状态时默认 `WANT`，已有记录只刷新平台、空封面、游玩时长和成就指标，不覆盖个人状态、评分或短评。Xbox 游戏历史必须过滤 `devices` 仅含 `Win32` 的 PC-only 条目。游戏平台入库前必须按 Prisma 字段上限校验来源 ID 和标题，过长封面 URL 不能截断，应丢弃后走 RAWG 回退，避免单条异常导致整批写入失败。
+- **主机平台导入：** Xbox 支持 Microsoft 官方 OAuth 直连与 OpenXBL 两种来源。Microsoft 链路为 OAuth → Xbox User Token → XSTS → title history，refresh token 仅以 `0600` 权限保存在本机 `data/xbox-microsoft-auth.json`，不得通过 API 回传；OpenXBL 链路为 `/search/{gamertag}` → XUID → `/player/titleHistory/{xuid}`。PSN 逐页读取公开 PSNProfiles 档案。新记录统一进入导入审核队列，未显式指定个人状态时默认 `WANT`，已有记录只刷新平台、空封面、游玩时长和成就指标，不覆盖个人状态、评分或短评。Xbox 游戏历史必须过滤 `devices` 仅含 `Win32` 的 PC-only 条目。
 - **同步中心：** `/sync` 集中展示豆瓣、Trakt、Steam、Xbox、PSN 的配置可用性和同步入口；`GET /api/import/sources/status` 只返回缺失原因，不返回凭据。Xbox 与 PSN 未保存默认账号时必须报告 `missing_account`，任务接口省略账号参数时使用默认值；如果唯一缺口是默认账号，填写当前同步的临时账号后应立即开放同步，来源未启用或 Xbox 缺少 API Key 时仍必须禁用。Xbox/PSN 连接验证必须只读：Xbox 只确认精确账号及 title history 可访问，PSN 只读取档案第一页；不得创建任务、查询或写入资料库，修改临时账号、重新读取来源状态或卸载页面时必须使旧验证结果失效。`GET /api/import/sources/history` 从 `data/sync-history.json` 返回每个正式来源最近一次终态摘要，不含凭据；当前任务优先展示，历史摘要作为次级信息并随任务状态变化刷新，历史读取失败不能阻断来源状态与同步入口。零结果且只有错误的同步必须记为失败并同时持久化完整结果摘要，来源正常返回空列表时仍记为完成，存在有效条目但伴随局部错误时保留完成状态和错误摘要；同步结果默认紧凑显示首条错误，存在多条时必须允许按需展开完整错误数组。来源状态和历史记录读取必须采用最新请求获胜，依赖变化或页面卸载时使在途请求失效；已有来源状态的重试期间和失败后必须保留来源卡片，并明确提示状态可能过期，重新确认成功前禁止启动新同步。全局 `taskStore` 的定时与手动轮询也必须采用最新请求获胜，同一时间最多一个在途任务读取，停止轮询时使旧响应失效。Steam 使用 `/api/import/steam/owned/task`，Trakt 使用 `/api/trakt/import/{movies|shows}/task`，Xbox 使用 `/api/import/xbox/owned/task`，PSN 使用 `/api/import/psn/owned/task`，配置缺失时跳转到 Settings 对应分类。
+- **Xbox 来源选择：** Xbox 同步与只读验证通过 `provider=microsoft|openxbl` 显式选择来源；Microsoft 来源不要求 Gamertag，以本机 OAuth 授权状态判断可用性，OpenXBL 来源仍支持默认或临时 Gamertag。
 - **雷达列表：** `/radar` 与 `/popular` 的分类、平台和分页请求必须采用最新请求获胜，切换筛选时立即清空旧结果，旧筛选响应不能覆盖当前列表；翻页失败必须保留当前页并重试原目标页，读取失败必须保留明确错误与重试入口，不能伪装成空结果；同步或加入记录库失败不能显示列表重试入口。加入记录库必须按条目防止重复提交，成功或后端确认已存在时都立即标记入库，失败只反馈该操作原因，不能污染列表读取错误。
 - **时间线：** `/timeline` 的主列表、分页与年份列表必须绑定当前分类/年份和最新请求；切换分类或年份时立即清空旧筛选记录和分页状态，同条件刷新失败时保留已有记录与游标；旧分页失败不能污染新筛选，首屏、刷新和分页失败必须显示错误并重试原请求，不能同时伪装为空状态；时间线与 Showcase 共用的按需详情弹窗读取失败时必须显示具体原因和原地重试。
 - **外部搜索：** 电影、剧集和游戏搜索结果必须绑定发起请求时的关键词、Provider 与最新请求；输入新关键词后不能继续展示旧关键词结果，同条件翻页失败时保留当前页；切换 Provider 时使在途搜索失效。电影和游戏的展开详情也必须独立采用最新请求获胜，不能把旧条目详情显示到新条目下；详情读取失败必须显示具体原因和原地重试，不能伪装成“无数据”。添加记录时同一搜索组件只允许一个在途提交，成功后当前结果立即标记为已入库，旧关键词或旧 Provider 的失败不能污染当前页面。

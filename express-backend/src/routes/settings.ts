@@ -15,6 +15,7 @@ const MAX_TIMER_SECONDS = Math.floor(MAX_TIMER_MILLISECONDS / 1000);
 const CRON_SETTING_KEYS = new Set(['RADAR_SYNC_CORE_CRON', 'RADAR_SYNC_SCRAPER_CRON']);
 const EXTERNAL_ACCOUNT_SETTING_KEYS = new Set(['OPENXBL_GAMERTAG', 'PSN_PROFILES_ACCOUNT_ID']);
 const PLATFORM_BASE_URL_SETTING_KEYS = new Set(['OPENXBL_BASE_URL', 'PSN_PROFILES_BASE_URL']);
+const ABSOLUTE_HTTP_URL_SETTING_KEYS = new Set(['MICROSOFT_XBOX_REDIRECT_URI']);
 const XBOX_GAMERTAG_PATH_SEPARATOR_PATTERN = /[/?\\]/;
 const PSN_ACCOUNT_PATH_SEPARATOR_PATTERN = /[/?#\\]/;
 
@@ -160,6 +161,15 @@ const CATEGORIES: CategoryDef[] = [
     ],
   },
   {
+    key: 'microsoftXbox', labelZh: 'Microsoft Xbox', labelEn: 'Microsoft Xbox',
+    fields: [
+      { key: 'MICROSOFT_XBOX_CLIENT_ID', labelZh: 'Azure 应用 Client ID', labelEn: 'Azure App Client ID', sensitive: false, type: 'text' },
+      { key: 'MICROSOFT_XBOX_CLIENT_SECRET', labelZh: 'Azure 应用 Client Secret', labelEn: 'Azure App Client Secret', sensitive: true, type: 'text' },
+      { key: 'MICROSOFT_XBOX_REDIRECT_URI', labelZh: 'OAuth 回调地址', labelEn: 'OAuth Redirect URI', sensitive: false, type: 'text' },
+      { key: 'MICROSOFT_XBOX_ENABLED', labelZh: '启用 Microsoft 直连', labelEn: 'Enable Microsoft Direct Connection', sensitive: false, type: 'boolean' },
+    ],
+  },
+  {
     key: 'psn', labelZh: 'PSNProfiles', labelEn: 'PSNProfiles',
     fields: [
       { key: 'PSN_PROFILES_BASE_URL', labelZh: '站点地址', labelEn: 'Site URL', sensitive: false, type: 'text' },
@@ -208,6 +218,9 @@ export function validateSettingValues(values: Record<string, unknown>): string |
     if (/['"]/.test(value)) return `${key} 不能包含引号`;
     if (PLATFORM_BASE_URL_SETTING_KEYS.has(key) && !isAbsoluteHttpBaseUrl(value)) {
       return `${key} 必须是不含查询参数或片段的绝对 HTTP(S) 地址`;
+    }
+    if (ABSOLUTE_HTTP_URL_SETTING_KEYS.has(key) && !isAbsoluteHttpUrl(value)) {
+      return `${key} 必须是绝对 HTTP(S) 地址`;
     }
     if (EXTERNAL_ACCOUNT_SETTING_KEYS.has(key)) {
       if (value.trim().length > 100) return `${key} 不能超过 100 个字符`;
@@ -263,6 +276,15 @@ function isAbsoluteHttpBaseUrl(value: string): boolean {
   }
 }
 
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.hash;
+  } catch {
+    return false;
+  }
+}
+
 export function formatEnvLine(key: string, value: string): string {
   const formattedValue = /\s|#/.test(value) ? `"${value}"` : value;
   return `${key}=${formattedValue}`;
@@ -307,6 +329,12 @@ interface RuntimePlatformConfig {
     gamertag: string;
     enabled: boolean;
   };
+  microsoftXbox: {
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+    enabled: boolean;
+  };
   psnProfiles: {
     baseUrl: string;
     userAgent: string;
@@ -328,6 +356,10 @@ export function applyRuntimeSettingValues(
       case 'OPENXBL_BASE_URL': runtimeConfig.openxbl.baseUrl = value; break;
       case 'OPENXBL_GAMERTAG': runtimeConfig.openxbl.gamertag = value; break;
       case 'OPENXBL_ENABLED': runtimeConfig.openxbl.enabled = value === 'true'; break;
+      case 'MICROSOFT_XBOX_CLIENT_ID': runtimeConfig.microsoftXbox.clientId = value; break;
+      case 'MICROSOFT_XBOX_CLIENT_SECRET': runtimeConfig.microsoftXbox.clientSecret = value; break;
+      case 'MICROSOFT_XBOX_REDIRECT_URI': runtimeConfig.microsoftXbox.redirectUri = value; break;
+      case 'MICROSOFT_XBOX_ENABLED': runtimeConfig.microsoftXbox.enabled = value === 'true'; break;
       case 'PSN_PROFILES_BASE_URL': runtimeConfig.psnProfiles.baseUrl = value; break;
       case 'PSN_PROFILES_USER_AGENT': runtimeConfig.psnProfiles.userAgent = value; break;
       case 'PSN_PROFILES_COOKIE': runtimeConfig.psnProfiles.cookie = value; break;
