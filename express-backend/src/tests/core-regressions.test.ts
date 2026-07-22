@@ -65,6 +65,9 @@ import {
 } from '../services/import/OpenXblImportService';
 import { MicrosoftXboxAuthStore } from '../services/xbox/MicrosoftXboxAuthStore';
 import {
+  buildMicrosoftXboxAuthorizationUrl,
+  OPENXBOX_COMMUNITY_CLIENT_ID,
+  OPENXBOX_COMMUNITY_REDIRECT_URI,
   parseMicrosoftXboxIdentity,
   XboxOAuthStateStore,
 } from '../services/xbox/MicrosoftXboxService';
@@ -765,11 +768,19 @@ test('主机平台导入未指定状态时默认为想玩', () => {
 
 test('Microsoft Xbox OAuth 状态只能消费一次且会过期', () => {
   const store = new XboxOAuthStateStore(1000);
-  const state = store.create(100);
-  assert.equal(store.consume(state, 500), true);
-  assert.equal(store.consume(state, 500), false);
-  const expiredState = store.create(100);
-  assert.equal(store.consume(expiredState, 1101), false);
+  const state = store.create('community', 100);
+  assert.equal(store.consume(state, 500), 'community');
+  assert.equal(store.consume(state, 500), null);
+  const expiredState = store.create('custom', 100);
+  assert.equal(store.consume(expiredState, 1101), null);
+});
+
+test('Microsoft Xbox 社区登录使用 OpenXbox 公开桌面客户端且不需要 Secret', () => {
+  const authorizationUrl = new URL(buildMicrosoftXboxAuthorizationUrl('oauth-state'));
+  assert.equal(authorizationUrl.searchParams.get('client_id'), OPENXBOX_COMMUNITY_CLIENT_ID);
+  assert.equal(authorizationUrl.searchParams.get('redirect_uri'), OPENXBOX_COMMUNITY_REDIRECT_URI);
+  assert.equal(authorizationUrl.searchParams.get('state'), 'oauth-state');
+  assert.equal(authorizationUrl.searchParams.has('client_secret'), false);
 });
 
 test('Microsoft Xbox 授权完成后只重定向到允许的前端来源', () => {
@@ -789,8 +800,9 @@ test('Microsoft Xbox 刷新令牌仅写入本地权限文件并可清除', () =>
   const store = new MicrosoftXboxAuthStore(filePath);
   try {
     assert.equal(store.hasRefreshToken(), false);
-    store.writeRefreshToken('refresh-token');
+    store.writeRefreshToken('refresh-token', 'community');
     assert.equal(store.readRefreshToken(), 'refresh-token');
+    assert.equal(store.readProfile(), 'community');
     assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
     store.clear();
     assert.equal(store.hasRefreshToken(), false);
@@ -826,10 +838,10 @@ test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
   }), {
     xbox: {
       available: false,
-      reason: 'disabled',
+      reason: 'missing_authorization',
       providers: {
         openxbl: { available: false, reason: 'disabled' },
-        microsoft: { available: false, reason: 'disabled' },
+        microsoft: { available: false, reason: 'missing_authorization' },
       },
     },
     psn: { available: false, reason: 'disabled' },
@@ -847,10 +859,10 @@ test('主机平台导入状态区分开关和 OpenXBL 密钥', () => {
   }), {
     xbox: {
       available: false,
-      reason: 'missing_api_key',
+      reason: 'missing_authorization',
       providers: {
         openxbl: { available: false, reason: 'missing_api_key' },
-        microsoft: { available: false, reason: 'disabled' },
+        microsoft: { available: false, reason: 'missing_authorization' },
       },
     },
     psn: { available: false, reason: 'missing_account' },
@@ -902,7 +914,7 @@ test('同步中心来源状态区分凭据、账号、开关和本地数据缺�
   assert.deepEqual(unavailable.douban.modes.json, { available: false, reason: 'missing_data' });
   assert.deepEqual(unavailable.douban.modes.full, { available: false, reason: 'disabled' });
   assert.equal(unavailable.xbox.available, false);
-  assert.equal(unavailable.xbox.reason, 'disabled');
+  assert.equal(unavailable.xbox.reason, 'missing_authorization');
   assert.deepEqual(unavailable.psn, { available: false, reason: 'disabled' });
 
   const available = buildImportSourceStatus({

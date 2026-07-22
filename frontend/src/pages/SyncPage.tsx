@@ -558,9 +558,11 @@ function SourceCard({
         {!availability.available && (
           <div className="mb-4 flex items-center justify-between gap-3 border border-yellow-500/30 bg-yellow-500/10 p-3 text-[10px] text-yellow-300">
             <span>{reasonLabel(availability.reason, t)}</span>
-            <Link to={`/settings?category=${settingsCategory}`} className="font-bold uppercase tracking-widest text-white hover:text-[var(--accent)]">
-              {t('sync.fix_config')} →
-            </Link>
+            {availability.reason !== 'missing_authorization' && (
+              <Link to={`/settings?category=${settingsCategory}`} className="font-bold uppercase tracking-widest text-white hover:text-[var(--accent)]">
+                {t('sync.fix_config')} →
+              </Link>
+            )}
           </div>
         )}
         {children}

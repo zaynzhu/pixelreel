@@ -88,10 +88,11 @@ STEAM_WEB_API_KEY="your_steam_key"       # Steam Web API
 OPENXBL_API_KEY="your_openxbl_key"       # OpenXBL API Key
 OPENXBL_GAMERTAG="name#1234"             # 默认 Xbox Gamertag
 OPENXBL_ENABLED="true"                   # 启用 Xbox 同步
-MICROSOFT_XBOX_CLIENT_ID="your_client_id" # Azure 应用 Client ID
-MICROSOFT_XBOX_CLIENT_SECRET="secret"     # Azure 应用 Client Secret
+# 以下 Microsoft Xbox 配置仅供自有 Azure 应用备用；默认社区登录无需填写
+MICROSOFT_XBOX_CLIENT_ID=""
+MICROSOFT_XBOX_CLIENT_SECRET=""
 MICROSOFT_XBOX_REDIRECT_URI="http://localhost:18889/api/xbox/callback"
-MICROSOFT_XBOX_ENABLED="true"             # 启用 Microsoft 账号直连
+MICROSOFT_XBOX_ENABLED="false"
 PSN_PROFILES_ACCOUNT_ID="online-id"       # 默认 PSN Online ID
 PSN_PROFILES_ENABLED="true"               # 启用 PSN 同步
 HTTPS_PROXY="http://127.0.0.1:7897"      # TMDB 国内必需
@@ -133,12 +134,12 @@ curl -X POST 'http://localhost:18889/api/import/xbox/verify?provider=microsoft'
 curl -X POST 'http://localhost:18889/api/import/psn/verify'
 ```
 
-Xbox 支持两种来源：推荐使用 Microsoft 官方 OAuth，经 Xbox User Token 与 XSTS 读取当前账号的 title history；OpenXBL 继续作为兼容方式。Microsoft 密码不会交给 PixelReel，refresh token 仅以 `0600` 权限保存在本机 `express-backend/data/xbox-microsoft-auth.json`，API 与 Settings 均不回传令牌。PSN 逐页读取公开 PSNProfiles 档案。同步中心的连接验证只读，不启动任务也不写入资料库。
+Xbox 支持两种来源：默认使用 OpenXbox 公开桌面客户端跳转 Microsoft 官方 OAuth 页面登录，无需注册 Azure；OpenXBL 继续作为兼容方式。PixelReel 不接收 Microsoft 密码，refresh token 仅以 `0600` 权限保存在本机 `express-backend/data/xbox-microsoft-auth.json`，API 与 Settings 均不回传令牌。社区 Client ID 由 OpenXbox 项目维护，将来若被撤销，可改用 Settings 中的自有 Azure 应用高级配置。PSN 逐页读取公开 PSNProfiles 档案。
 
 首次接入建议：
 
-1. 在 Microsoft Entra 管理中心注册“仅个人 Microsoft 账号”Web 应用，将回调 URI 设为 `http://localhost:18889/api/xbox/callback`，创建 Client Secret。
-2. 在 Settings 的 Microsoft Xbox 区域填写 Client ID、Client Secret、回调地址并启用，然后到 `/sync` 选择“Microsoft 账号直连”，点击“连接 Microsoft 账号”。
+1. 打开 `/sync`，Xbox 来源选择“Microsoft 账号登录”，点击“登录 Microsoft 账号（无需 Azure）”。
+2. 浏览器只在 Microsoft 官方页面完成登录，成功后自动返回同步中心；本机 `8080` 端口仅在登录期间临时接收回调。
 3. 如继续使用 OpenXBL，在 OpenXBL 区域填写 API Key、默认 Gamertag 并启用；现代 Gamertag 请填写完整的 `名称#数字后缀`。
 4. 在 PSNProfiles 区域填写默认 Online ID 并启用 PSN。公开档案通常无需 Cookie；遇到 Cloudflare 验证页时再更新 Cookie。
 5. 在 `/sync` 先验证连接，再启动正式同步；新记录进入 `/sync/review` 审核队列。
@@ -323,10 +324,10 @@ PUT    /api/settings
 | `OPENXBL_BASE_URL` | OpenXBL API 根地址 | `https://api.xbl.io/v2` |
 | `OPENXBL_GAMERTAG` | 默认 Xbox Gamertag | -- |
 | `OPENXBL_ENABLED` | 启用 Xbox 同步 | `false` |
-| `MICROSOFT_XBOX_CLIENT_ID` | Microsoft Entra 应用 Client ID | -- |
-| `MICROSOFT_XBOX_CLIENT_SECRET` | Microsoft Entra 应用 Client Secret | -- |
-| `MICROSOFT_XBOX_REDIRECT_URI` | Microsoft OAuth 回调地址 | `http://localhost:18889/api/xbox/callback` |
-| `MICROSOFT_XBOX_ENABLED` | 启用 Microsoft Xbox 直连 | `false` |
+| `MICROSOFT_XBOX_CLIENT_ID` | 可选，自有 Microsoft Entra 应用 Client ID | -- |
+| `MICROSOFT_XBOX_CLIENT_SECRET` | 可选，自有 Microsoft Entra 应用 Client Secret | -- |
+| `MICROSOFT_XBOX_REDIRECT_URI` | 自有应用 OAuth 回调地址 | `http://localhost:18889/api/xbox/callback` |
+| `MICROSOFT_XBOX_ENABLED` | 启用自有 Microsoft Xbox 应用备用登录 | `false` |
 | `PSN_PROFILES_BASE_URL` | PSNProfiles 站点地址 | `https://psnprofiles.com` |
 | `PSN_PROFILES_USER_AGENT` | 请求 PSNProfiles 时使用的 User-Agent | 内置浏览器 User-Agent |
 | `PSN_PROFILES_COOKIE` | 可选 Cookie，遇到 Cloudflare 验证时更新 | -- |

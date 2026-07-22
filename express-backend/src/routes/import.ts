@@ -186,19 +186,13 @@ export function buildPlatformImportStatus(settings: PlatformImportStatusConfig) 
   const psnReason = !settings.psnProfilesEnabled
     ? 'disabled'
     : settings.psnProfilesAccountId.trim() ? null : 'missing_account';
-  const microsoftReason = !settings.microsoftXboxEnabled
-    ? 'disabled'
-    : !settings.microsoftXboxClientId.trim()
-      ? 'missing_client_id'
-      : !settings.microsoftXboxClientSecret.trim()
-        ? 'missing_client_secret'
-        : settings.microsoftXboxAuthorized ? null : 'missing_authorization';
+  const microsoftReason = settings.microsoftXboxAuthorized ? null : 'missing_authorization';
   const xboxAvailable = xboxReason == null || microsoftReason == null;
 
   return {
     xbox: {
       available: xboxAvailable,
-      reason: xboxAvailable ? null : microsoftReason !== 'disabled' ? microsoftReason : xboxReason,
+      reason: xboxAvailable ? null : microsoftReason,
       providers: {
         openxbl: { available: xboxReason == null, reason: xboxReason },
         microsoft: { available: microsoftReason == null, reason: microsoftReason },

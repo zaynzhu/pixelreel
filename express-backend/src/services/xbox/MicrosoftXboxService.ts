@@ -8,7 +8,11 @@ import {
   parseXboxTitles,
   type XboxImportedTitle,
 } from '../import/OpenXblImportService';
-import { microsoftXboxAuthStore, type MicrosoftXboxAuthStore } from './MicrosoftXboxAuthStore';
+import {
+  microsoftXboxAuthStore,
+  type MicrosoftXboxAuthProfile,
+  type MicrosoftXboxAuthStore,
+} from './MicrosoftXboxAuthStore';
 
 const MICROSOFT_AUTHORIZE_URL = 'https://login.live.com/oauth20_authorize.srf';
 const MICROSOFT_TOKEN_URL = 'https://login.live.com/oauth20_token.srf';
@@ -16,6 +20,8 @@ const XBOX_USER_AUTH_URL = 'https://user.auth.xboxlive.com/user/authenticate';
 const XBOX_XSTS_URL = 'https://xsts.auth.xboxlive.com/xsts/authorize';
 const XBOX_TITLE_HISTORY_URL = 'https://titlehub.xboxlive.com';
 const MICROSOFT_XBOX_SCOPE = 'Xboxlive.signin Xboxlive.offline_access';
+export const OPENXBOX_COMMUNITY_CLIENT_ID = '388ea51c-0b25-4029-aae2-17df49d23905';
+export const OPENXBOX_COMMUNITY_REDIRECT_URI = 'http://localhost:8080/auth/callback';
 
 interface OAuthTokenResponse {
   access_token?: unknown;
@@ -37,40 +43,43 @@ export type MicrosoftXboxIdentity = {
 };
 
 export class XboxOAuthStateStore {
-  private readonly states = new Map<string, number>();
+  private readonly states = new Map<string, { expiresAt: number; profile: MicrosoftXboxAuthProfile }>();
 
   constructor(private readonly ttlMs = 10 * 60 * 1000) {}
 
-  create(now = Date.now()): string {
+  create(profile: MicrosoftXboxAuthProfile = 'community', now = Date.now()): string {
     this.removeExpired(now);
     const state = crypto.randomBytes(32).toString('hex');
-    this.states.set(state, now + this.ttlMs);
+    this.states.set(state, { expiresAt: now + this.ttlMs, profile });
     return state;
   }
 
-  consume(state: string, now = Date.now()): boolean {
-    const expiresAt = this.states.get(state);
+  consume(state: string, now = Date.now()): MicrosoftXboxAuthProfile | null {
+    const stored = this.states.get(state);
     this.states.delete(state);
-    return expiresAt != null && expiresAt >= now;
+    return stored != null && stored.expiresAt >= now ? stored.profile : null;
   }
 
   private removeExpired(now: number): void {
-    for (const [state, expiresAt] of this.states.entries()) {
-      if (expiresAt < now) this.states.delete(state);
+    for (const [state, stored] of this.states.entries()) {
+      if (stored.expiresAt < now) this.states.delete(state);
     }
   }
 }
 
 export const xboxOAuthStateStore = new XboxOAuthStateStore();
 
-export function buildMicrosoftXboxAuthorizationUrl(state: string): string {
-  assertMicrosoftXboxClientConfigured();
+export function buildMicrosoftXboxAuthorizationUrl(
+  state: string,
+  profile: MicrosoftXboxAuthProfile = 'community',
+): string {
+  const oauthClient = getMicrosoftXboxOAuthClient(profile);
   const parameters = new URLSearchParams({
-    client_id: config.microsoftXbox.clientId,
+    client_id: oauthClient.clientId,
     response_type: 'code',
     approval_prompt: 'auto',
     scope: MICROSOFT_XBOX_SCOPE,
-    redirect_uri: config.microsoftXbox.redirectUri,
+    redirect_uri: oauthClient.redirectUri,
     state,
   });
   return `${MICROSOFT_AUTHORIZE_URL}?${parameters}`;
@@ -78,19 +87,25 @@ export function buildMicrosoftXboxAuthorizationUrl(state: string): string {
 
 export async function authorizeMicrosoftXbox(
   authorizationCode: string,
+  profile: MicrosoftXboxAuthProfile = 'community',
   store: MicrosoftXboxAuthStore = microsoftXboxAuthStore,
 ): Promise<void> {
-  assertMicrosoftXboxClientConfigured();
-  const response = await axios.post<OAuthTokenResponse>(MICROSOFT_TOKEN_URL, new URLSearchParams({
-    client_id: config.microsoftXbox.clientId,
-    client_secret: config.microsoftXbox.clientSecret,
+  const oauthClient = getMicrosoftXboxOAuthClient(profile);
+  const parameters = new URLSearchParams({
+    client_id: oauthClient.clientId,
     grant_type: 'authorization_code',
     code: authorizationCode,
     scope: MICROSOFT_XBOX_SCOPE,
-    redirect_uri: config.microsoftXbox.redirectUri,
-  }), buildPlatformGameRequestOptions());
+    redirect_uri: oauthClient.redirectUri,
+  });
+  if (oauthClient.clientSecret) parameters.set('client_secret', oauthClient.clientSecret);
+  const response = await axios.post<OAuthTokenResponse>(
+    MICROSOFT_TOKEN_URL,
+    parameters,
+    buildPlatformGameRequestOptions(),
+  );
   const refreshToken = readRequiredString(response.data.refresh_token, 'Microsoft 未返回刷新令牌');
-  store.writeRefreshToken(refreshToken);
+  store.writeRefreshToken(refreshToken, profile);
 }
 
 export async function verifyMicrosoftXboxConnection(signal?: AbortSignal): Promise<{
@@ -127,21 +142,28 @@ export async function authenticateMicrosoftXbox(
   signal?: AbortSignal,
   store: MicrosoftXboxAuthStore = microsoftXboxAuthStore,
 ): Promise<MicrosoftXboxIdentity> {
-  assertMicrosoftXboxClientConfigured();
   const refreshToken = store.readRefreshToken();
   if (!refreshToken) throw new Error('Microsoft Xbox 账号尚未授权');
+  const profile = store.readProfile() ?? 'custom';
+  const oauthClient = getMicrosoftXboxOAuthClient(profile);
 
   try {
-    const oauthResponse = await axios.post<OAuthTokenResponse>(MICROSOFT_TOKEN_URL, new URLSearchParams({
-      client_id: config.microsoftXbox.clientId,
-      client_secret: config.microsoftXbox.clientSecret,
+    const parameters = new URLSearchParams({
+      client_id: oauthClient.clientId,
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
       scope: MICROSOFT_XBOX_SCOPE,
-    }), buildPlatformGameRequestOptions(signal));
+      redirect_uri: oauthClient.redirectUri,
+    });
+    if (oauthClient.clientSecret) parameters.set('client_secret', oauthClient.clientSecret);
+    const oauthResponse = await axios.post<OAuthTokenResponse>(
+      MICROSOFT_TOKEN_URL,
+      parameters,
+      buildPlatformGameRequestOptions(signal),
+    );
     const accessToken = readRequiredString(oauthResponse.data.access_token, 'Microsoft Access Token 响应无效');
     if (typeof oauthResponse.data.refresh_token === 'string' && oauthResponse.data.refresh_token.trim()) {
-      store.writeRefreshToken(oauthResponse.data.refresh_token);
+      store.writeRefreshToken(oauthResponse.data.refresh_token, profile);
     }
 
     const userResponse = await axios.post<XboxTokenResponse>(XBOX_USER_AUTH_URL, {
@@ -228,10 +250,22 @@ export function getMicrosoftXboxRequestError(error: unknown): string {
   return `Microsoft Xbox 请求失败${status ? `（HTTP ${status}）` : ''}`;
 }
 
-function assertMicrosoftXboxClientConfigured(): void {
-  if (!config.microsoftXbox.enabled) throw new Error('Microsoft Xbox 同步未启用');
+function getMicrosoftXboxOAuthClient(profile: MicrosoftXboxAuthProfile) {
+  if (profile === 'community') {
+    return {
+      clientId: OPENXBOX_COMMUNITY_CLIENT_ID,
+      clientSecret: '',
+      redirectUri: OPENXBOX_COMMUNITY_REDIRECT_URI,
+    };
+  }
+  if (!config.microsoftXbox.enabled) throw new Error('Microsoft Xbox 自有应用同步未启用');
   if (!config.microsoftXbox.clientId.trim()) throw new Error('缺少 Microsoft Xbox Client ID');
   if (!config.microsoftXbox.clientSecret.trim()) throw new Error('缺少 Microsoft Xbox Client Secret');
+  return {
+    clientId: config.microsoftXbox.clientId,
+    clientSecret: config.microsoftXbox.clientSecret,
+    redirectUri: config.microsoftXbox.redirectUri,
+  };
 }
 
 function readRequiredString(value: unknown, errorMessage: string): string {
