@@ -1079,7 +1079,7 @@ test('数据健康自动修复限制批量大小并拒绝不安全的游戏标�
   });
 });
 
-test('疑似重复检测只合并强标识或带年份和平台的同名候选', () => {
+test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候选', () => {
   assert.equal(normalizeDuplicateTitle(' Spider-Man：Homecoming '), 'spidermanhomecoming');
   const movieGroups = findDuplicateGroups([
     {
@@ -1132,9 +1132,14 @@ test('疑似重复检测只合并强标识或带年份和平台的同名候选',
     { id: 6n, category: 'game', title: 'Portal II', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
     { id: 7n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PSN', protected: false, identityValues: {} },
     { id: 8n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
+    { id: 9n, category: 'game', title: 'Halo', posterUrl: null, year: null, platform: 'Xbox', protected: false, identityValues: {} },
+    { id: 10n, category: 'game', title: 'Halo', posterUrl: null, year: null, platform: 'Xbox', protected: false, identityValues: {} },
   ]);
-  assert.equal(gameGroups.length, 1);
-  assert.deepEqual(gameGroups[0].records.map(record => record.id), [5, 8]);
+  assert.equal(gameGroups.length, 2);
+  assert.deepEqual(gameGroups[0].records.map(record => record.id), [5, 7, 8]);
+  assert.deepEqual(gameGroups[0].reasons, ['title_platform', 'title_cross_platform']);
+  assert.deepEqual(gameGroups[1].records.map(record => record.id), [9, 10]);
+  assert.deepEqual(gameGroups[1].reasons, ['title_platform']);
   assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
     category: 'game', cursor: 0, limit: 10, review: 'unreviewed',
   });

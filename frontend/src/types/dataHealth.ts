@@ -35,7 +35,7 @@ export interface DataHealthIssueResponse {
 export type DuplicateReason =
   | "douban_id" | "tmdb_id" | "imdb_id" | "trakt_id"
   | "rawg_id" | "steam_id" | "xbox_id" | "psn_id"
-  | "title_year" | "title_platform"
+  | "title_year" | "title_platform" | "title_cross_platform"
 
 export interface DuplicateRecord {
   id: number

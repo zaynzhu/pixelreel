@@ -13,6 +13,7 @@ export const DUPLICATE_REASONS = [
   'psn_id',
   'title_year',
   'title_platform',
+  'title_cross_platform',
 ] as const;
 
 export type DuplicateReason = typeof DUPLICATE_REASONS[number];
@@ -25,6 +26,7 @@ export interface DuplicateCandidate {
   posterUrl: string | null;
   year: string | null;
   platform: string | null;
+  platforms?: string[];
   protected: boolean;
   identityValues: Partial<Record<DuplicateReason, string | null>>;
 }
@@ -56,15 +58,14 @@ function titleVariants(title: string): string[] {
 function candidateKeys(candidate: DuplicateCandidate): DuplicateKey[] {
   const keys: DuplicateKey[] = [];
   for (const reason of DUPLICATE_REASONS) {
-    if (reason === 'title_year' || reason === 'title_platform') continue;
+    if (reason === 'title_year' || reason === 'title_platform' || reason === 'title_cross_platform') continue;
     const value = candidate.identityValues[reason]?.trim();
     if (value) keys.push({ key: `${candidate.category}:${reason}:${value}`, reason });
   }
 
   const variants = titleVariants(candidate.title);
   if (candidate.category === 'game') {
-    const platform = candidate.platform?.trim().toLocaleLowerCase();
-    if (platform) {
+    for (const platform of candidatePlatforms(candidate)) {
       for (const title of variants) {
         keys.push({ key: `${candidate.category}:title_platform:${title}:${platform}`, reason: 'title_platform' });
       }
@@ -75,6 +76,39 @@ function candidateKeys(candidate: DuplicateCandidate): DuplicateKey[] {
     }
   }
   return keys;
+}
+
+function candidatePlatforms(candidate: DuplicateCandidate): string[] {
+  return Array.from(new Set(
+    (candidate.platforms ?? [candidate.platform])
+      .map(value => value?.trim().toLocaleLowerCase())
+      .filter((value): value is string => Boolean(value)),
+  ));
+}
+
+function appendCrossPlatformTitleKeys(
+  candidates: DuplicateCandidate[],
+  keysByCandidate: DuplicateKey[][],
+) {
+  const indicesByTitle = new Map<string, number[]>();
+  candidates.forEach((candidate, index) => {
+    if (candidate.category !== 'game' || candidatePlatforms(candidate).length === 0) return;
+    for (const title of titleVariants(candidate.title)) {
+      const indices = indicesByTitle.get(title) ?? [];
+      indices.push(index);
+      indicesByTitle.set(title, indices);
+    }
+  });
+
+  for (const [title, indices] of indicesByTitle) {
+    if (indices.length < 2) continue;
+    const platforms = new Set(indices.flatMap(index => candidatePlatforms(candidates[index])));
+    if (platforms.size < 2) continue;
+    const key = `game:title_cross_platform:${title}`;
+    for (const index of indices) {
+      keysByCandidate[index].push({ key, reason: 'title_cross_platform' });
+    }
+  }
 }
 
 class DisjointSet {
@@ -100,6 +134,7 @@ export function findDuplicateGroups(candidates: DuplicateCandidate[]) {
   const sets = new DisjointSet(candidates.length);
   const firstByKey = new Map<string, number>();
   const keysByCandidate = candidates.map(candidateKeys);
+  appendCrossPlatformTitleKeys(candidates, keysByCandidate);
 
   keysByCandidate.forEach((keys, index) => {
     for (const { key } of keys) {
@@ -232,23 +267,31 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       steamAppId: true,
       xboxId: true,
       psnId: true,
+      platformEntries: {
+        select: { platform: true },
+        orderBy: { platform: 'asc' },
+      },
     },
   });
-  return records.map(record => ({
-    id: record.id,
-    category,
-    title: record.title,
-    posterUrl: record.posterUrl,
-    year: null,
-    platform: record.platform,
-    protected: false,
-    identityValues: {
-      rawg_id: record.rawgId?.toString() ?? null,
-      steam_id: record.steamAppId?.toString() ?? null,
-      xbox_id: record.xboxId,
-      psn_id: record.psnId,
-    },
-  }));
+  return records.map(record => {
+    const platforms = Array.from(new Set(record.platformEntries.map(entry => entry.platform)));
+    return {
+      id: record.id,
+      category,
+      title: record.title,
+      posterUrl: record.posterUrl,
+      year: null,
+      platform: platforms.length > 0 ? platforms.join(' / ') : record.platform,
+      platforms: platforms.length > 0 ? platforms : undefined,
+      protected: false,
+      identityValues: {
+        rawg_id: record.rawgId?.toString() ?? null,
+        steam_id: record.steamAppId?.toString() ?? null,
+        xbox_id: record.xboxId,
+        psn_id: record.psnId,
+      },
+    };
+  });
 }
 
 export async function listDuplicateGroups(
