@@ -166,6 +166,7 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import {
+  buildGameTelemetry,
   buildMovieSourceCounts,
   buildMonthlyMemories,
   buildNextUpQueue,
@@ -2861,6 +2862,37 @@ test('已游玩的想玩游戏按进行中统计', () => {
         ],
       },
     ],
+  });
+});
+
+test('游戏遥测按平台档案汇总并忽略无效成就进度', () => {
+  assert.deepEqual(buildGameTelemetry([
+    {
+      playtimeMinutes: 999,
+      platformEntries: [
+        { playtimeMinutes: 30, achievementUnlocked: 5, achievementTotal: 10 },
+        { playtimeMinutes: 45, achievementUnlocked: 12, achievementTotal: 20 },
+      ],
+    },
+    {
+      playtimeMinutes: 60,
+      achievementUnlocked: 3,
+      achievementTotal: 8,
+      platformEntries: [],
+    },
+    {
+      playtimeMinutes: null,
+      platformEntries: [
+        { playtimeMinutes: null, achievementUnlocked: 11, achievementTotal: 10 },
+        { playtimeMinutes: null, achievementUnlocked: null, achievementTotal: 5 },
+      ],
+    },
+  ]), {
+    totalPlaytimeMinutes: 135,
+    platformProfiles: 4,
+    achievementUnlocked: 20,
+    achievementTotal: 38,
+    achievementProfiles: 3,
   });
 });
 

@@ -23,6 +23,13 @@ export interface ProfileSummaryResponse {
   tvShowStatuses: CountItem[];
   movieSources: CountItem[];
   gamePlatforms: CountItem[];
+  gameTelemetry: {
+    totalPlaytimeMinutes: number;
+    platformProfiles: number;
+    achievementUnlocked: number;
+    achievementTotal: number;
+    achievementProfiles: number;
+  };
   tvShowSources: CountItem[];
   nextUp: {
     resume: ActionQueueItem[];

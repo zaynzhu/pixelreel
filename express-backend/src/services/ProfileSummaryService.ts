@@ -67,8 +67,12 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
           select: {
             platform: true,
             playtimeMinutes: true,
+            achievementTotal: true,
+            achievementUnlocked: true,
           },
         },
+        achievementTotal: true,
+        achievementUnlocked: true,
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -100,6 +104,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
     tvShowStatuses: buildTvShowStatusCounts(tvShows),
     movieSources: buildMovieSourceCounts(movies),
     gamePlatforms: buildGamePlatformCounts(games),
+    gameTelemetry: buildGameTelemetry(games),
     tvShowSources: buildTvShowSourceCounts(tvShows),
     nextUp: buildNextUpQueue(movies, games, tvShows),
     monthlyMemories: buildMonthlyMemories(movies, games, tvShows),
@@ -267,6 +272,42 @@ function buildOverview(movies: any[], games: any[], tvShows: any[]): ProfileSumm
     ratedRecords,
     reviewedRecords,
     importedGames,
+  };
+}
+
+export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTelemetry'] {
+  let totalPlaytimeMinutes = 0;
+  let platformProfiles = 0;
+  let achievementUnlocked = 0;
+  let achievementTotal = 0;
+  let achievementProfiles = 0;
+
+  for (const game of games) {
+    totalPlaytimeMinutes += gamePlaytimeMinutes(game) ?? 0;
+    const platformEntries = Array.isArray(game.platformEntries) ? game.platformEntries : [];
+    platformProfiles += platformEntries.length;
+    const progressEntries = platformEntries.length > 0 ? platformEntries : [game];
+
+    for (const entry of progressEntries) {
+      if (!Number.isInteger(entry.achievementTotal)
+        || !Number.isInteger(entry.achievementUnlocked)
+        || entry.achievementTotal <= 0
+        || entry.achievementUnlocked < 0
+        || entry.achievementUnlocked > entry.achievementTotal) {
+        continue;
+      }
+      achievementUnlocked += entry.achievementUnlocked;
+      achievementTotal += entry.achievementTotal;
+      achievementProfiles++;
+    }
+  }
+
+  return {
+    totalPlaytimeMinutes,
+    platformProfiles,
+    achievementUnlocked,
+    achievementTotal,
+    achievementProfiles,
   };
 }
 

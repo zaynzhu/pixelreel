@@ -260,6 +260,24 @@ export default function DashboardPage() {
             <SourceChip key={item.key} label={item.key} count={item.count} />
           )) ?? <LoadingHint loading={loading} t={t} />}
         </div>
+        {summary && (
+          <div className="mt-6 grid grid-cols-3 gap-px border border-[var(--line)] bg-[var(--line)]">
+            <TelemetryMetric
+              label={t("dash.platforms.playtime")}
+              value={formatTotalPlaytime(summary.gameTelemetry.totalPlaytimeMinutes, t)}
+            />
+            <TelemetryMetric
+              label={t("dash.platforms.profiles")}
+              value={summary.gameTelemetry.platformProfiles.toLocaleString()}
+            />
+            <TelemetryMetric
+              label={t("dash.platforms.achievements")}
+              value={summary.gameTelemetry.achievementProfiles > 0
+                ? `${summary.gameTelemetry.achievementUnlocked.toLocaleString()} / ${summary.gameTelemetry.achievementTotal.toLocaleString()}`
+                : "—"}
+            />
+          </div>
+        )}
       </section>
 
       <section className="dash-card">
@@ -424,6 +442,22 @@ function SourceChip({ label, count }: { label: string; count: number }) {
       <p className="font-display text-xl text-white">{count}</p>
     </div>
   );
+}
+
+function TelemetryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-[var(--surface)] px-3 py-4 text-center">
+      <p className="font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">{label}</p>
+      <p className="mt-2 font-display text-lg text-white">{value}</p>
+    </div>
+  );
+}
+
+function formatTotalPlaytime(minutes: number, t: any) {
+  if (minutes <= 0) return "—";
+  const hours = minutes / 60;
+  const roundedHours = hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10;
+  return `${roundedHours.toLocaleString()} ${t("dash.platforms.hours")}`;
 }
 
 function LoadingHint({ loading, t }: { loading: boolean, t: any }) {

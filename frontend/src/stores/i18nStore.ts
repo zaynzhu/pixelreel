@@ -97,6 +97,10 @@ const dictionaries = {
     "dash.origin.tv": "TV.SOURCES",
     "dash.platforms": "METRICS // PLATFORMS",
     "dash.platforms.game": "GAME.PLATFORMS",
+    "dash.platforms.playtime": "PLAYTIME",
+    "dash.platforms.profiles": "PROFILES",
+    "dash.platforms.achievements": "ACHIEVEMENTS",
+    "dash.platforms.hours": "H",
 
     "dash.log": "LOG // RECENT_ACTIVITY",
     "dash.recent": "LATEST ACQUISITIONS",
@@ -884,6 +888,10 @@ const dictionaries = {
     "dash.origin.tv": "剧集数据源",
     "dash.platforms": "指标 // 平台",
     "dash.platforms.game": "游戏平台分布",
+    "dash.platforms.playtime": "总游玩时长",
+    "dash.platforms.profiles": "平台档案",
+    "dash.platforms.achievements": "成就 / 奖杯",
+    "dash.platforms.hours": "小时",
 
     "dash.log": "日志 // 最近活动",
     "dash.recent": "最新入库记录",
