@@ -1278,6 +1278,24 @@ test('PSNProfiles 分页和游戏行解析保留奖杯与封面数据', async ()
       achievementUnlocked: null,
     },
   ]);
+
+  assert.deepEqual(parsePsnGames(`
+    <tr>
+      <td><picture class="game"><img src="/lib/img/games/current.png" alt="Current Game"></picture></td>
+      <td>
+        <a class="title" href="/trophies/40000-current-game/TestPlayer">Current Game</a>
+        <div class="small-info"><b>4</b> of <b>10</b> Trophies</div>
+      </td>
+    </tr>
+  `, 'https://psnprofiles.com'), [
+    {
+      psnId: '40000',
+      title: 'Current Game',
+      posterUrl: 'https://psnprofiles.com/lib/img/games/current.png',
+      achievementTotal: 10,
+      achievementUnlocked: 4,
+    },
+  ]);
 });
 
 test('PSNProfiles 连接验证只读取档案第一页', async () => {
@@ -1315,6 +1333,22 @@ test('PSNProfiles 连接验证只读取档案第一页', async () => {
     assert.equal(requests[0].options.params.page, 1);
     assert.equal(requests[0].options.headers.Cookie, 'session=value');
     assert.equal(requests[0].options.headers['User-Agent'], 'test-agent');
+
+    axiosClient.get = async () => ({
+      data: {
+        html: `
+          <tr>
+            <td><picture class="game"></picture></td>
+            <td><a class="title" href="/trophies/not-a-game/Player_1">无法识别的游戏</a></td>
+          </tr>
+        `,
+        nextPage: 0,
+      },
+    }) as any;
+    await assert.rejects(
+      verifyPsnProfilesConnection('Player_1'),
+      /PSNProfiles 页面包含游戏但未能解析/,
+    );
   } finally {
     axiosClient.get = originalGet;
     Object.assign(mutableConfig.psnProfiles, original);

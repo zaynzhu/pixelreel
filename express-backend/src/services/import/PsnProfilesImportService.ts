@@ -53,6 +53,10 @@ export async function importPsnOwnedGames(
   }
 
   const games = parsePsnGames(html);
+  if (games.length === 0 && hasPsnGameMarkup(html)) {
+    summary.errors.push('PSNProfiles 页面包含游戏但未能解析，请更新解析器');
+    return summary;
+  }
   summary.total = games.length;
 
   const psnIds = games.map((g) => g.psnId).filter(Boolean) as string[];
@@ -174,7 +178,10 @@ export async function verifyPsnProfilesConnection(
   if (isPsnProfilesChallengePage(parsed.html)) {
     throw new Error('PSNProfiles 访问被验证页面拦截，请更新 Cookie');
   }
-  parsePsnGames(parsed.html);
+  const games = parsePsnGames(parsed.html);
+  if (games.length === 0 && hasPsnGameMarkup(parsed.html)) {
+    throw new Error('PSNProfiles 页面包含游戏但未能解析，请更新解析器');
+  }
   return { ok: true };
 }
 
@@ -271,7 +278,7 @@ export function isPsnProfilesChallengeResponse(status: unknown, data: unknown): 
 }
 
 export function parsePsnGames(html: string, baseUrl = config.psnProfiles.baseUrl): PsnGame[] {
-  const $ = cheerio.load(html);
+  const $ = cheerio.load(html, null, false);
   const results: PsnGame[] = [];
   const seenIds = new Set<string>();
 
@@ -299,6 +306,12 @@ export function parsePsnGames(html: string, baseUrl = config.psnProfiles.baseUrl
   });
 
   return results;
+}
+
+function hasPsnGameMarkup(html: string): boolean {
+  const $ = cheerio.load(html, null, false);
+  return $('picture.game').length > 0
+    && $('a.title[href*="/trophies/"]').length > 0;
 }
 
 export function extractPsnGameId(href: string): string | null {
