@@ -3,6 +3,12 @@ import * as cheerio from 'cheerio';
 import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
+import {
+  createGamesWithPlatformEntries,
+  findGamesByPlatformExternalIds,
+  type GamePlatformCreateInput,
+  syncGamePlatformEntry,
+} from '../GamePlatformEntryService';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
   buildPlatformGameRequestOptions,
@@ -61,12 +67,12 @@ export async function importPsnOwnedGames(
 
   const psnIds = games.map((g) => g.psnId).filter(Boolean) as string[];
   const existingMap = psnIds.length > 0
-    ? new Map((await getDb().game.findMany({ where: { psnId: { in: psnIds } } })).map((g) => [g.psnId!, g]))
+    ? await findGamesByPlatformExternalIds('PSN', psnIds)
     : new Map<string, any>();
 
   const effectiveStatus = resolvePlatformGameImportStatus(status);
   const now = new Date();
-  const toSave: any[] = [];
+  const toSave: GamePlatformCreateInput[] = [];
 
   for (const [index, game] of games.entries()) {
     if (signal?.aborted) return summary;
@@ -97,6 +103,7 @@ export async function importPsnOwnedGames(
     }
     const existing = existingMap.get(game.psnId);
     if (existing) {
+      const syncedAt = new Date();
       const posterUrl = existing.posterUrl
         ? null
         : sourcePosterUrl ?? await lookupRawgPosterUrl(game.title, signal);
@@ -108,12 +115,21 @@ export async function importPsnOwnedGames(
         achievementTotal: game.achievementTotal,
         achievementUnlocked: game.achievementUnlocked,
       });
-      if (!hasPlatformGameMetricUpdate(update)) {
+      if (hasPlatformGameMetricUpdate(update)) {
+        await getDb().game.update({ where: { id: existing.id }, data: update });
+        summary.updated = (summary.updated ?? 0) + 1;
+      } else {
         summary.skipped++;
-        continue;
       }
-      await getDb().game.update({ where: { id: existing.id }, data: update });
-      summary.updated = (summary.updated ?? 0) + 1;
+      await syncGamePlatformEntry(existing.id, {
+        platform: 'PSN',
+        externalId: game.psnId,
+        playtimeMinutes: null,
+        achievementTotal: game.achievementTotal,
+        achievementUnlocked: game.achievementUnlocked,
+        importedAt: existing.importedAt,
+        lastSyncedAt: syncedAt,
+      });
       continue;
     }
 
@@ -122,24 +138,32 @@ export async function importPsnOwnedGames(
     if (signal?.aborted) return summary;
 
     toSave.push({
-      psnId: game.psnId,
-      title: game.title,
-      posterUrl,
       platform: 'PSN',
+      externalId: game.psnId,
+      playtimeMinutes: null,
       achievementTotal: game.achievementTotal,
       achievementUnlocked: game.achievementUnlocked,
       importedAt: now,
-      importReviewState: 'PENDING',
-      status: effectiveStatus,
-      rating: null,
-      shortReview: '',
+      lastSyncedAt: now,
+      gameData: {
+        psnId: game.psnId,
+        title: game.title,
+        posterUrl,
+        platform: 'PSN',
+        achievementTotal: game.achievementTotal,
+        achievementUnlocked: game.achievementUnlocked,
+        importedAt: now,
+        importReviewState: 'PENDING',
+        status: effectiveStatus,
+        rating: null,
+        shortReview: '',
+      },
     });
   }
 
   if (signal?.aborted) return summary;
   if (toSave.length > 0) {
-    await getDb().game.createMany({ data: toSave });
-    summary.imported = toSave.length;
+    summary.imported = await createGamesWithPlatformEntries('PSN', toSave);
   }
   onProgress?.(summary.total, summary.total, '');
 

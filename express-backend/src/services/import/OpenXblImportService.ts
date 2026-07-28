@@ -2,6 +2,12 @@ import axios from 'axios';
 import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
+import {
+  createGamesWithPlatformEntries,
+  findGamesByPlatformExternalIds,
+  type GamePlatformCreateInput,
+  syncGamePlatformEntry,
+} from '../GamePlatformEntryService';
 import { lookupRawgPosterUrl } from './RawgPosterLookupService';
 import {
   buildPlatformGameRequestOptions,
@@ -93,10 +99,10 @@ export async function importXboxTitleHistory(
   // 批量查已有记录
   const xboxIds = titleHistory.map((t) => t.titleId).filter(Boolean);
   const existingMap = xboxIds.length > 0
-    ? new Map((await getDb().game.findMany({ where: { xboxId: { in: xboxIds } } })).map((g) => [g.xboxId!, g]))
-    : new Map<any, any>();
+    ? await findGamesByPlatformExternalIds('XBOX', xboxIds)
+    : new Map<string, any>();
 
-  const toSave: any[] = [];
+  const toSave: GamePlatformCreateInput[] = [];
   for (const [index, title] of titleHistory.entries()) {
     if (signal?.aborted) return summary;
     onProgress?.(index + 1, summary.total, title.name || title.titleId);
@@ -126,6 +132,7 @@ export async function importXboxTitleHistory(
     }
     const existing = existingMap.get(title.titleId);
     if (existing) {
+      const syncedAt = new Date();
       const posterUrl = existing.posterUrl
         ? null
         : sourcePosterUrl ?? await lookupRawgPosterUrl(title.name, signal);
@@ -137,12 +144,21 @@ export async function importXboxTitleHistory(
         achievementTotal: title.achievementTotal,
         achievementUnlocked: title.achievementUnlocked,
       });
-      if (!hasPlatformGameMetricUpdate(update)) {
+      if (hasPlatformGameMetricUpdate(update)) {
+        await getDb().game.update({ where: { id: existing.id }, data: update });
+        summary.updated = (summary.updated ?? 0) + 1;
+      } else {
         summary.skipped++;
-        continue;
       }
-      await getDb().game.update({ where: { id: existing.id }, data: update });
-      summary.updated = (summary.updated ?? 0) + 1;
+      await syncGamePlatformEntry(existing.id, {
+        platform: 'XBOX',
+        externalId: title.titleId,
+        playtimeMinutes: title.playtimeMinutes,
+        achievementTotal: title.achievementTotal,
+        achievementUnlocked: title.achievementUnlocked,
+        importedAt: existing.importedAt,
+        lastSyncedAt: syncedAt,
+      });
       continue;
     }
 
@@ -151,25 +167,33 @@ export async function importXboxTitleHistory(
     if (signal?.aborted) return summary;
 
     toSave.push({
-      xboxId: title.titleId,
-      title: title.name,
-      posterUrl,
       platform: 'XBOX',
+      externalId: title.titleId,
       playtimeMinutes: title.playtimeMinutes,
       achievementTotal: title.achievementTotal,
       achievementUnlocked: title.achievementUnlocked,
       importedAt: now,
-      importReviewState: 'PENDING',
-      status: effectiveStatus,
-      rating: null,
-      shortReview: '',
+      lastSyncedAt: now,
+      gameData: {
+        xboxId: title.titleId,
+        title: title.name,
+        posterUrl,
+        platform: 'XBOX',
+        playtimeMinutes: title.playtimeMinutes,
+        achievementTotal: title.achievementTotal,
+        achievementUnlocked: title.achievementUnlocked,
+        importedAt: now,
+        importReviewState: 'PENDING',
+        status: effectiveStatus,
+        rating: null,
+        shortReview: '',
+      },
     });
   }
 
   if (signal?.aborted) return summary;
   if (toSave.length > 0) {
-    await getDb().game.createMany({ data: toSave });
-    summary.imported = toSave.length;
+    summary.imported = await createGamesWithPlatformEntries('XBOX', toSave);
   }
   onProgress?.(summary.total, summary.total, '');
 

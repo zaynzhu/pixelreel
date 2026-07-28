@@ -3,6 +3,12 @@ import { config } from '../../config';
 import { getDb } from '../../config/db';
 import { ImportSummary } from '../../dto/import-summary';
 import { RecordStatus } from '../../enums/RecordStatus';
+import {
+  createGamesWithPlatformEntries,
+  findGamesByPlatformExternalIds,
+  type GamePlatformCreateInput,
+  syncGamePlatformEntry,
+} from '../GamePlatformEntryService';
 import { assertTaskActive } from './ImportSummaryTaskService';
 import {
   buildPlatformGameMetricUpdate,
@@ -151,16 +157,18 @@ export async function importSteamOwnedGames(
   summary.errors.push(...parsedResponse.errors);
 
   // 批量查已有记录
-  const steamAppIds = games.map(game => BigInt(game.appId));
+  const steamAppIds = games.map(game => String(game.appId));
   const existingMap = steamAppIds.length > 0
-    ? new Map((await getDb().game.findMany({ where: { steamAppId: { in: steamAppIds } } })).map((g) => [Number(g.steamAppId!), g]))
-    : new Map<any, any>();
+    ? await findGamesByPlatformExternalIds('STEAM', steamAppIds)
+    : new Map<string, any>();
 
-  const toSave: any[] = [];
+  const toSave: GamePlatformCreateInput[] = [];
   for (const [index, owned] of games.entries()) {
     assertTaskActive(signal);
     onProgress?.(index + 1, games.length, owned.title);
-    const existing = existingMap.get(owned.appId);
+    const externalId = String(owned.appId);
+    const existing = existingMap.get(externalId);
+    const syncedAt = new Date();
     if (existing) {
       const update = buildPlatformGameMetricUpdate(existing, {
         platform: 'STEAM',
@@ -169,33 +177,50 @@ export async function importSteamOwnedGames(
         achievementTotal: null,
         achievementUnlocked: null,
       });
-      if (!hasPlatformGameMetricUpdate(update)) {
+      if (hasPlatformGameMetricUpdate(update)) {
+        await getDb().game.update({ where: { id: existing.id }, data: update });
+        summary.updated = (summary.updated ?? 0) + 1;
+      } else {
         summary.skipped++;
-        continue;
       }
-      await getDb().game.update({ where: { id: existing.id }, data: update });
-      summary.updated = (summary.updated ?? 0) + 1;
+      await syncGamePlatformEntry(existing.id, {
+        platform: 'STEAM',
+        externalId,
+        playtimeMinutes: owned.playtimeMinutes,
+        achievementTotal: null,
+        achievementUnlocked: null,
+        importedAt: existing.importedAt,
+        lastSyncedAt: syncedAt,
+      });
       continue;
     }
 
     toSave.push({
-      steamAppId: BigInt(owned.appId),
-      title: owned.title,
-      posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appId}/header.jpg`,
       platform: 'STEAM',
+      externalId,
       playtimeMinutes: owned.playtimeMinutes,
-      importedAt: new Date(),
-      importReviewState: 'PENDING',
-      status: resolveSteamImportStatus(status, owned.playtimeMinutes ?? 0),
-      rating: null,
-      shortReview: null,
+      achievementTotal: null,
+      achievementUnlocked: null,
+      importedAt: syncedAt,
+      lastSyncedAt: syncedAt,
+      gameData: {
+        steamAppId: BigInt(owned.appId),
+        title: owned.title,
+        posterUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${owned.appId}/header.jpg`,
+        platform: 'STEAM',
+        playtimeMinutes: owned.playtimeMinutes,
+        importedAt: syncedAt,
+        importReviewState: 'PENDING',
+        status: resolveSteamImportStatus(status, owned.playtimeMinutes ?? 0),
+        rating: null,
+        shortReview: null,
+      },
     });
   }
 
   if (toSave.length > 0) {
     assertTaskActive(signal);
-    await getDb().game.createMany({ data: toSave });
-    summary.imported = toSave.length;
+    summary.imported = await createGamesWithPlatformEntries('STEAM', toSave);
   }
 
   return summary;
