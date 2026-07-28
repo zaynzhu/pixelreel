@@ -44,6 +44,10 @@ export interface DuplicateRecord {
   posterUrl: string | null
   year: string | null
   platform: string | null
+  status: string | null
+  rating: number | null
+  hasReview: boolean
+  playtimeMinutes: number | null
   protected: boolean
   sourceIds: Partial<Record<DuplicateReason, string>>
 }

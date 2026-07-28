@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { getDb } from '../config/db';
 import { DataHealthCategory } from './DataHealthService';
+import { gamePlaytimeMinutes } from './GameStatusService';
 
 export const DUPLICATE_REASONS = [
   'douban_id',
@@ -27,6 +28,10 @@ export interface DuplicateCandidate {
   year: string | null;
   platform: string | null;
   platforms?: string[];
+  status?: string | null;
+  rating?: number | null;
+  hasReview?: boolean;
+  playtimeMinutes?: number | null;
   protected: boolean;
   identityValues: Partial<Record<DuplicateReason, string | null>>;
 }
@@ -176,6 +181,10 @@ export function findDuplicateGroups(candidates: DuplicateCandidate[]) {
           posterUrl: candidate.posterUrl,
           year: candidate.year,
           platform: candidate.platform,
+          status: candidate.status ?? null,
+          rating: candidate.rating ?? null,
+          hasReview: candidate.hasReview ?? false,
+          playtimeMinutes: candidate.playtimeMinutes ?? null,
           protected: candidate.protected,
           sourceIds: Object.fromEntries(
             Object.entries(candidate.identityValues).filter(([, value]) => Boolean(value)),
@@ -209,6 +218,9 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
         tmdbId: true,
         imdbId: true,
         traktId: true,
+        status: true,
+        rating: true,
+        shortReview: true,
       },
     });
     return records.map(record => ({
@@ -218,6 +230,10 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       posterUrl: record.posterUrl,
       year: extractYear(record.releaseDate ?? record.tmdbReleaseDate),
       platform: null,
+      status: record.status,
+      rating: record.rating,
+      hasReview: Boolean(record.shortReview?.trim()),
+      playtimeMinutes: null,
       protected: Boolean(record.doubanId),
       identityValues: {
         douban_id: record.doubanId,
@@ -239,6 +255,9 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
         tmdbId: true,
         imdbId: true,
         traktId: true,
+        status: true,
+        rating: true,
+        shortReview: true,
       },
     });
     return records.map(record => ({
@@ -248,6 +267,10 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       posterUrl: record.posterUrl,
       year: extractYear(record.firstAirDate ?? record.tmdbReleaseDate),
       platform: null,
+      status: record.status,
+      rating: record.rating,
+      hasReview: Boolean(record.shortReview?.trim()),
+      playtimeMinutes: null,
       protected: Boolean(record.doubanId),
       identityValues: {
         douban_id: record.doubanId,
@@ -267,8 +290,12 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       steamAppId: true,
       xboxId: true,
       psnId: true,
+      status: true,
+      rating: true,
+      shortReview: true,
+      playtimeMinutes: true,
       platformEntries: {
-        select: { platform: true },
+        select: { platform: true, playtimeMinutes: true },
         orderBy: { platform: 'asc' },
       },
     },
@@ -283,6 +310,10 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       year: null,
       platform: platforms.length > 0 ? platforms.join(' / ') : record.platform,
       platforms: platforms.length > 0 ? platforms : undefined,
+      status: record.status,
+      rating: record.rating,
+      hasReview: Boolean(record.shortReview?.trim()),
+      playtimeMinutes: gamePlaytimeMinutes(record),
       protected: false,
       identityValues: {
         rawg_id: record.rawgId?.toString() ?? null,

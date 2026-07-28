@@ -395,6 +395,28 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                           {record.year ? ` // ${record.year}` : ""}
                           {record.platform ? ` // ${record.platform}` : ""}
                         </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {record.status && (
+                            <span className="border border-[var(--line)] px-1.5 py-0.5 text-[8px] text-white">
+                              {duplicateStatusLabel(record.status, t)}
+                            </span>
+                          )}
+                          {record.rating != null && (
+                            <span className="border border-[var(--accent)] px-1.5 py-0.5 text-[8px] text-[var(--accent)]">
+                              ★ {record.rating}
+                            </span>
+                          )}
+                          {record.hasReview && (
+                            <span className="border border-[var(--line)] px-1.5 py-0.5 text-[8px] text-[var(--muted)]">
+                              {t("health.duplicates.personal.review")}
+                            </span>
+                          )}
+                          {record.playtimeMinutes != null && (
+                            <span className="border border-[var(--line)] px-1.5 py-0.5 text-[8px] text-[var(--muted)]">
+                              {t("health.duplicates.personal.playtime", formatPlaytime(record.playtimeMinutes))}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1.5 sm:justify-end">
                         {Object.entries(record.sourceIds).map(([reason, value]) => (
@@ -474,4 +496,27 @@ function ReasonTag({ reason }: { reason: DuplicateReason }) {
       {t(`health.duplicates.reason.${reason}`)}
     </span>
   )
+}
+
+function formatPlaytime(minutes: number) {
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`
+}
+
+const DUPLICATE_STATUS_KEYS = {
+  UNSET: "global.status.unset",
+  WANT: "global.status.want",
+  IN_PROGRESS: "global.status.active",
+  DONE: "global.status.done",
+  DROPPED: "global.status.dropped",
+} as const
+
+function duplicateStatusLabel(
+  status: string,
+  t: ReturnType<typeof useI18nStore.getState>["t"],
+) {
+  const key = DUPLICATE_STATUS_KEYS[status as keyof typeof DUPLICATE_STATUS_KEYS]
+  return key ? t(key) : status
 }
