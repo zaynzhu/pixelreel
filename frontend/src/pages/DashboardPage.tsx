@@ -273,7 +273,7 @@ export default function DashboardPage() {
             <TelemetryMetric
               label={t("dash.platforms.achievements")}
               value={summary.gameTelemetry.achievementProfiles > 0
-                ? `${summary.gameTelemetry.achievementUnlocked.toLocaleString()} / ${summary.gameTelemetry.achievementTotal.toLocaleString()}`
+                ? summary.gameTelemetry.achievementUnlocked.toLocaleString()
                 : "—"}
             />
           </div>

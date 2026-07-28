@@ -15,6 +15,7 @@ import {
   hasPlatformGameMetricUpdate,
   isPlatformGameExternalIdValid,
   isPlatformGameTitleValid,
+  normalizePlatformAchievementProgress,
   normalizePlatformGamePosterUrl,
   parsePlatformGameMetric,
   resolvePlatformGameImportStatus,
@@ -336,6 +337,15 @@ export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
     const stats = statsValue && typeof statsValue === 'object'
       ? statsValue as Record<string, unknown>
       : {};
+    const achievementProgress = normalizePlatformAchievementProgress(
+      parsePlatformGameMetric(
+        stats.totalAchievements ?? stats.total ?? stats.achievementTotal,
+      ),
+      parsePlatformGameMetric(
+        stats.currentAchievements ?? stats.unlockedAchievements
+        ?? stats.achievementUnlocked ?? stats.earned,
+      ),
+    );
     return [{
       titleId,
       name: readString(item.name ?? item.title ?? item.displayName ?? item.game),
@@ -346,13 +356,8 @@ export function parseXboxTitles(data: unknown): XboxImportedTitle[] {
       playtimeMinutes: parsePlatformGameMetric(
         item.playtimeMinutes ?? item.minutesPlayed ?? item.timePlayedMinutes ?? item.minutes,
       ),
-      achievementTotal: parsePlatformGameMetric(
-        stats.totalAchievements ?? stats.total ?? stats.achievementTotal,
-      ),
-      achievementUnlocked: parsePlatformGameMetric(
-        stats.currentAchievements ?? stats.unlockedAchievements
-        ?? stats.achievementUnlocked ?? stats.earned,
-      ),
+      achievementTotal: achievementProgress.achievementTotal,
+      achievementUnlocked: achievementProgress.achievementUnlocked,
     }];
   });
 }

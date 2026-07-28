@@ -240,9 +240,11 @@ export default function LibraryDetailPage() {
                   <Metric label={t("detail.playtime")} value={formatPlaytime(entry.playtimeMinutes, t)} />
                   <Metric
                     label={t("detail.achievements")}
-                    value={entry.achievementTotal == null
-                      ? "—"
-                      : `${entry.achievementUnlocked ?? 0} / ${entry.achievementTotal}`}
+                    value={formatAchievementProgress(
+                      entry.achievementUnlocked,
+                      entry.achievementTotal,
+                      t,
+                    )}
                   />
                 </div>
                 <div className="mt-3 pl-2 font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
@@ -255,7 +257,10 @@ export default function LibraryDetailPage() {
       ) : record.category === "game" && (
         <section className="grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
           <Metric label={t("detail.playtime")} value={formatPlaytime(record.playtimeMinutes, t)} />
-          <Metric label={t("detail.achievements")} value={`${record.achievementUnlocked ?? 0} / ${record.achievementTotal ?? 0}`} />
+          <Metric
+            label={t("detail.achievements")}
+            value={formatAchievementProgress(record.achievementUnlocked, record.achievementTotal, t)}
+          />
           <Metric label={t("detail.platform")} value={record.platformLabel || record.platform || "—"} />
         </section>
       )}
@@ -476,6 +481,23 @@ function Metric({ label, value }: { label: string; value: string }) {
       <div className="mt-2 font-display text-2xl text-white">{value}</div>
     </div>
   )
+}
+
+function formatAchievementProgress(
+  unlocked: number | null | undefined,
+  total: number | null | undefined,
+  t: ReturnType<typeof useI18nStore.getState>["t"],
+) {
+  if (total != null && total > 0 && unlocked != null && unlocked <= total) {
+    return `${unlocked} / ${total}`;
+  }
+  if (unlocked != null && unlocked > 0) {
+    return t("detail.achievements_unlocked", unlocked);
+  }
+  if (total != null && total > 0) {
+    return `— / ${total}`;
+  }
+  return "—";
 }
 
 function Badge({ children, muted = false }: { children: React.ReactNode; muted?: boolean }) {

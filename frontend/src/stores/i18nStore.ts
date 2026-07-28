@@ -99,7 +99,7 @@ const dictionaries = {
     "dash.platforms.game": "GAME.PLATFORMS",
     "dash.platforms.playtime": "PLAYTIME",
     "dash.platforms.profiles": "PROFILES",
-    "dash.platforms.achievements": "ACHIEVEMENTS",
+    "dash.platforms.achievements": "UNLOCKED",
     "dash.platforms.hours": "H",
 
     "dash.log": "LOG // RECENT_ACTIVITY",
@@ -219,6 +219,7 @@ const dictionaries = {
     "detail.playtime": "PLAYTIME",
     "detail.playtime_value": "{0}H {1}M",
     "detail.achievements": "ACHIEVEMENTS",
+    "detail.achievements_unlocked": "{0} UNLOCKED",
     "detail.platform": "PLATFORM",
     "detail.platform_profiles_kicker": "PLATFORM // TELEMETRY",
     "detail.platform_profiles_title": "PLATFORM PROFILES",
@@ -908,7 +909,7 @@ const dictionaries = {
     "dash.platforms.game": "游戏平台分布",
     "dash.platforms.playtime": "总游玩时长",
     "dash.platforms.profiles": "平台档案",
-    "dash.platforms.achievements": "成就 / 奖杯",
+    "dash.platforms.achievements": "已解锁成就 / 奖杯",
     "dash.platforms.hours": "小时",
 
     "dash.log": "日志 // 最近活动",
@@ -1028,6 +1029,7 @@ const dictionaries = {
     "detail.playtime": "游玩时长",
     "detail.playtime_value": "{0} 小时 {1} 分钟",
     "detail.achievements": "成就",
+    "detail.achievements_unlocked": "已解锁 {0}",
     "detail.platform": "平台",
     "detail.platform_profiles_kicker": "平台 // 遥测",
     "detail.platform_profiles_title": "平台档案",

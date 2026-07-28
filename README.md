@@ -147,7 +147,7 @@ Xbox 支持两种来源：默认使用 OpenXbox 公开桌面客户端跳转 Micr
 4. 在 PSNProfiles 区域填写默认 Online ID 并启用 PSN。公开档案通常无需 Cookie；遇到 Cloudflare 验证页时再更新 Cookie。
 5. 在 `/sync` 先验证连接，再启动正式同步；新记录进入 `/sync/review` 审核队列。
 
-Xbox 会写入游戏与成就摘要；只有所选来源的游戏历史响应提供游玩时长时，才会写入 `playtimeMinutes`。首次真实同步会创建游戏记录，建议通过 `/sync` 页面发起并在审核队列确认结果。
+Xbox 会写入游戏与成就摘要；部分 Xbox title history 只提供已解锁数而把总数返回为 `0`，PixelReel 会把这种总数视为未知并显示“已解锁 N”，不会伪装成 `N / 0`。只有所选来源的游戏历史响应提供游玩时长时，才会写入 `playtimeMinutes`。首次真实同步会创建游戏记录，建议通过 `/sync` 页面发起并在审核队列确认结果。
 
 ### 雷达发现新片
 

@@ -18,6 +18,7 @@ import {
   tvShowSourceLabel,
 } from './LibraryService';
 import { resolveCompletionDate } from './RecordDateService';
+import { normalizePlatformAchievementProgress } from './import/PlatformGameSyncService';
 
 // 个人主页统计聚合服务，与 Java 端 ProfileSummaryService 完全对齐
 
@@ -289,16 +290,15 @@ export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTe
     const progressEntries = platformEntries.length > 0 ? platformEntries : [game];
 
     for (const entry of progressEntries) {
-      if (!Number.isInteger(entry.achievementTotal)
-        || !Number.isInteger(entry.achievementUnlocked)
-        || entry.achievementTotal <= 0
-        || entry.achievementUnlocked < 0
-        || entry.achievementUnlocked > entry.achievementTotal) {
-        continue;
+      const progress = normalizePlatformAchievementProgress(
+        entry.achievementTotal,
+        entry.achievementUnlocked,
+      );
+      achievementUnlocked += progress.achievementUnlocked ?? 0;
+      achievementTotal += progress.achievementTotal ?? 0;
+      if ((progress.achievementUnlocked ?? 0) > 0 || progress.achievementTotal != null) {
+        achievementProfiles++;
       }
-      achievementUnlocked += entry.achievementUnlocked;
-      achievementTotal += entry.achievementTotal;
-      achievementProfiles++;
     }
   }
 

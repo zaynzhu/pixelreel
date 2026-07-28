@@ -7,6 +7,7 @@ import {
   effectiveGameStatus,
   gamePlaytimeMinutes,
 } from './GameStatusService';
+import { normalizePlatformAchievementProgress } from './import/PlatformGameSyncService';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
@@ -687,15 +688,24 @@ export function toMovieRecord(movie: any): LibraryRecordResponse {
 
 export function toGameRecord(game: any): LibraryRecordResponse {
   const sourceKey = detectGameSource(game);
-  const platformEntries = (game.platformEntries ?? []).map((entry: any) => ({
-    platform: entry.platform,
-    externalId: entry.externalId,
-    playtimeMinutes: entry.playtimeMinutes,
-    achievementTotal: entry.achievementTotal,
-    achievementUnlocked: entry.achievementUnlocked,
-    importedAt: entry.importedAt,
-    lastSyncedAt: entry.lastSyncedAt,
-  }));
+  const platformEntries = (game.platformEntries ?? []).map((entry: any) => {
+    const achievementProgress = normalizePlatformAchievementProgress(
+      entry.achievementTotal,
+      entry.achievementUnlocked,
+    );
+    return {
+      platform: entry.platform,
+      externalId: entry.externalId,
+      playtimeMinutes: entry.playtimeMinutes,
+      ...achievementProgress,
+      importedAt: entry.importedAt,
+      lastSyncedAt: entry.lastSyncedAt,
+    };
+  });
+  const achievementProgress = normalizePlatformAchievementProgress(
+    game.achievementTotal,
+    game.achievementUnlocked,
+  );
   const platformLabels = platformEntries.map((entry: any) => gameSourceLabel(
     entry.platform.toLowerCase(),
   ));
@@ -718,8 +728,8 @@ export function toGameRecord(game: any): LibraryRecordResponse {
     rating: game.rating,
     shortReview: game.shortReview,
     playtimeMinutes: gamePlaytimeMinutes(game),
-    achievementTotal: game.achievementTotal,
-    achievementUnlocked: game.achievementUnlocked,
+    achievementTotal: achievementProgress.achievementTotal,
+    achievementUnlocked: achievementProgress.achievementUnlocked,
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
     importedAt: game.importedAt,

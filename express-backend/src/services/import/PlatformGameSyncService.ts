@@ -27,6 +27,24 @@ export function parsePlatformGameMetric(value: unknown): number | null {
     : null;
 }
 
+export function normalizePlatformAchievementProgress(
+  achievementTotal: number | null,
+  achievementUnlocked: number | null,
+) {
+  const total = achievementTotal != null && Number.isInteger(achievementTotal) && achievementTotal > 0
+    ? achievementTotal
+    : null;
+  const unlocked = achievementUnlocked != null
+    && Number.isInteger(achievementUnlocked)
+    && achievementUnlocked >= 0
+    ? achievementUnlocked
+    : null;
+  return {
+    achievementTotal: total != null && unlocked != null && unlocked > total ? null : total,
+    achievementUnlocked: unlocked,
+  };
+}
+
 export function isPlatformGameExternalIdValid(value: string): boolean {
   return value.length > 0 && value.length <= PLATFORM_GAME_EXTERNAL_ID_MAX_LENGTH;
 }

@@ -226,6 +226,7 @@ import {
   hasPlatformGameMetricUpdate,
   isPlatformGameExternalIdValid,
   isPlatformGameTitleValid,
+  normalizePlatformAchievementProgress,
   normalizePlatformGamePosterUrl,
   parsePlatformGameMetric,
   resolvePlatformGameImportStatus,
@@ -625,6 +626,15 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非 Xbox 游戏及重复
             totalAchievements: 50,
           },
         },
+        {
+          titleId: 'invalid-total',
+          name: 'Played Game With Unknown Total',
+          type: 'Game',
+          achievement: {
+            currentAchievements: 20,
+            totalAchievements: 0,
+          },
+        },
       ],
     },
     code: 200,
@@ -636,6 +646,13 @@ test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非 Xbox 游戏及重复
     playtimeMinutes: null,
     achievementTotal: 50,
     achievementUnlocked: 0,
+  }, {
+    titleId: 'invalid-total',
+    name: 'Played Game With Unknown Total',
+    posterUrl: null,
+    playtimeMinutes: null,
+    achievementTotal: null,
+    achievementUnlocked: 20,
   }]);
   assert.equal(extractXuid({ content: { people: [{ xuid: '2533274792093122' }] } }), '2533274792093122');
   assert.equal(extractXuid({
@@ -832,6 +849,18 @@ test('主机平台指标只接受 Prisma Int 范围内的非负整数', () => {
   assert.equal(parsePlatformGameMetric(PLATFORM_GAME_METRIC_MAX_VALUE + 1), null);
   assert.equal(parsePlatformGameMetric('-1'), null);
   assert.equal(parsePlatformGameMetric('12 minutes'), null);
+  assert.deepEqual(normalizePlatformAchievementProgress(50, 20), {
+    achievementTotal: 50,
+    achievementUnlocked: 20,
+  });
+  assert.deepEqual(normalizePlatformAchievementProgress(0, 20), {
+    achievementTotal: null,
+    achievementUnlocked: 20,
+  });
+  assert.deepEqual(normalizePlatformAchievementProgress(10, 11), {
+    achievementTotal: null,
+    achievementUnlocked: 11,
+  });
 });
 
 test('主机平台导入未指定状态时默认为想玩', () => {
@@ -1399,6 +1428,25 @@ test('统一详情响应保留三类记录的显示字段和来源身份', () =>
       lastSyncedAt: new Date('2026-01-02T00:00:00Z'),
     }],
   });
+  const gameWithUnknownTotal = toGameRecord({
+    ...common,
+    platform: 'xbox',
+    achievementTotal: 0,
+    achievementUnlocked: 74,
+    platformEntries: [{
+      platform: 'XBOX',
+      externalId: 'unknown-total',
+      playtimeMinutes: null,
+      achievementTotal: 0,
+      achievementUnlocked: 74,
+      importedAt: null,
+      lastSyncedAt: new Date('2026-01-02T00:00:00Z'),
+    }],
+  });
+  assert.equal(gameWithUnknownTotal.achievementTotal, null);
+  assert.equal(gameWithUnknownTotal.achievementUnlocked, 74);
+  assert.equal(gameWithUnknownTotal.platformEntries[0].achievementTotal, null);
+  assert.equal(gameWithUnknownTotal.platformEntries[0].achievementUnlocked, 74);
 });
 
 test('TMDB 详情返回可用于纠正重复候选的身份和原始字段', () => {
@@ -2873,7 +2921,7 @@ test('已游玩的想玩游戏按进行中统计', () => {
   });
 });
 
-test('游戏遥测按平台档案汇总并忽略无效成就进度', () => {
+test('游戏遥测按平台档案汇总并归一化不完整成就进度', () => {
   assert.deepEqual(buildGameTelemetry([
     {
       playtimeMinutes: 999,
@@ -2898,9 +2946,9 @@ test('游戏遥测按平台档案汇总并忽略无效成就进度', () => {
   ]), {
     totalPlaytimeMinutes: 135,
     platformProfiles: 4,
-    achievementUnlocked: 20,
-    achievementTotal: 38,
-    achievementProfiles: 3,
+    achievementUnlocked: 31,
+    achievementTotal: 43,
+    achievementProfiles: 5,
   });
 });
 
