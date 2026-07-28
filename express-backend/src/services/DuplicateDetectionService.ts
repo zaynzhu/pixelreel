@@ -294,6 +294,11 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
   });
 }
 
+export async function findDuplicateGroupByKey(category: DataHealthCategory, groupKey: string) {
+  return findDuplicateGroups(await loadDuplicateCandidates(category))
+    .find(group => group.key === groupKey) ?? null;
+}
+
 export async function listDuplicateGroups(
   category: DataHealthCategory,
   limit: number,

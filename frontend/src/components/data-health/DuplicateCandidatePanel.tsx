@@ -33,13 +33,16 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
+  const [mergingRecordId, setMergingRecordId] = useState<number | null>(null)
   const duplicateViewKey = `${category}:${review}`
   const duplicateViewRef = useRef(duplicateViewKey)
   const latestDuplicateRequest = useRef(0)
   const latestOpenRequest = useRef(0)
   const latestReviewRequest = useRef(0)
+  const latestMergeRequest = useRef(0)
   const openRequestActive = useRef(false)
   const reviewRequestActive = useRef(false)
+  const mergeRequestActive = useRef(false)
   duplicateViewRef.current = duplicateViewKey
 
   const fetchGroups = useCallback(async (cursor?: string) => {
@@ -74,6 +77,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     setRescrapeRecord(null)
     setOpeningRecordId(null)
     setReviewingGroupKey(null)
+    setMergingRecordId(null)
     fetchGroups()
       .then(data => {
         if (!active || requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
@@ -94,8 +98,10 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       active = false
       latestOpenRequest.current += 1
       latestReviewRequest.current += 1
+      latestMergeRequest.current += 1
       openRequestActive.current = false
       reviewRequestActive.current = false
+      mergeRequestActive.current = false
     }
   }, [duplicateViewKey, fetchGroups, t])
 
@@ -227,6 +233,34 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       if (requestId === latestReviewRequest.current) {
         reviewRequestActive.current = false
         setReviewingGroupKey(null)
+      }
+    }
+  }
+
+  const mergeIntoRecord = async (group: DuplicateGroup, recordId: number, title: string) => {
+    if (category !== "game" || mergeRequestActive.current) return
+    const requestId = ++latestMergeRequest.current
+    const actionViewKey = duplicateViewKey
+    mergeRequestActive.current = true
+    try {
+      if (!(await confirmDialog(t("health.duplicates.merge_confirm", title)))) return
+      if (requestId !== latestMergeRequest.current || actionViewKey !== duplicateViewRef.current) return
+      setMergingRecordId(recordId)
+      await apiFetch("/data-health/duplicates/merge", {
+        method: "POST",
+        body: JSON.stringify({ groupKey: group.key, targetId: String(recordId) }),
+      })
+      if (requestId !== latestMergeRequest.current || actionViewKey !== duplicateViewRef.current) return
+      toast(t("health.duplicates.merge_success"))
+      await refreshGroups()
+    } catch (reason) {
+      if (requestId === latestMergeRequest.current && actionViewKey === duplicateViewRef.current) {
+        toast(reason instanceof Error ? reason.message : t("health.duplicates.merge_error"), "error")
+      }
+    } finally {
+      if (requestId === latestMergeRequest.current) {
+        mergeRequestActive.current = false
+        setMergingRecordId(null)
       }
     }
   }
@@ -386,6 +420,18 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                             ? t("health.duplicates.opening")
                             : t("health.duplicates.rematch")}
                         </button>
+                        {category === "game" && review === "unreviewed" && (
+                          <button
+                            type="button"
+                            onClick={() => void mergeIntoRecord(group, record.id, record.title)}
+                            disabled={mergingRecordId != null || reviewingGroupKey != null}
+                            className="brutal-btn-accent whitespace-nowrap"
+                          >
+                            {mergingRecordId === record.id
+                              ? t("health.duplicates.merging")
+                              : t("health.duplicates.merge_into")}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )

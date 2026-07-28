@@ -18,6 +18,7 @@ const ACTION_COLORS: Record<ActivityAction, string> = {
   CREATE: '#66ff66',
   UPDATE: '#d4ff00',
   DELETE: '#ff4444',
+  MERGE: '#44aaff',
   TASK_START: '#888888',
   TASK_DONE: '#44aaff',
   TASK_FAIL: '#ff4444',
@@ -82,6 +83,15 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
     return (
       <span className="text-[10px] text-[var(--muted)]">
         {parts.join(' | ') || '-'}
+      </span>
+    )
+  }
+
+  if (action === 'MERGE') {
+    const sourceIds = Array.isArray(metadata?.sourceIds) ? metadata.sourceIds.join(', ') : null
+    return (
+      <span className="text-[10px] text-[var(--muted)]">
+        {sourceIds ? `merged: ${sourceIds}` : '-'}
       </span>
     )
   }
@@ -255,6 +265,7 @@ const ACTION_I18N_MAP = {
   CREATE: 'activity.created',
   UPDATE: 'activity.updated',
   DELETE: 'activity.deleted',
+  MERGE: 'activity.merged',
   TASK_START: 'activity.task_start',
   TASK_DONE: 'activity.task_done',
   TASK_FAIL: 'activity.task_fail',

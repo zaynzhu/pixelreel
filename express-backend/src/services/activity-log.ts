@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client'
 // 排除的系统字段，不记录到变更详情
 const SYSTEM_FIELDS = new Set(['id', 'createdAt', 'updatedAt'])
 
-export type ActivityAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL' | 'TASK_CANCEL' | 'UNDO'
+export type ActivityAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'MERGE' | 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL' | 'TASK_CANCEL' | 'UNDO'
 export type EntityType = 'MOVIE' | 'TV_SHOW' | 'GAME' | 'TASK'
 
 interface LogActivityParams {

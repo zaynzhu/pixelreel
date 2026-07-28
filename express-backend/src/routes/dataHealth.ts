@@ -16,6 +16,7 @@ import {
   restoreDuplicateGroupReview,
   reviewDuplicateGroup,
 } from '../services/DuplicateDetectionService';
+import { mergeDuplicateGames } from '../services/GameMergeService';
 import {
   assertEmptyRequestBody,
   assertNoQueryParameters,
@@ -31,6 +32,7 @@ const ISSUE_PARAMETER_KEYS = new Set(['category', 'issue', 'cursor', 'limit']);
 const REPAIR_BODY_KEYS = new Set(['category', 'issue', 'limit']);
 const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit', 'review']);
 const DUPLICATE_REVIEW_BODY_KEYS = new Set(['category', 'groupKey']);
+const DUPLICATE_MERGE_BODY_KEYS = new Set(['groupKey', 'targetId']);
 
 export function parseDataHealthIssueParameters(query: Record<string, unknown>) {
   const unknownKey = Object.keys(query).find(key => !ISSUE_PARAMETER_KEYS.has(key));
@@ -92,6 +94,19 @@ export function parseDuplicateReviewBody(value: unknown) {
   };
 }
 
+export function parseDuplicateMergeBody(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RequestValidationError('请求体必须是对象');
+  }
+  const body = value as Record<string, unknown>;
+  const unknownKey = Object.keys(body).find(key => !DUPLICATE_MERGE_BODY_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知字段: ${unknownKey}`);
+  return {
+    groupKey: parseBoundedStringParameter(body.groupKey, 'groupKey', 80, true)!,
+    targetId: parsePositiveBigIntParameter(body.targetId, 'targetId', true)!,
+  };
+}
+
 router.get('/summary', async (req: Request, res: Response) => {
   assertNoQueryParameters(req.query);
   res.json(await getDataHealthSummary());
@@ -129,6 +144,12 @@ router.delete('/duplicates/review/:id', async (req: Request, res: Response) => {
   const id = parsePositiveBigIntParameter(req.params.id, 'id', true)!;
   await restoreDuplicateGroupReview(id);
   res.status(204).end();
+});
+
+router.post('/duplicates/merge', async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
+  const parameters = parseDuplicateMergeBody(req.body);
+  res.json(await mergeDuplicateGames(parameters.groupKey, parameters.targetId));
 });
 
 router.post('/repair', (req: Request, res: Response) => {

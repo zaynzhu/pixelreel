@@ -34,6 +34,7 @@ import {
   parseDataHealthIssueParameters,
   parseDataHealthRepairBody,
   parseDuplicateListParameters,
+  parseDuplicateMergeBody,
   parseDuplicateReviewBody,
 } from '../routes/dataHealth';
 import { getHealthStatus } from '../routes/health';
@@ -191,6 +192,7 @@ import {
   findDuplicateGroups,
   normalizeDuplicateTitle,
 } from '../services/DuplicateDetectionService';
+import { resolveGameMergeValues } from '../services/GameMergeService';
 import {
   buildCompletedWhere,
   encodeLibraryCursor,
@@ -1155,6 +1157,17 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
     category: 'movie',
     groupKey: movieGroups[0].key,
   });
+  assert.deepEqual(parseDuplicateMergeBody({
+    groupKey: gameGroups[0].key,
+    targetId: '5',
+  }), {
+    groupKey: gameGroups[0].key,
+    targetId: 5n,
+  });
+  assert.throws(
+    () => parseDuplicateMergeBody({ groupKey: gameGroups[0].key, targetId: '5', force: true }),
+    /未知字段/,
+  );
   assert.throws(
     () => parseDuplicateReviewBody({ category: 'movie', groupKey: 'x'.repeat(81) }),
     /80/,
@@ -1166,6 +1179,66 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
   assert.throws(
     () => parseDuplicateListParameters({ category: 'movie', cursor: '0' }),
     /正整数/,
+  );
+});
+
+test('游戏合并只自动汇总不冲突的个人记录和平台身份', () => {
+  const base = {
+    status: 'WANT',
+    rating: null,
+    shortReview: null,
+    posterUrl: null,
+    importReviewState: 'PENDING',
+    importedAt: null,
+    rawgId: null,
+    steamAppId: null,
+    xboxId: null,
+    psnId: null,
+    platform: null,
+  };
+  const target = {
+    ...base,
+    id: 1n,
+    status: 'DONE',
+    rating: 5,
+    shortReview: '值得重玩',
+    posterUrl: 'https://example.com/steam.jpg',
+    importReviewState: 'ACCEPTED',
+    importedAt: new Date('2026-07-20T00:00:00Z'),
+    steamAppId: 10n,
+    platform: 'STEAM',
+  };
+  const source = {
+    ...base,
+    id: 2n,
+    status: 'WANT',
+    rating: 5,
+    shortReview: '值得重玩',
+    importedAt: new Date('2026-07-10T00:00:00Z'),
+    psnId: '20',
+    platform: 'PSN',
+  };
+
+  assert.deepEqual(resolveGameMergeValues(target, [target, source]), {
+    status: 'DONE',
+    rating: 5,
+    shortReview: '值得重玩',
+    posterUrl: 'https://example.com/steam.jpg',
+    importReviewState: 'ACCEPTED',
+    importedAt: new Date('2026-07-10T00:00:00Z'),
+    rawgId: null,
+    steamAppId: 10n,
+    xboxId: null,
+    psnId: '20',
+    platform: 'STEAM',
+  });
+  assert.throws(
+    () => resolveGameMergeValues(target, [{ ...target, status: 'DONE' }, { ...source, status: 'DROPPED' }]),
+    /个人状态存在冲突/,
+  );
+  assert.throws(
+    () => resolveGameMergeValues(target, [{ ...target, rawgId: 10n }, { ...source, rawgId: 20n }]),
+    /不同的 RAWG/,
   );
 });
 
