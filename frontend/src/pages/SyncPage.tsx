@@ -32,6 +32,42 @@ type DirectSource = 'steam' | 'trakt' | 'xbox' | 'psn'
 type PlatformSource = 'xbox' | 'psn'
 type XboxProvider = 'microsoft' | 'openxbl'
 type ConnectionResult = { ok: true } | { ok: false; error: string }
+type PlatformAccounts = Record<PlatformSource, string>
+type RememberedPlatformAccounts = Record<PlatformSource, boolean>
+
+const PLATFORM_ACCOUNT_STORAGE_KEY = 'pixelreel.sync.platform-accounts.v1'
+
+function loadRememberedPlatformAccounts(): PlatformAccounts {
+  const emptyAccounts = { xbox: '', psn: '' }
+  try {
+    const stored = JSON.parse(localStorage.getItem(PLATFORM_ACCOUNT_STORAGE_KEY) ?? '{}') as Partial<PlatformAccounts>
+    return {
+      xbox: typeof stored.xbox === 'string' && stored.xbox.length <= 100 ? stored.xbox : '',
+      psn: typeof stored.psn === 'string' && stored.psn.length <= 100 ? stored.psn : '',
+    }
+  } catch {
+    return emptyAccounts
+  }
+}
+
+function saveRememberedPlatformAccounts(
+  accounts: PlatformAccounts,
+  remembered: RememberedPlatformAccounts,
+) {
+  const stored = {
+    xbox: remembered.xbox ? accounts.xbox : '',
+    psn: remembered.psn ? accounts.psn : '',
+  }
+  try {
+    if (stored.xbox || stored.psn) {
+      localStorage.setItem(PLATFORM_ACCOUNT_STORAGE_KEY, JSON.stringify(stored))
+    } else {
+      localStorage.removeItem(PLATFORM_ACCOUNT_STORAGE_KEY)
+    }
+  } catch {
+    // 浏览器拒绝本地存储时仍允许本次同步
+  }
+}
 
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
@@ -58,7 +94,11 @@ export default function SyncPage() {
     xbox: 'WANT',
     psn: 'WANT',
   })
-  const [platformAccounts, setPlatformAccounts] = useState({ xbox: '', psn: '' })
+  const [platformAccounts, setPlatformAccounts] = useState<PlatformAccounts>(loadRememberedPlatformAccounts)
+  const [rememberedPlatformAccounts, setRememberedPlatformAccounts] = useState<RememberedPlatformAccounts>(() => {
+    const remembered = loadRememberedPlatformAccounts()
+    return { xbox: Boolean(remembered.xbox), psn: Boolean(remembered.psn) }
+  })
   const [xboxProvider, setXboxProvider] = useState<XboxProvider>('microsoft')
   const [connectionResults, setConnectionResults] = useState<Partial<Record<PlatformSource, ConnectionResult>>>({})
   const taskStateReady = tasksInitialized && taskPollError === null
@@ -114,6 +154,10 @@ export default function SyncPage() {
       latestConnectionRequest.current++
     }
   }, [])
+
+  useEffect(() => {
+    saveRememberedPlatformAccounts(platformAccounts, rememberedPlatformAccounts)
+  }, [platformAccounts, rememberedPlatformAccounts])
 
   const sourceTasks = useMemo(() => tasks.filter(task =>
     Object.values(TASK_TYPES).includes(task.type)
@@ -245,6 +289,10 @@ export default function SyncPage() {
     latestConnectionRequest.current++
     setPlatformAccounts(current => ({ ...current, [source]: value }))
     setConnectionResults(current => ({ ...current, [source]: undefined }))
+  }
+
+  const updateRememberedPlatformAccount = (source: PlatformSource, remembered: boolean) => {
+    setRememberedPlatformAccounts(current => ({ ...current, [source]: remembered }))
   }
 
   if (loading && !status) return <SyncState label={t('sync.loading')} />
@@ -408,6 +456,8 @@ export default function SyncPage() {
                 source="xbox"
                 value={platformAccounts.xbox}
                 onChange={value => updatePlatformAccount('xbox', value)}
+                remembered={rememberedPlatformAccounts.xbox}
+                onRememberChange={remembered => updateRememberedPlatformAccount('xbox', remembered)}
               />
             ) : (
               <SyncButton
@@ -456,6 +506,8 @@ export default function SyncPage() {
               source="psn"
               value={platformAccounts.psn}
               onChange={value => updatePlatformAccount('psn', value)}
+              remembered={rememberedPlatformAccounts.psn}
+              onRememberChange={remembered => updateRememberedPlatformAccount('psn', remembered)}
             />
             <SyncButton
               label={t('sync.connection.verify')}
@@ -646,24 +698,37 @@ function StatusSelect({ value, onChange }: { value: RecordStatus; onChange: (val
   )
 }
 
-function AccountInput({ source, value, onChange }: {
+function AccountInput({ source, value, onChange, remembered, onRememberChange }: {
   source: 'xbox' | 'psn'
   value: string
   onChange: (value: string) => void
+  remembered: boolean
+  onRememberChange: (remembered: boolean) => void
 }) {
   const { t } = useI18nStore()
   return (
-    <label className="mb-3 block text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
-      {t(`sync.${source}.account`)}
-      <input
-        value={value}
-        onChange={event => onChange(event.target.value)}
-        maxLength={100}
-        autoComplete="off"
-        placeholder={t(`sync.${source}.placeholder`)}
-        className="tech-input mt-2 w-full"
-      />
-    </label>
+    <div className="mb-3">
+      <label className="block text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
+        {t(`sync.${source}.account`)}
+        <input
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          maxLength={100}
+          autoComplete="off"
+          placeholder={t(`sync.${source}.placeholder`)}
+          className="tech-input mt-2 w-full"
+        />
+      </label>
+      <label className="mt-2 flex cursor-pointer items-start gap-2 text-[9px] leading-4 text-[var(--muted)]">
+        <input
+          type="checkbox"
+          checked={remembered}
+          onChange={event => onRememberChange(event.target.checked)}
+          className="mt-0.5 accent-[var(--accent)]"
+        />
+        <span>{t('sync.account.remember')}</span>
+      </label>
+    </div>
   )
 }
 
