@@ -82,6 +82,7 @@ import {
   parsePsnProfilePage,
   verifyPsnProfilesConnection,
 } from '../services/import/PsnProfilesImportService';
+import { buildLegacyGamePlatformEntrySeeds } from '../services/GamePlatformEntryService';
 import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
 import { toSafeTmdbId } from '../services/import/TmdbId';
 import { fetchMovieDetail } from '../services/import/TmdbDetailBackfillService';
@@ -512,6 +513,67 @@ test('平台游戏导入在调用外部服务前校验账号参数', () => {
   assert.throws(() => parsePsnConnectionParameters({ psnId: 'player/name' }), RequestValidationError);
   assert.equal(resolvePlatformImportAccount(null, ' Default Player '), 'Default Player');
   assert.equal(resolvePlatformImportAccount('Override Player', 'Default Player'), 'Override Player');
+});
+
+test('旧游戏平台字段可无损生成平台档案且不会复制错平台指标', () => {
+  const importedAt = new Date('2026-07-23T03:18:35.000Z');
+  const updatedAt = new Date('2026-07-28T09:00:00.000Z');
+  assert.deepEqual(buildLegacyGamePlatformEntrySeeds({
+    id: 42n,
+    platform: null,
+    steamAppId: 123n,
+    xboxId: null,
+    psnId: null,
+    playtimeMinutes: 90,
+    achievementTotal: null,
+    achievementUnlocked: null,
+    importedAt,
+    updatedAt,
+  }), [{
+    gameId: 42n,
+    platform: 'STEAM',
+    externalId: '123',
+    playtimeMinutes: 90,
+    achievementTotal: null,
+    achievementUnlocked: null,
+    importedAt,
+    lastSyncedAt: updatedAt,
+  }]);
+
+  const entries = buildLegacyGamePlatformEntrySeeds({
+    id: 43n,
+    platform: 'PSN',
+    steamAppId: 456n,
+    xboxId: null,
+    psnId: '789',
+    playtimeMinutes: null,
+    achievementTotal: 50,
+    achievementUnlocked: 20,
+    importedAt,
+    updatedAt,
+  });
+  assert.deepEqual(entries.map(entry => ({
+    platform: entry.platform,
+    externalId: entry.externalId,
+    playtimeMinutes: entry.playtimeMinutes,
+    achievementTotal: entry.achievementTotal,
+    achievementUnlocked: entry.achievementUnlocked,
+  })), [
+    {
+      platform: 'STEAM',
+      externalId: '456',
+      playtimeMinutes: null,
+      achievementTotal: null,
+      achievementUnlocked: null,
+    },
+    {
+      platform: 'PSN',
+      externalId: '789',
+      playtimeMinutes: null,
+      achievementTotal: 50,
+      achievementUnlocked: 20,
+    },
+  ]);
 });
 
 test('Xbox 导入解析当前 OpenXBL v2 响应并过滤非 Xbox 游戏及重复条目', () => {

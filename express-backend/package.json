@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "backfill:game-platforms": "tsx src/scripts/backfill-game-platform-entries.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",

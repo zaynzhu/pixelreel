@@ -138,12 +138,34 @@ model Game {
   xboxId     String?  @db.VarChar(50) @map("xbox_id")              /// Xbox Title ID
   psnId      String?  @db.VarChar(50) @map("psn_id")               /// PSN 游戏 ID
 
+  platformEntries GamePlatformEntry[]
+
   @@index([rawgId], map: "idx_game_rawg_id")
   @@index([steamAppId], map: "idx_game_steam_app_id")
   @@index([xboxId], map: "idx_game_xbox_id")
   @@index([psnId], map: "idx_game_psn_id")
   @@index([createdAt, id], map: "idx_game_created_id")
   @@map("game")
+}
+
+model GamePlatformEntry {
+  id                  BigInt    @id @default(autoincrement())
+  gameId              BigInt    @map("game_id")
+  platform            String    @db.VarChar(20)
+  externalId          String    @db.VarChar(50) @map("external_id")
+  playtimeMinutes     Int?      @map("playtime_minutes")
+  achievementTotal    Int?      @map("achievement_total")
+  achievementUnlocked Int?      @map("achievement_unlocked")
+  importedAt          DateTime? @map("imported_at") @db.DateTime(0)
+  lastSyncedAt        DateTime  @default(now()) @map("last_synced_at") @db.DateTime(0)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.DateTime(0)
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, externalId], map: "uq_game_platform_external")
+  @@index([gameId], map: "idx_game_platform_game_id")
+  @@map("game_platform_entry")
 }
 
 model ActivityLog {
