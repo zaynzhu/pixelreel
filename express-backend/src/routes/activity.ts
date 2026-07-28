@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import { logActivity, EntityType } from '../services/activity-log'
+import { restoreGameMerge } from '../services/GameMergeService'
 import {
   assertEmptyRequestBody,
   assertNoQueryParameters,
@@ -14,7 +15,7 @@ import {
 
 const router = Router()
 
-const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE'])
+const UNDOABLE_ACTIONS = new Set(['CREATE', 'UPDATE', 'DELETE', 'MERGE'])
 const ACTIVITY_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'MERGE', 'TASK_START', 'TASK_DONE', 'TASK_FAIL', 'TASK_CANCEL', 'UNDO'] as const
 const ACTIVITY_FILTER_ACTIONS = [...ACTIVITY_ACTIONS, 'DATA_CHANGE'] as const
 const DATA_CHANGE_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'MERGE', 'UNDO'] as const
@@ -210,6 +211,12 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
     })
     if (existingUndo) {
       res.status(409).json({ error: '该操作已撤销' })
+      return
+    }
+
+    if (entry.action === 'MERGE') {
+      await restoreGameMerge(entry.id, entry.entityId, entry.metadata)
+      res.json({ success: true, message: '游戏合并已撤销' })
       return
     }
 

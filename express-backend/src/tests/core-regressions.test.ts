@@ -196,7 +196,11 @@ import {
   findDuplicateGroups,
   normalizeDuplicateTitle,
 } from '../services/DuplicateDetectionService';
-import { resolveGameMergeValues } from '../services/GameMergeService';
+import {
+  buildGameMergeArchive,
+  parseGameMergeArchive,
+  resolveGameMergeValues,
+} from '../services/GameMergeService';
 import {
   buildCompletedWhere,
   encodeLibraryCursor,
@@ -1244,6 +1248,37 @@ test('游戏合并只自动汇总不冲突的个人记录和平台身份', () =>
     () => resolveGameMergeValues(target, [{ ...target, rawgId: 10n }, { ...source, rawgId: 20n }]),
     /不同的 RAWG/,
   );
+
+  const targetRecord = {
+    ...target,
+    title: '跨平台游戏',
+    playtimeMinutes: 30,
+    achievementTotal: null,
+    achievementUnlocked: null,
+    createdAt: new Date('2026-07-01T00:00:00Z'),
+    updatedAt: new Date('2026-07-20T00:00:00Z'),
+    platformEntries: [{ id: 10n }],
+  };
+  const sourceRecord = {
+    ...source,
+    title: '跨平台游戏',
+    playtimeMinutes: null,
+    achievementTotal: 50,
+    achievementUnlocked: 20,
+    createdAt: new Date('2026-07-02T00:00:00Z'),
+    updatedAt: new Date('2026-07-10T00:00:00Z'),
+    platformEntries: [{ id: 20n }],
+  };
+  const values = resolveGameMergeValues(targetRecord, [targetRecord, sourceRecord]);
+  const archive = buildGameMergeArchive(targetRecord, [sourceRecord], values);
+  assert.deepEqual(parseGameMergeArchive({ archive }), archive);
+  assert.deepEqual(archive.platformEntryOwners, [{ entryId: '20', gameId: '2' }]);
+  assert.equal(archive.sources[0].psnId, '20');
+  assert.throws(() => parseGameMergeArchive({}), /缺少恢复快照/);
+  assert.throws(
+    () => parseGameMergeArchive({ archive: { ...archive, version: 2 } }),
+    /格式无效/,
+  );
 });
 
 test('统一详情响应保留三类记录的显示字段和来源身份', () => {
@@ -1875,6 +1910,7 @@ test('已撤销的活动日志不再标记为可撤销', () => {
   assert.equal(serializeLog({ ...protectedCreate, entityType: 'TV_SHOW' }).undoable, false);
   assert.equal(serializeLog({ ...protectedCreate, entityType: 'GAME' }).undoable, true);
   assert.equal(serializeLog({ ...protectedCreate, newValues: { status: 'DONE' } }).undoable, true);
+  assert.equal(serializeLog({ ...entry, action: 'MERGE', entityType: 'GAME' }).undoable, true);
 });
 
 test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {
