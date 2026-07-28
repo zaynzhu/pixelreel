@@ -21,6 +21,7 @@ export interface LibraryRecordResponse {
   releaseDate: string | null;
   firstAirDate: string | null;
   platform: string | null;
+  platformEntries: GamePlatformEntryResponse[];
 
   // 来源身份
   doubanId: string | null;
@@ -53,6 +54,16 @@ export interface LibraryRecordResponse {
 
   // IMDb 占位
   imdbRating: number | null;
+}
+
+export interface GamePlatformEntryResponse {
+  platform: string;
+  externalId: string;
+  playtimeMinutes: number | null;
+  achievementTotal: number | null;
+  achievementUnlocked: number | null;
+  importedAt: string | null;
+  lastSyncedAt: string;
 }
 
 // Library 记录更新请求

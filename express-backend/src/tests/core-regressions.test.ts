@@ -1214,6 +1214,15 @@ test('统一详情响应保留三类记录的显示字段和来源身份', () =>
     steamAppId: 88n,
     xboxId: 'xbox-title',
     psnId: 'psn-title',
+    platformEntries: [{
+      platform: 'XBOX',
+      externalId: 'xbox-title',
+      playtimeMinutes: 120,
+      achievementTotal: 50,
+      achievementUnlocked: 20,
+      importedAt: new Date('2026-01-01T00:00:00Z'),
+      lastSyncedAt: new Date('2026-01-02T00:00:00Z'),
+    }],
   });
   assert.deepEqual({
     platform: game.platform,
@@ -1221,12 +1230,24 @@ test('统一详情响应保留三类记录的显示字段和来源身份', () =>
     steamAppId: game.steamAppId,
     xboxId: game.xboxId,
     psnId: game.psnId,
+    platformLabel: game.platformLabel,
+    platformEntries: game.platformEntries,
   }, {
     platform: 'xbox',
     rawgId: '77',
     steamAppId: '88',
     xboxId: 'xbox-title',
     psnId: 'psn-title',
+    platformLabel: 'Xbox',
+    platformEntries: [{
+      platform: 'XBOX',
+      externalId: 'xbox-title',
+      playtimeMinutes: 120,
+      achievementTotal: 50,
+      achievementUnlocked: 20,
+      importedAt: new Date('2026-01-01T00:00:00Z'),
+      lastSyncedAt: new Date('2026-01-02T00:00:00Z'),
+    }],
   });
 });
 

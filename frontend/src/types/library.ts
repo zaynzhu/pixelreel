@@ -8,6 +8,16 @@ export type LibraryReviewFilter = "all" | "reviewed" | "unreviewed";
 export type ImportReviewState = "PENDING" | "ACCEPTED" | "IGNORED";
 export type LibrarySort = "recent" | "rating";
 
+export type GamePlatformEntry = {
+  platform: string;
+  externalId: string;
+  playtimeMinutes: number | null;
+  achievementTotal: number | null;
+  achievementUnlocked: number | null;
+  importedAt: string | null;
+  lastSyncedAt: string;
+};
+
 export type LibraryRecord = {
   id: number;
   category: LibraryCategory;
@@ -30,6 +40,7 @@ export type LibraryRecord = {
   releaseDate?: string | null;
   firstAirDate?: string | null;
   platform?: string | null;
+  platformEntries?: GamePlatformEntry[];
 
   // 来源身份
   doubanId?: string | null;

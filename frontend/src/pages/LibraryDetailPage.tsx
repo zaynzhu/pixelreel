@@ -209,7 +209,50 @@ export default function LibraryDetailPage() {
         </div>
       </section>
 
-      {record.category === "game" && (
+      {record.category === "game" && record.platformEntries && record.platformEntries.length > 0 ? (
+        <section className="border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+          <div className="section-kicker">{t("detail.platform_profiles_kicker")}</div>
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-2xl text-white">{t("detail.platform_profiles_title")}</h2>
+              <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
+                {t("detail.platform_profiles_desc")}
+              </p>
+            </div>
+            <span className="font-mono text-3xl text-[var(--accent)]">
+              {String(record.platformEntries.length).padStart(2, "0")}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {record.platformEntries.map(entry => (
+              <article
+                key={`${entry.platform}:${entry.externalId}`}
+                className="relative overflow-hidden border border-[var(--line)] bg-black/30 p-4"
+              >
+                <div className="absolute inset-y-0 left-0 w-1 bg-[var(--accent)] opacity-70" />
+                <div className="flex flex-wrap items-center justify-between gap-2 pl-2">
+                  <Badge>{platformName(entry.platform)}</Badge>
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
+                    {t("detail.last_synced")} {formatDate(entry.lastSyncedAt)}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-px border border-[var(--line)] bg-[var(--line)]">
+                  <Metric label={t("detail.playtime")} value={formatPlaytime(entry.playtimeMinutes, t)} />
+                  <Metric
+                    label={t("detail.achievements")}
+                    value={entry.achievementTotal == null
+                      ? "—"
+                      : `${entry.achievementUnlocked ?? 0} / ${entry.achievementTotal}`}
+                  />
+                </div>
+                <div className="mt-3 pl-2 font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
+                  {t("detail.external_id")} <span className="break-all text-white">{entry.externalId}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : record.category === "game" && (
         <section className="grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
           <Metric label={t("detail.playtime")} value={formatPlaytime(record.playtimeMinutes, t)} />
           <Metric label={t("detail.achievements")} value={`${record.achievementUnlocked ?? 0} / ${record.achievementTotal ?? 0}`} />
@@ -475,4 +518,12 @@ function formatPlaytime(minutes: number | null | undefined, t: Translate) {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   return t("detail.playtime_value", String(hours), String(rest))
+}
+
+function platformName(platform: string) {
+  const normalized = platform.trim().toUpperCase()
+  if (normalized === "STEAM") return "Steam"
+  if (normalized === "XBOX") return "Xbox"
+  if (normalized === "PSN") return "PSN"
+  return platform
 }

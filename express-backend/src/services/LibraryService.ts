@@ -513,7 +513,10 @@ export async function getRecord(category: string, id: number): Promise<LibraryRe
     if (!movie) throw Object.assign(new Error('Movie record not found'), { status: 404 });
     return toMovieRecord(movie);
   } else if (normalized === 'game') {
-    const game = await getDb().game.findUnique({ where: { id } });
+    const game = await getDb().game.findUnique({
+      where: { id },
+      include: { platformEntries: { orderBy: { platform: 'asc' } } },
+    });
     if (!game) throw Object.assign(new Error('Game record not found'), { status: 404 });
     return toGameRecord(game);
   } else if (normalized === 'tv_show' || normalized === 'tvshow') {
@@ -573,7 +576,10 @@ async function updateGame(id: number, request: LibraryRecordUpdateRequest): Prom
     },
   });
 
-  const updated = await getDb().game.findUnique({ where: { id } });
+  const updated = await getDb().game.findUnique({
+    where: { id },
+    include: { platformEntries: { orderBy: { platform: 'asc' } } },
+  });
   return toGameRecord(updated!);
 }
 
@@ -618,6 +624,7 @@ export function toMovieRecord(movie: any): LibraryRecordResponse {
     releaseDate: movie.releaseDate ?? null,
     firstAirDate: null,
     platform: null,
+    platformEntries: [],
     doubanId: movie.doubanId ?? null,
     tmdbId: movie.tmdbId?.toString() ?? null,
     imdbId: movie.imdbId ?? null,
@@ -647,6 +654,18 @@ export function toMovieRecord(movie: any): LibraryRecordResponse {
 
 export function toGameRecord(game: any): LibraryRecordResponse {
   const sourceKey = detectGameSource(game);
+  const platformEntries = (game.platformEntries ?? []).map((entry: any) => ({
+    platform: entry.platform,
+    externalId: entry.externalId,
+    playtimeMinutes: entry.playtimeMinutes,
+    achievementTotal: entry.achievementTotal,
+    achievementUnlocked: entry.achievementUnlocked,
+    importedAt: entry.importedAt,
+    lastSyncedAt: entry.lastSyncedAt,
+  }));
+  const platformLabels = platformEntries.map((entry: any) => gameSourceLabel(
+    entry.platform.toLowerCase(),
+  ));
   return {
     id: Number(game.id),
     category: 'game',
@@ -654,7 +673,9 @@ export function toGameRecord(game: any): LibraryRecordResponse {
     posterUrl: game.posterUrl,
     sourceKey,
     sourceLabel: gameSourceLabel(sourceKey),
-    platformLabel: game.platform
+    platformLabel: platformLabels.length > 0
+      ? platformLabels.join(' / ')
+      : game.platform
       ? (game.platform.trim().toUpperCase() === 'PSN' ? 'PSN'
         : game.platform.trim().toUpperCase() === 'XBOX' ? 'Xbox'
         : game.platform.trim().toUpperCase() === 'STEAM' ? 'Steam'
@@ -674,6 +695,7 @@ export function toGameRecord(game: any): LibraryRecordResponse {
     releaseDate: null,
     firstAirDate: null,
     platform: game.platform ?? null,
+    platformEntries,
     doubanId: null,
     tmdbId: null,
     imdbId: null,
@@ -716,6 +738,7 @@ export function toTvShowRecord(show: any): LibraryRecordResponse {
     releaseDate: null,
     firstAirDate: show.firstAirDate ?? null,
     platform: null,
+    platformEntries: [],
     doubanId: show.doubanId ?? null,
     tmdbId: show.tmdbId?.toString() ?? null,
     imdbId: show.imdbId ?? null,
