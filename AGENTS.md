@@ -92,7 +92,7 @@ frontend/src/
 | `/analytics` | `GET /api/analytics?year=`（年度分析数据） |
 | `/sync` | `GET /api/import/sources/status`，并复用各来源导入接口与任务接口 |
 | `/sync/review` | `GET /api/library?importReview=pending|ignored`, `POST /api/library/import-review` |
-| `/data-health` | `GET /api/data-health/summary`, `GET /api/data-health/issues`, `GET /api/data-health/duplicates`, `POST/DELETE /api/data-health/duplicates/review`, `POST /api/data-health/repair`（数据完整性审计、重复候选裁决和定向修复） |
+| `/data-health` | `GET /api/data-health/summary`, `GET /api/data-health/issues`, `GET /api/data-health/duplicates`, `POST/DELETE /api/data-health/duplicates/review`, `POST /api/data-health/duplicates/merge-preview`, `POST /api/data-health/duplicates/merge`, `POST /api/data-health/repair`（数据完整性审计、重复候选裁决、游戏合并预览和定向修复） |
 | `/tools` | `GET /api/tools/export-library`, `GET /api/tools/search?query=`, `POST /api/tools/convert-category` |
 | `/radar` | `GET /api/radar?...&syncType=new_release`, `POST /api/radar/sync-new-releases` |
 | `/popular` | `GET /api/radar?...&syncType=popular`, `POST /api/radar/sync` |
@@ -134,7 +134,7 @@ frontend/src/
 - **展示读取：** Showcase 摘要的加载、失败和重试文案必须使用 i18n；初次读取失败时必须持续显示具体原因和原地重试入口，已有摘要的刷新期间与刷新失败后必须保留现有展厅内容并显示可重试错误，不能留下无法恢复的错误页。
 - **海报轮换：** Showcase 自动海报墙的定时请求必须采用最新批次获胜；慢旧批次的成功或失败不能覆盖已经显示的新批次。当前批次失败时保留最后成功海报，明确显示轮换错误并提供原地重试，不能静默回退到初始列表。
 - **数据健康修复：** `POST /api/data-health/repair` 每次最多处理 50 条并创建唯一后台任务，只填充所选空字段及对应空 TMDB 原始字段；电影/剧集使用 TMDB，游戏仅支持 RAWG 封面，游戏外部 ID 必须人工核对，不能按标题自动绑定。任务在外部请求期间被取消后必须在下一次请求和数据库写入前再次检查取消信号，不能继续落库。
-- **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份，游戏按规范化标题+同平台或跨平台匹配。候选可逐条纠正辅助元数据，或整组标记为“确认不同”并恢复；裁决指纹随成员和共享标识变化而失效。系统不能按标题自动合并或删除；用户确认的游戏合并必须先拒绝个人状态、评分、短评和 RAWG 身份冲突，在同一事务内迁移平台档案、保存完整恢复快照并写入不可伪装的 `MERGE` 活动，且可从活动日志安全撤销；撤销前若保留记录或平台档案已变化则必须拒绝。豆瓣来源身份和原始字段必须保留。
+- **重复候选：** `/data-health/duplicates` 只读分组外部 ID 相同的记录；无共同外部 ID 时，影视仅按规范化标题+年份，游戏按规范化标题+同平台或跨平台匹配。候选可逐条纠正辅助元数据，或整组标记为“确认不同”并恢复；裁决指纹随成员和共享标识变化而失效。游戏合并前必须通过只读预览重新读取当前候选，展示保留记录、移除记录数、平台档案迁移数量、合并后的个人状态/评分/短评以及全部阻断原因；存在冲突时不能提供最终合并操作。系统不能按标题自动合并或删除；用户确认的游戏合并必须在同一事务内迁移平台档案、保存完整恢复快照并写入不可伪装的 `MERGE` 活动，且可从活动日志安全撤销；撤销前若保留记录或平台档案已变化则必须拒绝。豆瓣来源身份和原始字段必须保留。
 - **豆瓣数据保护：** Prisma 写入层拒绝删除带 `doubanId` 的 Movie/TvShow，单条删除、批量删除和活动撤销均返回 403；豆瓣影视的 CREATE 活动日志必须返回 `undoable=false`，前端不能显示撤销入口。分类转换仅允许在同一事务完整复制记录后删除源记录。
 - **资料库快照：** `GET /api/tools/export-library` 在只读事务中按 ID 导出全部 Movie/TvShow/Game 字段，包含豆瓣原始字段和导入审核状态；快照格式为 `pixelreel-library-export` v1，不包含环境变量、Settings 或任何凭据，也不提供覆盖/恢复写入入口。
 - **工具页搜索：** 类型转换前的记录搜索失败必须持续显示具体原因和重试入口；同关键词刷新失败时保留已有结果，重试必须复用失败时的关键词，新关键词失败不能显示旧结果或伪装成“未找到”；页面卸载时必须使在途搜索失效。分类转换的进行中状态必须按类别和 ID 唯一标识，成功后移除旧搜索结果，不能保留已失效的源类别和旧 ID。

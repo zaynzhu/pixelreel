@@ -31,6 +31,16 @@ export interface GameMergeValues {
   platform: string | null;
 }
 
+export type GameMergeBlocker = 'status' | 'rating' | 'review' | 'rawg';
+
+interface GameMergeInspection {
+  meaningfulStatuses: string[];
+  ratings: number[];
+  reviews: string[];
+  rawgIds: string[];
+  blockers: GameMergeBlocker[];
+}
+
 interface SerializedGameMergeValues {
   status: string;
   rating: number | null;
@@ -71,23 +81,31 @@ function uniqueValues<T>(values: Array<T | null | undefined>): T[] {
   return Array.from(new Set(values.filter((value): value is T => value != null)));
 }
 
+export function inspectGameMerge(records: MergeableGame[]): GameMergeInspection {
+  const meaningfulStatuses = uniqueValues(
+    records.map(record => ['IN_PROGRESS', 'DONE', 'DROPPED'].includes(record.status) ? record.status : null),
+  );
+  const ratings = uniqueValues(records.map(record => record.rating));
+  const reviews = uniqueValues(records.map(record => record.shortReview?.trim() || null));
+  const rawgIds = uniqueValues(records.map(record => record.rawgId?.toString() ?? null));
+  const blockers: GameMergeBlocker[] = [];
+  if (meaningfulStatuses.length > 1) blockers.push('status');
+  if (ratings.length > 1) blockers.push('rating');
+  if (reviews.length > 1) blockers.push('review');
+  if (rawgIds.length > 1) blockers.push('rawg');
+  return { meaningfulStatuses, ratings, reviews, rawgIds, blockers };
+}
+
 export function resolveGameMergeValues(
   target: MergeableGame,
   records: MergeableGame[],
 ): GameMergeValues {
-  const meaningfulStatuses = uniqueValues(
-    records.map(record => ['IN_PROGRESS', 'DONE', 'DROPPED'].includes(record.status) ? record.status : null),
-  );
-  if (meaningfulStatuses.length > 1) conflict('候选记录的个人状态存在冲突，请先手动统一');
-
-  const ratings = uniqueValues(records.map(record => record.rating));
-  if (ratings.length > 1) conflict('候选记录的个人评分存在冲突，请先手动统一');
-
-  const reviews = uniqueValues(records.map(record => record.shortReview?.trim() || null));
-  if (reviews.length > 1) conflict('候选记录的个人短评存在冲突，请先手动统一');
-
-  const rawgIds = uniqueValues(records.map(record => record.rawgId?.toString() ?? null));
-  if (rawgIds.length > 1) conflict('候选记录绑定了不同的 RAWG 条目，请先纠正匹配');
+  const inspection = inspectGameMerge(records);
+  const blocker = inspection.blockers[0];
+  if (blocker === 'status') conflict('候选记录的个人状态存在冲突，请先手动统一');
+  if (blocker === 'rating') conflict('候选记录的个人评分存在冲突，请先手动统一');
+  if (blocker === 'review') conflict('候选记录的个人短评存在冲突，请先手动统一');
+  if (blocker === 'rawg') conflict('候选记录绑定了不同的 RAWG 条目，请先纠正匹配');
 
   const importedDates = records
     .map(record => record.importedAt)
@@ -96,19 +114,62 @@ export function resolveGameMergeValues(
   const reviewStates = new Set(records.map(record => record.importReviewState));
 
   return {
-    status: meaningfulStatuses[0] ?? target.status,
-    rating: target.rating ?? ratings[0] ?? null,
-    shortReview: target.shortReview?.trim() || reviews[0] || null,
+    status: inspection.meaningfulStatuses[0] ?? target.status,
+    rating: target.rating ?? inspection.ratings[0] ?? null,
+    shortReview: target.shortReview?.trim() || inspection.reviews[0] || null,
     posterUrl: target.posterUrl ?? records.find(record => record.posterUrl)?.posterUrl ?? null,
     importReviewState: reviewStates.has('ACCEPTED')
       ? 'ACCEPTED'
       : reviewStates.has('PENDING') ? 'PENDING' : target.importReviewState,
     importedAt: importedDates[0] ?? null,
-    rawgId: target.rawgId ?? (rawgIds[0] ? BigInt(rawgIds[0]) : null),
+    rawgId: target.rawgId ?? (inspection.rawgIds[0] ? BigInt(inspection.rawgIds[0]) : null),
     steamAppId: target.steamAppId ?? records.find(record => record.steamAppId)?.steamAppId ?? null,
     xboxId: target.xboxId ?? records.find(record => record.xboxId)?.xboxId ?? null,
     psnId: target.psnId ?? records.find(record => record.psnId)?.psnId ?? null,
     platform: target.platform ?? records.find(record => record.platform)?.platform ?? null,
+  };
+}
+
+export async function previewDuplicateGameMerge(groupKey: string, targetId: bigint) {
+  const group = await findDuplicateGroupByKey('game', groupKey);
+  if (!group) conflict('候选组已变化，请刷新后重试');
+  if (!group.records.some(record => BigInt(record.id) === targetId)) {
+    conflict('保留记录不属于当前候选组');
+  }
+
+  const recordIds = group.records.map(record => BigInt(record.id));
+  const records = await getDb().game.findMany({
+    where: { id: { in: recordIds } },
+    include: {
+      platformEntries: {
+        select: { id: true },
+      },
+    },
+  });
+  if (records.length !== recordIds.length) conflict('候选记录已变化，请刷新后重试');
+  const target = records.find(record => record.id === targetId);
+  if (!target) conflict('保留记录不存在');
+  const sources = records.filter(record => record.id !== targetId);
+  const inspection = inspectGameMerge(records);
+  const movedProfiles = sources.reduce((sum, source) => sum + source.platformEntries.length, 0);
+  const values = inspection.blockers.length === 0 ? resolveGameMergeValues(target, records) : null;
+
+  return {
+    targetId: Number(targetId),
+    targetTitle: target.title,
+    removedIds: sources.map(source => Number(source.id)),
+    canMerge: inspection.blockers.length === 0,
+    blockers: inspection.blockers,
+    platformProfiles: {
+      retained: target.platformEntries.length,
+      moved: movedProfiles,
+      total: target.platformEntries.length + movedProfiles,
+    },
+    result: values ? {
+      status: values.status,
+      rating: values.rating,
+      hasReview: Boolean(values.shortReview),
+    } : null,
   };
 }
 

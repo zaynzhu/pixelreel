@@ -199,6 +199,7 @@ import {
 } from '../services/DuplicateDetectionService';
 import {
   buildGameMergeArchive,
+  inspectGameMerge,
   parseGameMergeArchive,
   resolveGameMergeValues,
 } from '../services/GameMergeService';
@@ -1272,6 +1273,13 @@ test('游戏合并只自动汇总不冲突的个人记录和平台身份', () =>
   assert.throws(
     () => resolveGameMergeValues(target, [{ ...target, rawgId: 10n }, { ...source, rawgId: 20n }]),
     /不同的 RAWG/,
+  );
+  assert.deepEqual(
+    inspectGameMerge([
+      { ...target, status: 'DONE', rating: 5, shortReview: '保留短评', rawgId: 10n },
+      { ...source, status: 'DROPPED', rating: 4, shortReview: '另一条短评', rawgId: 20n },
+    ]).blockers,
+    ['status', 'rating', 'review', 'rawg'],
   );
 
   const targetRecord = {

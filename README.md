@@ -40,6 +40,7 @@
 - **后台任务恢复** -- 同步中心与命令抽屉共用持久化任务，服务重启后明确标记被中断任务，不再直接丢失状态
 - **临时账号记忆** -- Xbox Gamertag 与 PSN Online ID 可由用户选择保存在当前浏览器，取消勾选立即清除；密码和授权令牌不会进入浏览器存储
 - **游戏平台遥测** -- 首页按平台档案汇总总游玩时长、档案数量和 Xbox/PSN 成就进度，合并后的跨平台记录不会丢失来源指标
+- **安全合并预览** -- 跨平台重复游戏合并前展示保留结果、迁移档案和个人记录冲突；确认后仍保存完整快照并支持从操作日志撤销
 
 ## 🚀 Quick Start
 
@@ -284,6 +285,8 @@ GET    /api/data-health/issues?category=&issue=&cursor=&limit=
 GET    /api/data-health/duplicates?category=&cursor=&limit=
 POST   /api/data-health/duplicates/review
 DELETE /api/data-health/duplicates/review/:id
+POST   /api/data-health/duplicates/merge-preview
+POST   /api/data-health/duplicates/merge
 POST   /api/data-health/repair
 GET    /api/analytics?year=
 GET    /api/activity

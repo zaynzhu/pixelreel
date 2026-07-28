@@ -67,3 +67,23 @@ export interface DuplicateGroupResponse {
   reviewedGroups: number
   nextCursor: string | null
 }
+
+export type GameMergeBlocker = "status" | "rating" | "review" | "rawg"
+
+export interface GameMergePreview {
+  targetId: number
+  targetTitle: string
+  removedIds: number[]
+  canMerge: boolean
+  blockers: GameMergeBlocker[]
+  platformProfiles: {
+    retained: number
+    moved: number
+    total: number
+  }
+  result: {
+    status: string
+    rating: number | null
+    hasReview: boolean
+  } | null
+}

@@ -10,6 +10,7 @@ import type {
   DuplicateGroup,
   DuplicateGroupResponse,
   DuplicateReason,
+  GameMergePreview,
 } from "../../types/dataHealth"
 import type { LibraryRecord } from "../../types/library"
 import { ImgWithFallback } from "../ImgWithFallback"
@@ -33,6 +34,8 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
+  const [mergePreview, setMergePreview] = useState<{ groupKey: string; data: GameMergePreview } | null>(null)
+  const [previewingRecordId, setPreviewingRecordId] = useState<number | null>(null)
   const [mergingRecordId, setMergingRecordId] = useState<number | null>(null)
   const duplicateViewKey = `${category}:${review}`
   const duplicateViewRef = useRef(duplicateViewKey)
@@ -77,6 +80,8 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     setRescrapeRecord(null)
     setOpeningRecordId(null)
     setReviewingGroupKey(null)
+    setMergePreview(null)
+    setPreviewingRecordId(null)
     setMergingRecordId(null)
     fetchGroups()
       .then(data => {
@@ -237,20 +242,45 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     }
   }
 
-  const mergeIntoRecord = async (group: DuplicateGroup, recordId: number, title: string) => {
+  const openMergePreview = async (group: DuplicateGroup, recordId: number) => {
     if (category !== "game" || mergeRequestActive.current) return
     const requestId = ++latestMergeRequest.current
     const actionViewKey = duplicateViewKey
     mergeRequestActive.current = true
+    setPreviewingRecordId(recordId)
     try {
-      if (!(await confirmDialog(t("health.duplicates.merge_confirm", title)))) return
-      if (requestId !== latestMergeRequest.current || actionViewKey !== duplicateViewRef.current) return
-      setMergingRecordId(recordId)
-      await apiFetch("/data-health/duplicates/merge", {
+      const data = await apiFetch<GameMergePreview>("/data-health/duplicates/merge-preview", {
         method: "POST",
         body: JSON.stringify({ groupKey: group.key, targetId: String(recordId) }),
       })
       if (requestId !== latestMergeRequest.current || actionViewKey !== duplicateViewRef.current) return
+      setMergePreview({ groupKey: group.key, data })
+    } catch (reason) {
+      if (requestId === latestMergeRequest.current && actionViewKey === duplicateViewRef.current) {
+        toast(reason instanceof Error ? reason.message : t("health.duplicates.preview_error"), "error")
+      }
+    } finally {
+      if (requestId === latestMergeRequest.current) {
+        mergeRequestActive.current = false
+        setPreviewingRecordId(null)
+      }
+    }
+  }
+
+  const mergeIntoPreviewTarget = async () => {
+    if (!mergePreview?.data.canMerge || mergeRequestActive.current) return
+    const requestId = ++latestMergeRequest.current
+    const actionViewKey = duplicateViewKey
+    const { groupKey, data } = mergePreview
+    mergeRequestActive.current = true
+    setMergingRecordId(data.targetId)
+    try {
+      await apiFetch("/data-health/duplicates/merge", {
+        method: "POST",
+        body: JSON.stringify({ groupKey, targetId: String(data.targetId) }),
+      })
+      if (requestId !== latestMergeRequest.current || actionViewKey !== duplicateViewRef.current) return
+      setMergePreview(null)
       toast(t("health.duplicates.merge_success"))
       await refreshGroups()
     } catch (reason) {
@@ -445,12 +475,12 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                         {category === "game" && review === "unreviewed" && (
                           <button
                             type="button"
-                            onClick={() => void mergeIntoRecord(group, record.id, record.title)}
-                            disabled={mergingRecordId != null || reviewingGroupKey != null}
+                            onClick={() => void openMergePreview(group, record.id)}
+                            disabled={previewingRecordId != null || mergingRecordId != null || reviewingGroupKey != null}
                             className="brutal-btn-accent whitespace-nowrap"
                           >
-                            {mergingRecordId === record.id
-                              ? t("health.duplicates.merging")
+                            {previewingRecordId === record.id
+                              ? t("health.duplicates.previewing")
                               : t("health.duplicates.merge_into")}
                           </button>
                         )}
@@ -485,7 +515,134 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
           }}
         />
       )}
+      {mergePreview && (
+        <GameMergePreviewDialog
+          preview={mergePreview.data}
+          merging={mergingRecordId != null}
+          onClose={() => {
+            if (mergingRecordId == null) setMergePreview(null)
+          }}
+          onConfirm={() => void mergeIntoPreviewTarget()}
+        />
+      )}
     </section>
+  )
+}
+
+function GameMergePreviewDialog({
+  preview,
+  merging,
+  onClose,
+  onConfirm,
+}: {
+  preview: GameMergePreview
+  merging: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const { t } = useI18nStore()
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-merge-preview-title"
+        className="max-h-[90vh] w-full max-w-xl overflow-y-auto border border-[var(--line)] bg-[var(--surface)] shadow-[0_0_40px_rgba(212,255,0,0.12)]"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-[var(--line)] p-5">
+          <div>
+            <span className="section-kicker">{t("health.duplicates.preview_kicker")}</span>
+            <h2 id="game-merge-preview-title" className="mt-2 text-xl text-white">
+              {t("health.duplicates.preview_title")}
+            </h2>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+              {t("health.duplicates.preview_target", preview.targetTitle)}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} disabled={merging} className="brutal-btn px-3">
+            ×
+          </button>
+        </header>
+
+        <div className="space-y-5 p-5">
+          <div className="grid grid-cols-3 gap-px border border-[var(--line)] bg-[var(--line)]">
+            <PreviewMetric label={t("health.duplicates.preview.removed")} value={String(preview.removedIds.length)} />
+            <PreviewMetric label={t("health.duplicates.preview.moved")} value={String(preview.platformProfiles.moved)} />
+            <PreviewMetric label={t("health.duplicates.preview.total")} value={String(preview.platformProfiles.total)} />
+          </div>
+
+          {preview.canMerge && preview.result ? (
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
+                {t("health.duplicates.preview.result")}
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <PreviewValue
+                  label={t("detail.status")}
+                  value={duplicateStatusLabel(preview.result.status, t)}
+                />
+                <PreviewValue
+                  label={t("detail.rating")}
+                  value={preview.result.rating == null ? "—" : `★ ${preview.result.rating}`}
+                />
+                <PreviewValue
+                  label={t("health.duplicates.personal.review")}
+                  value={preview.result.hasReview
+                    ? t("health.duplicates.preview.kept")
+                    : t("health.duplicates.preview.none")}
+                />
+              </div>
+              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
+                {t("health.duplicates.preview.safe")}
+              </p>
+            </div>
+          ) : (
+            <div className="border border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] p-4">
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent-deep)]">
+                {t("health.duplicates.preview.blocked")}
+              </p>
+              <ul className="mt-3 space-y-2 text-xs text-red-300">
+                {preview.blockers.map(blocker => (
+                  <li key={blocker}>• {t(`health.duplicates.blocker.${blocker}`)}</li>
+                ))}
+              </ul>
+              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
+                {t("health.duplicates.preview.blocked_hint")}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <footer className="flex justify-end gap-2 border-t border-[var(--line)] p-5">
+          <button type="button" onClick={onClose} disabled={merging} className="brutal-btn">
+            {t("confirm.cancel")}
+          </button>
+          {preview.canMerge && (
+            <button type="button" onClick={onConfirm} disabled={merging} className="brutal-btn-accent">
+              {merging ? t("health.duplicates.merging") : t("health.duplicates.preview.confirm")}
+            </button>
+          )}
+        </footer>
+      </div>
+    </div>
+  )
+}
+
+function PreviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-[var(--surface)] px-3 py-4 text-center">
+      <p className="font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">{label}</p>
+      <p className="mt-2 font-display text-xl text-white">{value}</p>
+    </div>
+  )
+}
+
+function PreviewValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-[var(--line)] bg-black/20 px-3 py-3">
+      <p className="font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">{label}</p>
+      <p className="mt-2 text-sm text-white">{value}</p>
+    </div>
   )
 }
 

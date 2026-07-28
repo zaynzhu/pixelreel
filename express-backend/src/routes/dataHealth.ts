@@ -16,7 +16,7 @@ import {
   restoreDuplicateGroupReview,
   reviewDuplicateGroup,
 } from '../services/DuplicateDetectionService';
-import { mergeDuplicateGames } from '../services/GameMergeService';
+import { mergeDuplicateGames, previewDuplicateGameMerge } from '../services/GameMergeService';
 import {
   assertEmptyRequestBody,
   assertNoQueryParameters,
@@ -150,6 +150,12 @@ router.post('/duplicates/merge', async (req: Request, res: Response) => {
   assertNoQueryParameters(req.query);
   const parameters = parseDuplicateMergeBody(req.body);
   res.json(await mergeDuplicateGames(parameters.groupKey, parameters.targetId));
+});
+
+router.post('/duplicates/merge-preview', async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query);
+  const parameters = parseDuplicateMergeBody(req.body);
+  res.json(await previewDuplicateGameMerge(parameters.groupKey, parameters.targetId));
 });
 
 router.post('/repair', (req: Request, res: Response) => {
