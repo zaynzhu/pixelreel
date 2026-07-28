@@ -8,7 +8,7 @@ import {
   YearlyTimelineItem,
 } from '../dto/profile';
 import { RecordStatus } from '../enums/RecordStatus';
-import { effectiveGameStatus } from './GameStatusService';
+import { effectiveGameStatus, gamePlaytimeMinutes } from './GameStatusService';
 import {
   detectGameSource,
   detectMovieSource,
@@ -63,6 +63,12 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         xboxId: true,
         psnId: true,
         rawgId: true,
+        platformEntries: {
+          select: {
+            platform: true,
+            playtimeMinutes: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -208,7 +214,7 @@ function toActionQueueItem(
 ): ActionQueueItem {
   return {
     ...toRecentRecordItem(category, record),
-    playtimeMinutes: category === 'game' ? record.playtimeMinutes ?? null : null,
+    playtimeMinutes: category === 'game' ? gamePlaytimeMinutes(record) : null,
   };
 }
 
@@ -322,7 +328,17 @@ function buildGamePlatformCounts(games: any[]): CountItem[] {
   return orderedPlatforms.map((platform) => ({
     key: platform,
     label: gameSourceLabel(platform.toLowerCase()),
-    count: games.filter((g) => detectGameSource(g) === platform.toLowerCase()).length,
+    count: games.filter((game) => {
+      const entryPlatforms = new Set(
+        (game.platformEntries ?? []).map((entry: any) => entry.platform?.toUpperCase()),
+      );
+      if (platform === 'MANUAL') {
+        return entryPlatforms.size === 0 && detectGameSource(game) === 'manual';
+      }
+      if (platform === 'RAWG') return game.rawgId != null && entryPlatforms.size === 0;
+      return entryPlatforms.has(platform)
+        || (entryPlatforms.size === 0 && detectGameSource(game) === platform.toLowerCase());
+    }).length,
   }));
 }
 
@@ -409,8 +425,13 @@ export function isImportedGame(game: {
   steamAppId?: bigint | null;
   xboxId?: string | null;
   psnId?: string | null;
+  platformEntries?: unknown[];
 }): boolean {
-  return game.importedAt != null || game.steamAppId != null || game.xboxId != null || game.psnId != null;
+  return game.importedAt != null
+    || game.steamAppId != null
+    || game.xboxId != null
+    || game.psnId != null
+    || (game.platformEntries?.length ?? 0) > 0;
 }
 
 function roundOneDecimal(value: number): number | null {

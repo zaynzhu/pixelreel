@@ -172,7 +172,11 @@ import {
   buildTvShowSourceCounts,
   isImportedGame,
 } from '../services/ProfileSummaryService';
-import { buildGameStatusWhere, effectiveGameStatus } from '../services/GameStatusService';
+import {
+  buildGameStatusWhere,
+  effectiveGameStatus,
+  gamePlaytimeMinutes,
+} from '../services/GameStatusService';
 import {
   buildCrossPlatformRatings,
   buildSourceBreakdown,
@@ -2765,15 +2769,37 @@ test('豆瓣导入保留原始字段并且只补空值', () => {
 test('已游玩的想玩游戏按进行中统计', () => {
   assert.equal(effectiveGameStatus({ status: 'WANT', playtimeMinutes: 30 }), 'IN_PROGRESS');
   assert.equal(effectiveGameStatus({ status: 'WANT', playtimeMinutes: 0 }), 'WANT');
+  assert.equal(effectiveGameStatus({
+    status: 'WANT',
+    playtimeMinutes: 0,
+    platformEntries: [{ playtimeMinutes: 30 }],
+  }), 'IN_PROGRESS');
   assert.equal(effectiveGameStatus({ status: 'DONE', playtimeMinutes: 30 }), 'DONE');
+  assert.equal(gamePlaytimeMinutes({
+    playtimeMinutes: 999,
+    platformEntries: [{ playtimeMinutes: 30 }, { playtimeMinutes: 45 }, { playtimeMinutes: null }],
+  }), 75);
+  assert.equal(gamePlaytimeMinutes({
+    playtimeMinutes: 999,
+    platformEntries: [{ playtimeMinutes: null }],
+  }), null);
   assert.deepEqual(buildGameStatusWhere(RecordStatus.WANT), {
     status: RecordStatus.WANT,
-    OR: [{ playtimeMinutes: null }, { playtimeMinutes: { lte: 0 } }],
+    AND: [
+      { OR: [{ playtimeMinutes: null }, { playtimeMinutes: { lte: 0 } }] },
+      { platformEntries: { none: { playtimeMinutes: { gt: 0 } } } },
+    ],
   });
   assert.deepEqual(buildGameStatusWhere(RecordStatus.IN_PROGRESS), {
     OR: [
       { status: RecordStatus.IN_PROGRESS },
-      { status: RecordStatus.WANT, playtimeMinutes: { gt: 0 } },
+      {
+        status: RecordStatus.WANT,
+        OR: [
+          { playtimeMinutes: { gt: 0 } },
+          { platformEntries: { some: { playtimeMinutes: { gt: 0 } } } },
+        ],
+      },
     ],
   });
 });

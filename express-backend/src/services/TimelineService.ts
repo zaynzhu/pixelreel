@@ -6,7 +6,7 @@ import {
 } from './LibraryService';
 import { normalizeStatus } from './LibraryService';
 import { TimelineRecordResponse, TimelinePageResponse } from '../dto/timeline';
-import { buildGameStatusWhere, effectiveGameStatus } from './GameStatusService';
+import { buildGameStatusWhere, effectiveGameStatus, gamePlaytimeMinutes } from './GameStatusService';
 
 export interface ListTimelineOptions {
   cursor?: string;
@@ -57,6 +57,10 @@ const GAME_SELECT = {
   id: true, title: true, posterUrl: true, status: true, rating: true, playtimeMinutes: true,
   platform: true, createdAt: true,
   psnId: true, xboxId: true, steamAppId: true, rawgId: true,
+  platformEntries: {
+    select: { platform: true, playtimeMinutes: true },
+    orderBy: { platform: 'asc' as const },
+  },
 };
 
 // ── Mappers ──
@@ -86,9 +90,11 @@ function toTimelineGame(g: any): TimelineRecordResponse {
     posterUrl: g.posterUrl,
     status: effectiveGameStatus(g),
     rating: g.rating,
-    playtimeMinutes: g.playtimeMinutes,
+    playtimeMinutes: gamePlaytimeMinutes(g),
     sourceLabel: gameSourceLabel(sourceKey),
-    platformLabel: g.platform
+    platformLabel: g.platformEntries?.length > 0
+      ? g.platformEntries.map((entry: any) => gameSourceLabel(entry.platform.toLowerCase())).join(' / ')
+      : g.platform
       ? (g.platform.trim().toUpperCase() === 'PSN' ? 'PSN'
         : g.platform.trim().toUpperCase() === 'XBOX' ? 'Xbox'
         : g.platform.trim().toUpperCase() === 'STEAM' ? 'Steam'

@@ -42,6 +42,9 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
         xboxId: true,
         psnId: true,
         rawgId: true,
+        platformEntries: {
+          select: { platform: true },
+        },
       },
       orderBy: { updatedAt: 'desc' },
     }),

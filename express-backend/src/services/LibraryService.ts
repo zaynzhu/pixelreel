@@ -2,7 +2,11 @@ import { getDb } from '../config/db';
 import type { Prisma } from '@prisma/client';
 import { LibraryRecordResponse, LibraryRecordUpdateRequest } from '../dto/library';
 import { RecordStatus, parseRecordStatus } from '../enums/RecordStatus';
-import { buildGameStatusWhere, effectiveGameStatus } from './GameStatusService';
+import {
+  buildGameStatusWhere,
+  effectiveGameStatus,
+  gamePlaytimeMinutes,
+} from './GameStatusService';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
@@ -177,11 +181,29 @@ function buildMovieSourceWhere(source: LibrarySourceFilter = 'all') {
 
 function buildGameSourceWhere(source: LibrarySourceFilter = 'all') {
   switch (source) {
-    case 'psn': return { psnId: { not: null } };
-    case 'xbox': return { psnId: null, xboxId: { not: null } };
-    case 'steam': return { psnId: null, xboxId: null, steamAppId: { not: null } };
-    case 'rawg': return { psnId: null, xboxId: null, steamAppId: null, rawgId: { not: null } };
-    case 'manual': return { psnId: null, xboxId: null, steamAppId: null, rawgId: null };
+    case 'psn': return {
+      OR: [{ platformEntries: { some: { platform: 'PSN' } } }, { psnId: { not: null } }],
+    };
+    case 'xbox': return {
+      OR: [{ platformEntries: { some: { platform: 'XBOX' } } }, { xboxId: { not: null } }],
+    };
+    case 'steam': return {
+      OR: [{ platformEntries: { some: { platform: 'STEAM' } } }, { steamAppId: { not: null } }],
+    };
+    case 'rawg': return {
+      platformEntries: { none: {} },
+      psnId: null,
+      xboxId: null,
+      steamAppId: null,
+      rawgId: { not: null },
+    };
+    case 'manual': return {
+      platformEntries: { none: {} },
+      psnId: null,
+      xboxId: null,
+      steamAppId: null,
+      rawgId: null,
+    };
     default: return {};
   }
 }
@@ -204,6 +226,7 @@ function buildGameQueryWhere(query?: string) {
     OR: [
       { title: { contains: query } },
       { platform: { contains: query } },
+      { platformEntries: { some: { platform: { contains: query } } } },
     ],
   };
 }
@@ -371,7 +394,12 @@ export async function listRecords(
       ? getDb().movie.findMany({ where: movieWhere, orderBy, take: pageTake })
       : Promise.resolve([]),
     includeGames
-      ? getDb().game.findMany({ where: gameWhere, orderBy, take: pageTake })
+      ? getDb().game.findMany({
+          where: gameWhere,
+          orderBy,
+          take: pageTake,
+          include: { platformEntries: { orderBy: { platform: 'asc' } } },
+        })
       : Promise.resolve([]),
     includeTvShows
       ? getDb().tvShow.findMany({ where: tvShowWhere, orderBy, take: pageTake })
@@ -482,7 +510,12 @@ export async function getRandomRecords(
       const movie = (await db.movie.findMany({ where, skip: offset, take: 1 }))[0];
       record = movie ? toMovieRecord(movie) : null;
     } else if (offset < movieCount + gameCount) {
-      const game = (await db.game.findMany({ where: gameWhere, skip: offset - movieCount, take: 1 }))[0];
+      const game = (await db.game.findMany({
+        where: gameWhere,
+        skip: offset - movieCount,
+        take: 1,
+        include: { platformEntries: { orderBy: { platform: 'asc' } } },
+      }))[0];
       record = game ? toGameRecord(game) : null;
     } else {
       const show = (await db.tvShow.findMany({
@@ -684,7 +717,7 @@ export function toGameRecord(game: any): LibraryRecordResponse {
     status: effectiveGameStatus(game),
     rating: game.rating,
     shortReview: game.shortReview,
-    playtimeMinutes: game.playtimeMinutes,
+    playtimeMinutes: gamePlaytimeMinutes(game),
     achievementTotal: game.achievementTotal,
     achievementUnlocked: game.achievementUnlocked,
     createdAt: game.createdAt,
@@ -775,6 +808,12 @@ export function detectMovieSource(movie: any): string {
 }
 
 export function detectGameSource(game: any): string {
+  const platforms = new Set(
+    (game.platformEntries ?? []).map((entry: any) => entry.platform?.toUpperCase()),
+  );
+  if (platforms.has('PSN')) return 'psn';
+  if (platforms.has('XBOX')) return 'xbox';
+  if (platforms.has('STEAM')) return 'steam';
   if (game.psnId) return 'psn';
   if (game.xboxId) return 'xbox';
   if (game.steamAppId) return 'steam';
