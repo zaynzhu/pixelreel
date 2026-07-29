@@ -37,6 +37,7 @@ export default function DataHealthPage() {
   const initialCategory = searchParams.get("category")
   const initialView = searchParams.get("view")
   const initialGroupKey = searchParams.get("group")
+  const importReviewReturnPath = parseImportReviewReturnPath(searchParams.get("returnTo"))
   const focusedGameGroupKey = initialGroupKey?.startsWith("game:") && initialGroupKey.length <= 80
     ? initialGroupKey
     : null
@@ -381,6 +382,7 @@ export default function DataHealthPage() {
         <DuplicateCandidatePanel
           category={category}
           focusGroupKey={category === "game" ? focusedGameGroupKey : null}
+          importReviewReturnPath={category === "game" ? importReviewReturnPath : null}
         />
       ) : <section className="border border-[var(--line)] bg-[var(--surface)]">
         <div className="flex flex-col gap-4 border-b border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -483,4 +485,28 @@ export default function DataHealthPage() {
       </section>}
     </div>
   )
+}
+
+function parseImportReviewReturnPath(value: string | null) {
+  if (!value) return null
+  const baseUrl = "http://pixelreel.local"
+  let url: URL
+  try {
+    url = new URL(value, baseUrl)
+  } catch {
+    return null
+  }
+  if (url.origin !== baseUrl || url.pathname !== "/sync/review") return null
+  if ([...url.searchParams.keys()].some(key => !["tab", "source", "record"].includes(key))) return null
+
+  const tab = url.searchParams.get("tab")
+  const source = url.searchParams.get("source")
+  const record = url.searchParams.get("record")
+  if (tab !== "pending" && tab !== "ignored") return null
+  if (!["all", "douban", "steam", "xbox", "psn"].includes(source || "")) return null
+  if (record && !/^(movie|tv_show|game):[1-9]\d*$/.test(record)) return null
+
+  const params = new URLSearchParams({ tab, source: source! })
+  if (record) params.set("record", record)
+  return `/sync/review?${params}`
 }

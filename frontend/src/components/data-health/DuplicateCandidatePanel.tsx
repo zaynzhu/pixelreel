@@ -21,9 +21,11 @@ type DuplicateReviewFilter = "unreviewed" | "reviewed"
 export function DuplicateCandidatePanel({
   category,
   focusGroupKey,
+  importReviewReturnPath,
 }: {
   category: DataHealthCategory
   focusGroupKey?: string | null
+  importReviewReturnPath?: string | null
 }) {
   const { t } = useI18nStore()
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
@@ -385,8 +387,13 @@ export function DuplicateCandidatePanel({
       )}
 
       {focusMissing && (
-        <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-5 py-3 text-[10px] text-amber-300">
-          {t("health.duplicates.focus_missing")}
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-5 py-3 text-[10px] text-amber-300">
+          <span>{t("health.duplicates.focus_missing")}</span>
+          {importReviewReturnPath && (
+            <Link to={importReviewReturnPath} className="brutal-btn">
+              ← {t("health.duplicates.back_to_review")}
+            </Link>
+          )}
         </div>
       )}
 
@@ -435,6 +442,11 @@ export function DuplicateCandidatePanel({
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  {focusedGroupKey === group.key && importReviewReturnPath && (
+                    <Link to={importReviewReturnPath} className="brutal-btn whitespace-nowrap">
+                      ← {t("health.duplicates.back_to_review")}
+                    </Link>
+                  )}
                   <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">
                     {t("health.duplicates.group_size", String(group.records.length))}
                   </span>

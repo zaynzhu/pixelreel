@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, ChevronRight, EyeOff, Inbox, RefreshCw } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
 import { proxiedImageUrl } from "../imageProxy"
@@ -13,6 +13,7 @@ type ReviewDecision = Extract<ImportReviewState, "ACCEPTED" | "IGNORED">
 type ReviewSource = "all" | "douban" | "steam" | "xbox" | "psn"
 
 const REVIEW_SOURCES: ReviewSource[] = ["all", "douban", "steam", "xbox", "psn"]
+const REVIEW_TABS: ReviewTab[] = ["PENDING", "IGNORED"]
 
 interface ReviewResponse {
   records: LibraryRecord[]
@@ -41,8 +42,10 @@ function recordKey(record: LibraryRecord) {
 
 export default function ImportReviewPage() {
   const { t, lang } = useI18nStore()
-  const [tab, setTab] = useState<ReviewTab>("PENDING")
-  const [source, setSource] = useState<ReviewSource>("all")
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedRecordKey = parseReviewRecordKey(searchParams.get("record"))
+  const [tab, setTab] = useState<ReviewTab>(() => parseReviewTab(searchParams.get("tab")))
+  const [source, setSource] = useState<ReviewSource>(() => parseReviewSource(searchParams.get("source")))
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
@@ -54,11 +57,14 @@ export default function ImportReviewPage() {
   const [duplicateHintError, setDuplicateHintError] = useState<string | null>(null)
   const [duplicateHints, setDuplicateHints] = useState<Record<number, GameDuplicateHint>>({})
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
+  const [focusedRecordKey, setFocusedRecordKey] = useState<string | null>(null)
+  const [focusMissing, setFocusMissing] = useState(false)
   const tabRef = useRef(tab)
   const latestLoadRequest = useRef(0)
   const latestDecisionRequest = useRef(0)
   const decisionRequestActive = useRef(false)
   const sourceRef = useRef(source)
+  const recordElements = useRef(new Map<string, HTMLElement>())
   tabRef.current = tab
   sourceRef.current = source
 
@@ -159,6 +165,37 @@ export default function ImportReviewPage() {
     }
   }, [loadRecords])
 
+  useEffect(() => {
+    setFocusedRecordKey(null)
+    setFocusMissing(false)
+  }, [requestedRecordKey, tab, source])
+
+  useEffect(() => {
+    if (!requestedRecordKey || loading || error) return
+    const target = recordElements.current.get(requestedRecordKey)
+    if (target) {
+      setFocusedRecordKey(requestedRecordKey)
+      setFocusMissing(false)
+      const timer = window.setTimeout(() => {
+        target.focus({ preventScroll: true })
+        target.scrollIntoView({ behavior: "auto", block: "center" })
+      }, 100)
+      return () => window.clearTimeout(timer)
+    }
+    if (nextCursor && !loadingMore) {
+      void loadRecords(nextCursor)
+      return
+    }
+    if (!nextCursor && !loadingMore) setFocusMissing(true)
+  }, [error, loadRecords, loading, loadingMore, nextCursor, records, requestedRecordKey])
+
+  const updateReviewLocation = (nextTab: ReviewTab, nextSource: ReviewSource) => {
+    const params = new URLSearchParams()
+    params.set("tab", nextTab.toLowerCase())
+    params.set("source", nextSource)
+    setSearchParams(params, { replace: true })
+  }
+
   const changeTab = (value: ReviewTab) => {
     if (value === tab || decisionRequestActive.current) return
     latestLoadRequest.current += 1
@@ -172,6 +209,9 @@ export default function ImportReviewPage() {
     setDuplicateHintError(null)
     setDuplicateHints({})
     setFailedCursor(null)
+    setFocusedRecordKey(null)
+    setFocusMissing(false)
+    updateReviewLocation(value, source)
     setTab(value)
   }
 
@@ -188,6 +228,9 @@ export default function ImportReviewPage() {
     setDuplicateHintError(null)
     setDuplicateHints({})
     setFailedCursor(null)
+    setFocusedRecordKey(null)
+    setFocusMissing(false)
+    updateReviewLocation(tab, value)
     setSource(value)
   }
 
@@ -295,6 +338,12 @@ export default function ImportReviewPage() {
           </div>
         )}
 
+        {focusMissing && (
+          <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[10px] text-amber-300 sm:px-5">
+            {t("review.focus_missing")}
+          </div>
+        )}
+
         {error && records.length > 0 && (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-red-500/40 bg-red-500/10 p-4 sm:px-5">
             <div>
@@ -352,7 +401,19 @@ export default function ImportReviewPage() {
               const progress = formatGameProgress(record, t)
               const duplicateHint = duplicateHints[record.id]
               return (
-                <article key={key} className="grid gap-4 p-4 sm:grid-cols-[auto_64px_minmax(0,1fr)_auto] sm:items-center sm:p-5">
+                <article
+                  key={key}
+                  ref={element => {
+                    if (element) recordElements.current.set(key, element)
+                    else recordElements.current.delete(key)
+                  }}
+                  tabIndex={-1}
+                  className={`grid gap-4 p-4 outline-none transition-colors sm:grid-cols-[auto_64px_minmax(0,1fr)_auto] sm:items-center sm:p-5 ${
+                    focusedRecordKey === key
+                      ? "bg-[rgba(255,68,0,0.08)] shadow-[inset_3px_0_0_var(--accent-deep)]"
+                      : ""
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={selected.has(key)}
@@ -379,6 +440,9 @@ export default function ImportReviewPage() {
                       <span className="text-[var(--accent)]">{t(`health.category.${record.category}`)}</span>
                       <span>{record.sourceLabel}</span>
                       <span>{formatDate(record.importedAt || record.createdAt, lang)}</span>
+                      {focusedRecordKey === key && (
+                        <span className="text-[var(--accent-deep)]">{t("review.focused")}</span>
+                      )}
                     </div>
                     <h2 className="mt-2 truncate font-display text-xl text-white">{record.title}</h2>
                     <p className="mt-1 text-[10px] uppercase tracking-wider text-[var(--muted)]">
@@ -400,7 +464,7 @@ export default function ImportReviewPage() {
                             .join(" / ")}
                         </p>
                         <Link
-                          to={buildDuplicateGroupPath(duplicateHint.groupKey)}
+                          to={buildDuplicateGroupPath(duplicateHint.groupKey, tab, source, key)}
                           className="mt-2 inline-flex text-[9px] uppercase tracking-wider text-white underline decoration-[var(--accent)] underline-offset-4"
                         >
                           {t("review.duplicate_open")}
@@ -477,11 +541,35 @@ function formatGameProgress(
   return null
 }
 
-function buildDuplicateGroupPath(groupKey: string) {
+function buildDuplicateGroupPath(
+  groupKey: string,
+  tab: ReviewTab,
+  source: ReviewSource,
+  record: string,
+) {
+  const returnParams = new URLSearchParams({
+    tab: tab.toLowerCase(),
+    source,
+    record,
+  })
   const params = new URLSearchParams({
     category: "game",
     view: "duplicates",
     group: groupKey,
+    returnTo: `/sync/review?${returnParams}`,
   })
   return `/data-health?${params}`
+}
+
+function parseReviewTab(value: string | null): ReviewTab {
+  const normalized = value?.toUpperCase()
+  return REVIEW_TABS.includes(normalized as ReviewTab) ? normalized as ReviewTab : "PENDING"
+}
+
+function parseReviewSource(value: string | null): ReviewSource {
+  return REVIEW_SOURCES.includes(value as ReviewSource) ? value as ReviewSource : "all"
+}
+
+function parseReviewRecordKey(value: string | null) {
+  return value && /^(movie|tv_show|game):[1-9]\d*$/.test(value) ? value : null
 }
