@@ -186,10 +186,15 @@ function AppRoutes() {
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initialize)
+  const lang = useI18nStore((s) => s.lang)
 
   useEffect(() => {
     void initializeAuth()
   }, [initializeAuth])
+
+  useEffect(() => {
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en"
+  }, [lang])
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

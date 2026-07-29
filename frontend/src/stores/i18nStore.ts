@@ -897,6 +897,7 @@ const dictionaries = {
     "showcase.random.status.all": "ANY STATUS",
     "showcase.mode.grid": "GRID VIEW",
     "showcase.mode.slideshow": "SLIDESHOW",
+    "showcase.mode.slide": "Show slide {0} of {1}",
   },
   zh: {
     // Nav
@@ -1791,6 +1792,7 @@ const dictionaries = {
     "showcase.random.status.all": "全部状态",
     "showcase.mode.grid": "网格视图",
     "showcase.mode.slideshow": "幻灯片",
+    "showcase.mode.slide": "跳转到第 {0} 张，共 {1} 张",
   }
 };
 

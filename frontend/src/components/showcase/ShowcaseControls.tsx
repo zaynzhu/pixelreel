@@ -25,6 +25,8 @@ export function ShowcaseControls({
             <button
               key={i}
               className="w-2 h-2 rounded-full transition-all duration-300 hover-glitch"
+              aria-label={t("showcase.mode.slide", i + 1, totalSlides)}
+              aria-current={i === currentSlide ? "true" : undefined}
               style={{
                 background: i === currentSlide ? "var(--accent)" : "var(--line)",
                 boxShadow: i === currentSlide ? "0 0 8px rgba(212,255,0,0.5)" : "none",
