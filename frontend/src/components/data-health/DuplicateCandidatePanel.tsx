@@ -18,6 +18,7 @@ import { ImgWithFallback } from "../ImgWithFallback"
 import RescrapeModal from "../RescrapeModal"
 
 type DuplicateReviewFilter = "unreviewed" | "reviewed"
+type DuplicateScope = "all" | "pending"
 
 export function DuplicateCandidatePanel({
   category,
@@ -42,13 +43,16 @@ export function DuplicateCandidatePanel({
   const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null)
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
+  const [scope, setScope] = useState<DuplicateScope>("all")
+  const [allScopeGroups, setAllScopeGroups] = useState(0)
+  const [pendingScopeGroups, setPendingScopeGroups] = useState(0)
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
   const [mergePreview, setMergePreview] = useState<{ groupKey: string; data: GameMergePreview } | null>(null)
   const [previewingRecordId, setPreviewingRecordId] = useState<number | null>(null)
   const [mergingRecordId, setMergingRecordId] = useState<number | null>(null)
   const [focusedGroupKey, setFocusedGroupKey] = useState<string | null>(null)
   const [focusMissing, setFocusMissing] = useState(false)
-  const duplicateViewKey = `${category}:${review}`
+  const duplicateViewKey = `${category}:${review}:${scope}`
   const duplicateViewRef = useRef(duplicateViewKey)
   const latestDuplicateRequest = useRef(0)
   const latestOpenRequest = useRef(0)
@@ -61,10 +65,10 @@ export function DuplicateCandidatePanel({
   duplicateViewRef.current = duplicateViewKey
 
   const fetchGroups = useCallback(async (cursor?: string) => {
-    const params = new URLSearchParams({ category, limit: "20", review })
+    const params = new URLSearchParams({ category, limit: "20", review, scope })
     if (cursor) params.set("cursor", cursor)
     return apiFetch<DuplicateGroupResponse>(`/data-health/duplicates?${params}`)
-  }, [category, review])
+  }, [category, review, scope])
 
   const applyResponse = (data: DuplicateGroupResponse) => {
     setGroups(data.groups)
@@ -72,6 +76,8 @@ export function DuplicateCandidatePanel({
     setTotalRecords(data.totalRecords)
     setUnreviewedGroups(data.unreviewedGroups)
     setReviewedGroups(data.reviewedGroups)
+    setAllScopeGroups(data.scopeGroups.all)
+    setPendingScopeGroups(data.scopeGroups.pending)
     setNextCursor(data.nextCursor)
   }
 
@@ -88,6 +94,8 @@ export function DuplicateCandidatePanel({
     setTotalRecords(0)
     setUnreviewedGroups(0)
     setReviewedGroups(0)
+    setAllScopeGroups(0)
+    setPendingScopeGroups(0)
     setNextCursor(null)
     setRescrapeRecord(null)
     setOpeningRecordId(null)
@@ -368,6 +376,22 @@ export function DuplicateCandidatePanel({
             </span>
             <span className="font-mono text-sm text-white">
               {item === "unreviewed" ? unreviewedGroups : reviewedGroups}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-b border-[var(--line)] bg-black/20 px-5 py-3">
+        {(["all", "pending"] as const).map(item => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setScope(item)}
+            className={scope === item ? "brutal-btn-accent" : "brutal-btn"}
+          >
+            {t(`health.duplicates.scope.${item}`)}
+            <span className="font-mono">
+              {item === "all" ? allScopeGroups : pendingScopeGroups}
             </span>
           </button>
         ))}

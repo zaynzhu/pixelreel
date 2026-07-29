@@ -66,6 +66,10 @@ export interface DuplicateGroupResponse {
   totalRecords: number
   unreviewedGroups: number
   reviewedGroups: number
+  scopeGroups: {
+    all: number
+    pending: number
+  }
   nextCursor: string | null
 }
 

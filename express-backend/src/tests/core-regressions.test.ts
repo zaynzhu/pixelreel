@@ -1240,12 +1240,15 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
   }]);
   assert.deepEqual(buildGameDuplicateHints(gameGroups, [7], new Set([gameGroups[0].key])), []);
   assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
-    category: 'game', cursor: 0, limit: 10, review: 'unreviewed',
+    category: 'game', cursor: 0, limit: 10, review: 'unreviewed', scope: 'all',
   });
   assert.equal(movieGroups[0].key.startsWith('movie:'), true);
   assert.equal(movieGroups[0].key.length, 70);
   assert.deepEqual(parseDuplicateListParameters({ category: 'movie', review: 'reviewed' }), {
-    category: 'movie', cursor: 0, limit: 20, review: 'reviewed',
+    category: 'movie', cursor: 0, limit: 20, review: 'reviewed', scope: 'all',
+  });
+  assert.deepEqual(parseDuplicateListParameters({ category: 'game', scope: 'pending' }), {
+    category: 'game', cursor: 0, limit: 20, review: 'unreviewed', scope: 'pending',
   });
   assert.deepEqual(parseDuplicateReviewBody({
     category: 'movie',
@@ -1272,6 +1275,10 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
   assert.throws(
     () => parseDuplicateListParameters({ category: 'movie', review: 'all' }),
     /review/,
+  );
+  assert.throws(
+    () => parseDuplicateListParameters({ category: 'game', scope: 'accepted' }),
+    /scope/,
   );
   assert.throws(
     () => parseDuplicateListParameters({ category: 'movie', cursor: '0' }),

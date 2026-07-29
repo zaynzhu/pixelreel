@@ -31,7 +31,7 @@ import {
 const router = Router();
 const ISSUE_PARAMETER_KEYS = new Set(['category', 'issue', 'cursor', 'limit']);
 const REPAIR_BODY_KEYS = new Set(['category', 'issue', 'limit']);
-const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit', 'review']);
+const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit', 'review', 'scope']);
 const DUPLICATE_GAME_HINT_PARAMETER_KEYS = new Set(['ids']);
 const DUPLICATE_REVIEW_BODY_KEYS = new Set(['category', 'groupKey']);
 const DUPLICATE_MERGE_BODY_KEYS = new Set(['groupKey', 'targetId']);
@@ -80,6 +80,7 @@ export function parseDuplicateListParameters(query: Record<string, unknown>) {
     cursor: parsePositiveIntegerParameter(query.cursor, 'cursor', 0, 1_000_000),
     limit: parsePositiveIntegerParameter(query.limit, 'limit', 20, 50),
     review: parseEnumParameter(query.review, 'review', ['unreviewed', 'reviewed'] as const) ?? 'unreviewed',
+    scope: parseEnumParameter(query.scope, 'scope', ['all', 'pending'] as const) ?? 'all',
   };
 }
 
@@ -152,6 +153,7 @@ router.get('/duplicates', async (req: Request, res: Response) => {
     parameters.limit,
     parameters.cursor,
     parameters.review,
+    parameters.scope,
   ));
 });
 

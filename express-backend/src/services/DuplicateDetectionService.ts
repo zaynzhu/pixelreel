@@ -19,6 +19,7 @@ export const DUPLICATE_REASONS = [
 
 export type DuplicateReason = typeof DUPLICATE_REASONS[number];
 export type DuplicateReviewFilter = 'unreviewed' | 'reviewed';
+export type DuplicateScope = 'all' | 'pending';
 
 export interface DuplicateCandidate {
   id: bigint;
@@ -384,6 +385,7 @@ export async function listDuplicateGroups(
   limit: number,
   cursor: number,
   review: DuplicateReviewFilter = 'unreviewed',
+  scope: DuplicateScope = 'all',
 ) {
   const groups = findDuplicateGroups(await loadDuplicateCandidates(category));
   const decisions = await getDb().duplicateReview.findMany({
@@ -394,17 +396,25 @@ export async function listDuplicateGroups(
   const reviewedGroups = groups.filter(group => reviewByKey.has(group.key));
   const unreviewedGroups = groups.filter(group => !reviewByKey.has(group.key));
   const selectedGroups = review === 'reviewed' ? reviewedGroups : unreviewedGroups;
-  const page = selectedGroups.slice(cursor, cursor + limit).map(group => ({
+  const pendingGroups = selectedGroups.filter(group => (
+    group.records.some(record => record.importReviewState === 'PENDING')
+  ));
+  const scopedGroups = scope === 'pending' ? pendingGroups : selectedGroups;
+  const page = scopedGroups.slice(cursor, cursor + limit).map(group => ({
     ...group,
     reviewId: reviewByKey.get(group.key) != null ? Number(reviewByKey.get(group.key)) : null,
   }));
   return {
     groups: page,
-    totalGroups: selectedGroups.length,
-    totalRecords: selectedGroups.reduce((sum, group) => sum + group.records.length, 0),
+    totalGroups: scopedGroups.length,
+    totalRecords: scopedGroups.reduce((sum, group) => sum + group.records.length, 0),
     unreviewedGroups: unreviewedGroups.length,
     reviewedGroups: reviewedGroups.length,
-    nextCursor: cursor + limit < selectedGroups.length ? String(cursor + limit) : null,
+    scopeGroups: {
+      all: selectedGroups.length,
+      pending: pendingGroups.length,
+    },
+    nextCursor: cursor + limit < scopedGroups.length ? String(cursor + limit) : null,
   };
 }
 
