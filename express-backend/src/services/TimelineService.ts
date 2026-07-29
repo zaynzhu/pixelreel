@@ -77,12 +77,17 @@ function toTimelineMovie(m: any): TimelineRecordResponse {
     playtimeMinutes: null,
     sourceLabel: movieSourceLabel(sourceKey),
     platformLabel: null,
+    platformEntries: [],
     createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : String(m.createdAt),
   };
 }
 
-function toTimelineGame(g: any): TimelineRecordResponse {
+export function toTimelineGame(g: any): TimelineRecordResponse {
   const sourceKey = detectGameSource(g);
+  const platformEntries = (g.platformEntries ?? []).map((entry: any) => ({
+    platform: entry.platform,
+    playtimeMinutes: entry.playtimeMinutes,
+  }));
   return {
     id: Number(g.id),
     category: 'game',
@@ -92,14 +97,15 @@ function toTimelineGame(g: any): TimelineRecordResponse {
     rating: g.rating,
     playtimeMinutes: gamePlaytimeMinutes(g),
     sourceLabel: gameSourceLabel(sourceKey),
-    platformLabel: g.platformEntries?.length > 0
-      ? g.platformEntries.map((entry: any) => gameSourceLabel(entry.platform.toLowerCase())).join(' / ')
+    platformLabel: platformEntries.length > 0
+      ? platformEntries.map((entry: any) => gameSourceLabel(entry.platform.toLowerCase())).join(' / ')
       : g.platform
       ? (g.platform.trim().toUpperCase() === 'PSN' ? 'PSN'
         : g.platform.trim().toUpperCase() === 'XBOX' ? 'Xbox'
         : g.platform.trim().toUpperCase() === 'STEAM' ? 'Steam'
         : g.platform.trim() || gameSourceLabel(sourceKey))
       : gameSourceLabel(sourceKey),
+    platformEntries,
     createdAt: g.createdAt instanceof Date ? g.createdAt.toISOString() : String(g.createdAt),
   };
 }
@@ -116,6 +122,7 @@ function toTimelineTvShow(s: any): TimelineRecordResponse {
     playtimeMinutes: null,
     sourceLabel: tvShowSourceLabel(sourceKey),
     platformLabel: null,
+    platformEntries: [],
     createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt),
   };
 }

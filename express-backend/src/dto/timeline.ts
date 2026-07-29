@@ -1,3 +1,8 @@
+export interface TimelinePlatformEntryResponse {
+  platform: string;
+  playtimeMinutes: number | null;
+}
+
 export interface TimelineRecordResponse {
   id: number;
   category: 'movie' | 'game' | 'tv_show';
@@ -8,6 +13,7 @@ export interface TimelineRecordResponse {
   playtimeMinutes: number | null;
   sourceLabel: string | null;
   platformLabel: string | null;
+  platformEntries: TimelinePlatformEntryResponse[];
   createdAt: string;
 }
 

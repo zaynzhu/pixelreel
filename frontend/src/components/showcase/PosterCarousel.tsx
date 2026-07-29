@@ -22,6 +22,10 @@ function toLightweight(r: LibraryRecord): TimelineRecord {
     status: r.status,
     rating: r.rating ?? null,
     playtimeMinutes: r.playtimeMinutes ?? null,
+    platformEntries: r.platformEntries?.map(entry => ({
+      platform: entry.platform,
+      playtimeMinutes: entry.playtimeMinutes,
+    })),
     createdAt: r.createdAt,
   }
 }

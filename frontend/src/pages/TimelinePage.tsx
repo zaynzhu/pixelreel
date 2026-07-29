@@ -457,6 +457,7 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
   const badge = categoryBadge(record.category);
   const status = statusBadge(record.status, t);
   const hasRating = record.rating != null;
+  const platformPlaytimes = buildPlatformPlaytimes(record, t);
   const posterPlaceholder = (
     <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, #0a0a0a 0%, #111 50%, #0a0a0a 100%)` }}>
       {/* Grid Pattern */}
@@ -543,14 +544,49 @@ function PosterCard({ record, priority, onClick }: { record: TimelineRecord; pri
           ) : (
             <span className="text-[8px] text-[var(--muted)] uppercase tracking-widest">UNRATED</span>
           )}
-          {record.playtimeMinutes && record.playtimeMinutes > 0 ? (
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--muted)] uppercase tracking-widest">PLAY</span>
-              <span className="text-xs sm:text-sm font-bold text-[var(--accent-deep)]">{Math.round(record.playtimeMinutes / 60)}h</span>
+          {platformPlaytimes.map((entry, index) => (
+            <div key={`${entry.platform}-${index}`} className="flex items-center gap-1">
+              <span className="text-[9px] text-[var(--muted)] uppercase tracking-widest">{entry.platform}</span>
+              <span className="text-xs font-bold text-[var(--accent-deep)]">{entry.playtime}</span>
             </div>
-          ) : null}
+          ))}
         </div>
       </div>
     </button>
   );
+}
+
+function buildPlatformPlaytimes(
+  record: TimelineRecord,
+  t: ReturnType<typeof useI18nStore.getState>['t'],
+) {
+  if (record.category !== "game") return [];
+  const entries = record.platformEntries?.length
+    ? record.platformEntries
+    : record.playtimeMinutes != null
+      ? [{
+          platform: record.platformLabel || record.sourceLabel || t("detail.platform"),
+          playtimeMinutes: record.playtimeMinutes,
+        }]
+      : [];
+  return entries.flatMap(entry => {
+    if (entry.playtimeMinutes == null) return [];
+    return [{
+      platform: formatPlatform(entry.platform),
+      playtime: t(
+        "detail.playtime_value",
+        String(Math.floor(entry.playtimeMinutes / 60)),
+        String(entry.playtimeMinutes % 60),
+      ),
+    }];
+  });
+}
+
+function formatPlatform(value: string) {
+  switch (value.trim().toUpperCase()) {
+    case "STEAM": return "Steam";
+    case "XBOX": return "Xbox";
+    case "PSN": return "PSN";
+    default: return value;
+  }
 }

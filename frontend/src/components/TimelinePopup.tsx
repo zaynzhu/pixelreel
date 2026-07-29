@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import type { LibraryRecord, RecordStatus } from "../types/library";
+import type { GamePlatformEntry, LibraryRecord, RecordStatus } from "../types/library";
 import type { TimelineRecord } from "../types/timeline";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "./StarRating";
@@ -106,9 +106,9 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
   const status = fullRecord?.status ?? lightweightRecord.status;
   const rating = fullRecord?.rating ?? lightweightRecord.rating;
   const category = fullRecord?.category ?? lightweightRecord.category;
-  const playtimeMinutes = fullRecord?.playtimeMinutes ?? lightweightRecord.playtimeMinutes;
   const sourceLabel = fullRecord?.sourceLabel ?? lightweightRecord.sourceLabel;
   const createdAt = fullRecord?.createdAt ?? lightweightRecord.createdAt;
+  const platformProfiles = buildPlatformProfiles(fullRecord, lightweightRecord);
 
   // Fields only available from full record
   const doubanAltTitle = fullRecord?.doubanAltTitle ?? null;
@@ -292,6 +292,35 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
             )}
           </div>
 
+          {category === "game" && platformProfiles.length > 0 && (
+            <div>
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
+                {t("detail.platform_profiles_title")}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {platformProfiles.map((profile, index) => {
+                  const progress = formatAchievementProgress(profile, t);
+                  return (
+                    <div
+                      key={`${profile.platform}-${profile.externalId ?? index}`}
+                      className="border border-[var(--line)] bg-[var(--surface-hover)] px-3 py-2"
+                    >
+                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+                        {formatPlatform(profile.platform)}
+                      </p>
+                      <p className="mt-1 text-[10px] text-[var(--muted)]">
+                        {t("detail.playtime")}: {formatPlaytime(profile.playtimeMinutes, t)}
+                      </p>
+                      {progress && (
+                        <p className="mt-1 text-[10px] text-[var(--muted)]">{progress}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* TMDB 原始标题 */}
           {tmdbTitle && tmdbTitle !== title && (
             <div>
@@ -364,4 +393,76 @@ function PlatformScore({ label, rating, extra }: { label: string; rating?: numbe
       {extra && <p className="mt-0.5 text-[8px] text-[var(--dim)]">{extra}</p>}
     </div>
   );
+}
+
+type PopupPlatformProfile = Pick<
+  GamePlatformEntry,
+  "platform" | "playtimeMinutes" | "achievementTotal" | "achievementUnlocked"
+> & {
+  externalId?: string | null;
+};
+
+function buildPlatformProfiles(
+  fullRecord: LibraryRecord | null,
+  lightweightRecord: TimelineRecord,
+): PopupPlatformProfile[] {
+  if (fullRecord?.category === "game" && fullRecord.platformEntries?.length) {
+    return fullRecord.platformEntries;
+  }
+  if (lightweightRecord.category === "game" && lightweightRecord.platformEntries?.length) {
+    return lightweightRecord.platformEntries.map(entry => ({
+      ...entry,
+      achievementTotal: null,
+      achievementUnlocked: null,
+    }));
+  }
+  if (lightweightRecord.category !== "game") return [];
+  return [{
+    platform: lightweightRecord.platformLabel || lightweightRecord.sourceLabel || "GAME",
+    playtimeMinutes: lightweightRecord.playtimeMinutes ?? null,
+    achievementTotal: fullRecord?.achievementTotal ?? null,
+    achievementUnlocked: fullRecord?.achievementUnlocked ?? null,
+  }];
+}
+
+function formatPlaytime(
+  minutes: number | null | undefined,
+  t: ReturnType<typeof useI18nStore.getState>['t'],
+) {
+  if (minutes == null) return t("detail.none");
+  return t(
+    "detail.playtime_value",
+    String(Math.floor(minutes / 60)),
+    String(minutes % 60),
+  );
+}
+
+function formatAchievementProgress(
+  profile: PopupPlatformProfile,
+  t: ReturnType<typeof useI18nStore.getState>['t'],
+) {
+  const label = profile.platform.trim().toUpperCase() === "PSN"
+    ? t("detail.trophies")
+    : t("detail.achievements");
+  const unlocked = profile.achievementUnlocked;
+  const total = profile.achievementTotal;
+  if (total != null && total > 0 && unlocked != null && unlocked <= total) {
+    return `${label}: ${unlocked} / ${total}`;
+  }
+  if (unlocked != null && unlocked > 0) {
+    return `${label}: ${t("detail.achievements_unlocked", unlocked)}`;
+  }
+  if (total != null && total > 0) {
+    return `${label}: — / ${total}`;
+  }
+  return null;
+}
+
+function formatPlatform(value: string) {
+  switch (value.trim().toUpperCase()) {
+    case "STEAM": return "Steam";
+    case "XBOX": return "Xbox";
+    case "PSN": return "PSN";
+    default: return value;
+  }
 }

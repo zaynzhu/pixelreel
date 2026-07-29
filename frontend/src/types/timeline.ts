@@ -2,6 +2,11 @@ import type { LibraryCategory, RecordStatus } from './library';
 
 export type TimelineCategoryFilter = 'media' | 'game' | 'all';
 
+export type TimelinePlatformEntry = {
+  platform: string;
+  playtimeMinutes: number | null;
+};
+
 export type TimelineRecord = {
   id: number;
   category: LibraryCategory;
@@ -12,6 +17,7 @@ export type TimelineRecord = {
   status: RecordStatus;
   rating?: number | null;
   playtimeMinutes?: number | null;
+  platformEntries?: TimelinePlatformEntry[];
   createdAt: string;
 };
 

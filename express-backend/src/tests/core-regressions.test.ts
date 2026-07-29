@@ -181,6 +181,7 @@ import {
   effectiveGameStatus,
   gamePlaytimeMinutes,
 } from '../services/GameStatusService';
+import { toTimelineGame } from '../services/TimelineService';
 import {
   buildAnalyticsPeriodWindow,
   buildCrossPlatformRatings,
@@ -3129,6 +3130,33 @@ test('已游玩的想玩游戏按进行中统计', () => {
       },
     ],
   });
+});
+
+test('时间线游戏响应保留各平台零时长且不只返回合计值', () => {
+  const record = toTimelineGame({
+    id: 1n,
+    title: '跨平台游戏',
+    posterUrl: null,
+    status: 'WANT',
+    rating: null,
+    playtimeMinutes: 999,
+    platform: 'STEAM',
+    steamAppId: 10n,
+    xboxId: '20',
+    psnId: null,
+    rawgId: null,
+    platformEntries: [
+      { platform: 'STEAM', playtimeMinutes: 0 },
+      { platform: 'XBOX', playtimeMinutes: 30 },
+    ],
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+  });
+
+  assert.equal(record.playtimeMinutes, 30);
+  assert.deepEqual(record.platformEntries, [
+    { platform: 'STEAM', playtimeMinutes: 0 },
+    { platform: 'XBOX', playtimeMinutes: 30 },
+  ]);
 });
 
 test('游戏遥测按平台档案汇总并归一化不完整成就进度', () => {
