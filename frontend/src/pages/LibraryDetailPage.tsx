@@ -645,7 +645,7 @@ function formatNumber(value?: number | null) {
 }
 
 function formatPlaytime(minutes: number | null | undefined, t: Translate) {
-  if (!minutes) return t("detail.none")
+  if (minutes == null) return t("detail.none")
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   return t("detail.playtime_value", String(hours), String(rest))
