@@ -37,6 +37,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         status: true,
         rating: true,
         shortReview: true,
+        importReviewState: true,
         createdAt: true,
         updatedAt: true,
         tmdbId: true,
@@ -55,6 +56,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         status: true,
         rating: true,
         shortReview: true,
+        importReviewState: true,
         createdAt: true,
         updatedAt: true,
         platform: true,
@@ -86,6 +88,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
         status: true,
         rating: true,
         shortReview: true,
+        importReviewState: true,
         createdAt: true,
         updatedAt: true,
         tmdbId: true,
@@ -246,7 +249,7 @@ function toRecentRecordItem(
   };
 }
 
-function buildOverview(movies: any[], games: any[], tvShows: any[]): ProfileSummaryResponse['overview'] {
+export function buildOverview(movies: any[], games: any[], tvShows: any[]): ProfileSummaryResponse['overview'] {
   const totalMovies = movies.length;
   const totalGames = games.length;
   const totalTvShows = tvShows.length;
@@ -262,6 +265,8 @@ function buildOverview(movies: any[], games: any[], tvShows: any[]): ProfileSumm
     games.filter((g) => g.shortReview?.trim()).length +
     tvShows.filter((s) => s.shortReview?.trim()).length;
   const importedGames = games.filter(isImportedGame).length;
+  const pendingImports = [...movies, ...games, ...tvShows]
+    .filter(record => record.importReviewState === 'PENDING').length;
 
   return {
     totalRecords: totalMovies + totalGames + totalTvShows,
@@ -274,6 +279,7 @@ function buildOverview(movies: any[], games: any[], tvShows: any[]): ProfileSumm
     ratedRecords,
     reviewedRecords,
     importedGames,
+    pendingImports,
   };
 }
 

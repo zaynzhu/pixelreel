@@ -167,6 +167,7 @@ import {
   validateSettingValues,
 } from '../routes/settings';
 import {
+  buildOverview,
   buildGameTelemetry,
   buildMovieSourceCounts,
   buildMonthlyMemories,
@@ -3150,6 +3151,22 @@ test('首页行动队列覆盖继续游玩、等待最久和高分未回顾记�
   assert.deepEqual(queue.backlog.map(record => record.id), [12, 20, 1]);
   assert.deepEqual(queue.reflect.map(record => record.id), [2, 3]);
   assert.equal(queue.resume[1].status, RecordStatus.IN_PROGRESS);
+});
+
+test('首页概览统计三类待审核导入', () => {
+  const record = (importReviewState: string, extra = {}) => ({
+    status: RecordStatus.WANT,
+    rating: null,
+    shortReview: null,
+    importReviewState,
+    ...extra,
+  });
+  const overview = buildOverview(
+    [record('PENDING'), record('ACCEPTED')],
+    [record('PENDING', { steamAppId: 1n }), record('IGNORED')],
+    [record('PENDING')],
+  );
+  assert.equal(overview.pendingImports, 3);
 });
 
 test('本月回声为每个往年选择本月评分最高的已完成记录', () => {

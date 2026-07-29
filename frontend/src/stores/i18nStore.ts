@@ -85,6 +85,9 @@ const dictionaries = {
     "dash.nodes.tv_desc": "Locate television series records.",
     "dash.nodes.lib_title": "LIBRARY.DB",
     "dash.nodes.lib_desc": "Browse the local media library.",
+    "dash.nodes.review_title": "IMPORT.REVIEW",
+    "dash.nodes.review_desc": "Process newly synced records before they enter the formal library.",
+    "dash.nodes.review_badge": "{0} PENDING",
     "dash.btn.exec": "EXEC",
 
     "dash.status.movie": "MOVIE.STATUS",
@@ -920,6 +923,9 @@ const dictionaries = {
     "dash.nodes.tv_desc": "定位电视剧记录。",
     "dash.nodes.lib_title": "记录数据库",
     "dash.nodes.lib_desc": "浏览本地媒体资料库。",
+    "dash.nodes.review_title": "导入审核",
+    "dash.nodes.review_desc": "处理新同步记录，再决定是否纳入正式资料库。",
+    "dash.nodes.review_badge": "待处理 {0}",
     "dash.btn.exec": "执行",
 
     "dash.status.movie": "电影状态分布",

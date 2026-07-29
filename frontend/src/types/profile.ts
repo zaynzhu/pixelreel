@@ -43,6 +43,7 @@ export type ProfileSummary = {
     ratedRecords: number;
     reviewedRecords: number;
     importedGames: number;
+    pendingImports: number;
   };
   ratings: {
     overallAverage?: number | null;

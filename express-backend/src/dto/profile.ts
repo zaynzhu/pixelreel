@@ -11,6 +11,7 @@ export interface ProfileSummaryResponse {
     ratedRecords: number;
     reviewedRecords: number;
     importedGames: number;
+    pendingImports: number;
   };
   ratings: {
     overallAverage: number | null;

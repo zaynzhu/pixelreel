@@ -40,7 +40,18 @@ export default function DashboardPage() {
 
   const overview = summary?.overview;
 
-  const QUICK_LINKS = [
+  const QUICK_LINKS: Array<{
+    title: string;
+    to: string;
+    description: string;
+    badge?: string;
+  }> = [
+    {
+      title: t("dash.nodes.review_title"),
+      to: "/sync/review?tab=pending&source=all",
+      description: t("dash.nodes.review_desc"),
+      badge: t("dash.nodes.review_badge", String(overview?.pendingImports ?? 0)),
+    },
     {
       title: t("dash.nodes.movie_title"),
       to: "/movies/search",
@@ -163,7 +174,7 @@ export default function DashboardPage() {
                     {item.description}
                   </p>
                 </div>
-                <span className="neo-badge-accent">{t("dash.btn.exec")}</span>
+                <span className="neo-badge-accent">{item.badge ?? t("dash.btn.exec")}</span>
               </div>
             </Link>
           ))}
