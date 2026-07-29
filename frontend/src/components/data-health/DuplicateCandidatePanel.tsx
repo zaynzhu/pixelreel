@@ -46,6 +46,8 @@ export function DuplicateCandidatePanel({
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
   const [scope, setScope] = useState<DuplicateScope>(initialScope === "pending" ? "pending" : "all")
+  const [guidedReview, setGuidedReview] = useState(false)
+  const [guidedIndex, setGuidedIndex] = useState(0)
   const [allScopeGroups, setAllScopeGroups] = useState(0)
   const [pendingScopeGroups, setPendingScopeGroups] = useState(0)
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
@@ -67,7 +69,7 @@ export function DuplicateCandidatePanel({
   duplicateViewRef.current = duplicateViewKey
 
   const fetchGroups = useCallback(async (cursor?: string) => {
-    const params = new URLSearchParams({ category, limit: "20", review, scope })
+    const params = new URLSearchParams({ category, limit: "50", review, scope })
     if (cursor) params.set("cursor", cursor)
     return apiFetch<DuplicateGroupResponse>(`/data-health/duplicates?${params}`)
   }, [category, review, scope])
@@ -81,6 +83,7 @@ export function DuplicateCandidatePanel({
     setAllScopeGroups(data.scopeGroups.all)
     setPendingScopeGroups(data.scopeGroups.pending)
     setNextCursor(data.nextCursor)
+    setGuidedIndex(current => Math.min(current, Math.max(0, data.groups.length - 1)))
   }
 
   useEffect(() => {
@@ -137,8 +140,13 @@ export function DuplicateCandidatePanel({
     setFocusMissing(false)
   }, [focusGroupKey, duplicateViewKey])
 
+  useEffect(() => {
+    setGuidedReview(false)
+    setGuidedIndex(0)
+  }, [duplicateViewKey])
+
   const loadMore = async () => {
-    if (!nextCursor || loadingMore) return
+    if (!nextCursor || loadingMore) return false
     const requestId = latestDuplicateRequest.current
     const requestViewKey = duplicateViewKey
     setLoadingMore(true)
@@ -147,14 +155,16 @@ export function DuplicateCandidatePanel({
     try {
       const cursor = nextCursor
       const data = await fetchGroups(cursor)
-      if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return
+      if (requestId !== latestDuplicateRequest.current || requestViewKey !== duplicateViewRef.current) return false
       setGroups(current => [...current, ...data.groups])
       setNextCursor(data.nextCursor)
+      return true
     } catch (reason) {
       if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
         setError(reason instanceof Error ? reason.message : t("health.duplicates.error"))
         setFailedFetch("more")
       }
+      return false
     } finally {
       if (requestId === latestDuplicateRequest.current && requestViewKey === duplicateViewRef.current) {
         setLoadingMore(false)
@@ -341,6 +351,25 @@ export function DuplicateCandidatePanel({
     }
   }
 
+  const showPreviousGuidedGroup = () => {
+    setGuidedIndex(current => Math.max(0, current - 1))
+  }
+
+  const showNextGuidedGroup = async () => {
+    if (guidedIndex < groups.length - 1) {
+      setGuidedIndex(current => Math.min(groups.length - 1, current + 1))
+      return
+    }
+    if (nextCursor && await loadMore()) {
+      setGuidedIndex(current => current + 1)
+    }
+  }
+
+  const visibleGroups = guidedReview
+    ? groups.slice(guidedIndex, guidedIndex + 1)
+    : groups
+  const guidedPosition = totalGroups === 0 ? 0 : Math.min(guidedIndex + 1, totalGroups)
+
   return (
     <section className="border border-[var(--line)] bg-[var(--surface)]">
       <header className="grid gap-4 border-b border-[var(--line)] px-5 py-5 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -383,21 +412,77 @@ export function DuplicateCandidatePanel({
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-[var(--line)] bg-black/20 px-5 py-3">
-        {(["all", "pending"] as const).map(item => (
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-black/20 px-5 py-3">
+        <div className="flex flex-wrap gap-2">
+          {(["all", "pending"] as const).map(item => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setScope(item)}
+              className={scope === item ? "brutal-btn-accent" : "brutal-btn"}
+            >
+              {t(`health.duplicates.scope.${item}`)}
+              <span className="font-mono">
+                {item === "all" ? allScopeGroups : pendingScopeGroups}
+              </span>
+            </button>
+          ))}
+        </div>
+        {category === "game" && review === "unreviewed" && totalGroups > 0 && (
           <button
-            key={item}
             type="button"
-            onClick={() => setScope(item)}
-            className={scope === item ? "brutal-btn-accent" : "brutal-btn"}
+            onClick={() => {
+              setGuidedReview(current => !current)
+              setGuidedIndex(0)
+            }}
+            disabled={loading || groups.length === 0}
+            className={guidedReview ? "brutal-btn" : "brutal-btn-accent"}
           >
-            {t(`health.duplicates.scope.${item}`)}
-            <span className="font-mono">
-              {item === "all" ? allScopeGroups : pendingScopeGroups}
-            </span>
+            {t(guidedReview
+              ? "health.duplicates.guide.stop"
+              : "health.duplicates.guide.start")}
           </button>
-        ))}
+        )}
       </div>
+
+      {guidedReview && groups.length > 0 && (
+        <div className="border-b border-[var(--line)] bg-[rgba(212,255,0,0.04)]">
+          <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent)]">
+                {t("health.duplicates.guide.progress", String(guidedPosition), String(totalGroups))}
+              </p>
+              <p className="mt-1 text-[10px] leading-5 text-[var(--muted)]">
+                {t("health.duplicates.guide.hint")}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={showPreviousGuidedGroup}
+                disabled={guidedIndex === 0}
+                className="brutal-btn disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← {t("health.duplicates.guide.previous")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void showNextGuidedGroup()}
+                disabled={guidedIndex >= groups.length - 1 && !nextCursor}
+                className="brutal-btn disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t("health.duplicates.guide.next")} →
+              </button>
+            </div>
+          </div>
+          <div className="h-0.5 bg-black/40">
+            <div
+              className="h-full bg-[var(--accent)] transition-[width] duration-200"
+              style={{ width: `${totalGroups > 0 ? guidedPosition / totalGroups * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {importReviewReturnPath && !focusGroupKey && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[rgba(212,255,0,0.04)] px-5 py-3">
@@ -451,7 +536,9 @@ export function DuplicateCandidatePanel({
         </div>
       ) : (
         <div className="space-y-4 p-4 sm:p-5">
-          {groups.map((group, groupIndex) => (
+          {visibleGroups.map((group, visibleGroupIndex) => {
+            const groupIndex = guidedReview ? guidedIndex : visibleGroupIndex
+            return (
             <article
               key={group.key}
               ref={element => {
@@ -476,6 +563,11 @@ export function DuplicateCandidatePanel({
                   {focusedGroupKey === group.key && (
                     <span className="border border-[var(--accent-deep)] px-2 py-1 text-[8px] uppercase tracking-widest text-[var(--accent-deep)]">
                       {t("health.duplicates.focused")}
+                    </span>
+                  )}
+                  {category === "game" && review === "unreviewed" && group.recommendedTargetId == null && (
+                    <span className="border border-amber-500/60 px-2 py-1 text-[8px] uppercase tracking-widest text-amber-300">
+                      {t("health.duplicates.manual_choice")}
                     </span>
                   )}
                 </div>
@@ -612,7 +704,8 @@ export function DuplicateCandidatePanel({
                 })}
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
       )}
 
