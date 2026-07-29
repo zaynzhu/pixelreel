@@ -189,6 +189,7 @@ export default function SyncPage() {
       return status[source].available
     }).length
     : 0
+  const attentionCount = status ? SOURCE_ORDER.length - availableCount : 0
 
   const latestTask = (source: SyncSourceKey) => {
     const type = TASK_TYPES[source]
@@ -317,9 +318,10 @@ export default function SyncPage() {
               </Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 bg-[var(--line)] lg:grid-cols-1">
+          <div className="grid grid-cols-2 bg-[var(--line)] lg:grid-cols-1">
             <StatusMetric label={t('sync.metric.sources')} value={SOURCE_ORDER.length} />
             <StatusMetric label={t('sync.metric.available')} value={availableCount} accent />
+            <StatusMetric label={t('sync.metric.attention')} value={attentionCount} warning={attentionCount > 0} />
             <StatusMetric label={t('sync.metric.running')} value={runningCount} warning={runningCount > 0} />
           </div>
         </div>
@@ -628,13 +630,20 @@ function SourceCard({
 
 function SyncHistorySummary({ entry }: { entry: SyncHistoryEntry }) {
   const { t, lang } = useI18nStore()
+  const stale = isSyncHistoryStale(entry.completedAt)
   return (
     <div className="mt-4 border-t border-dashed border-[var(--line)] pt-4 text-[10px] text-[var(--muted)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-bold uppercase tracking-widest text-white">{t('sync.history.title')}</span>
         <span>{taskStatusLabel(entry.status, t)}</span>
       </div>
-      <p className="mt-2">{new Date(entry.completedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span>{new Date(entry.completedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</span>
+        <span className={stale ? 'text-yellow-300' : 'text-[var(--accent)]'}>
+          {formatRelativeSyncTime(entry.completedAt, lang)}
+          {stale && ` · ${t('sync.history.stale')}`}
+        </span>
+      </div>
       {entry.result && <ResultSummary result={entry.result} completedAt={null} compact />}
       {entry.error && !isPrimaryResultError(entry.error, entry.result) && <p className="mt-2 text-red-400">{entry.error}</p>}
     </div>
@@ -849,4 +858,24 @@ function taskStatusLabel(status: Task['status'] | SyncHistoryEntry['status'], t:
 
 function isPrimaryResultError(error: string, result: SyncResult | null | undefined): boolean {
   return result?.errors.find(item => item.trim())?.trim() === error.trim()
+}
+
+function isSyncHistoryStale(value: string, now = Date.now()) {
+  const completedAt = new Date(value).getTime()
+  return Number.isFinite(completedAt) && now - completedAt > 30 * 24 * 60 * 60 * 1000
+}
+
+function formatRelativeSyncTime(value: string, lang: string, now = Date.now()) {
+  const completedAt = new Date(value).getTime()
+  if (!Number.isFinite(completedAt)) return value
+  const difference = completedAt - now
+  const formatter = new Intl.RelativeTimeFormat(lang === 'zh' ? 'zh-CN' : 'en-US', {
+    numeric: 'auto',
+  })
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (Math.abs(difference) < hour) return formatter.format(Math.round(difference / minute), 'minute')
+  if (Math.abs(difference) < day) return formatter.format(Math.round(difference / hour), 'hour')
+  return formatter.format(Math.round(difference / day), 'day')
 }
