@@ -81,5 +81,6 @@ export interface PaginatedLibraryResponse {
     rated: number;
     reviewed: number;
     completed: number;
+    sourceCounts?: Record<'all' | 'douban' | 'trakt' | 'steam' | 'xbox' | 'psn', number>;
   };
 }

@@ -37,7 +37,7 @@ const LIBRARY_IMPORT_REVIEW_FILTERS = ['all', 'pending', 'accepted', 'ignored'] 
 const LIBRARY_SORTS = ['recent', 'rating'] as const;
 const RECORD_CATEGORIES = ['movie', 'tv_show', 'tvshow', 'game'] as const;
 const LIBRARY_LIST_PARAMETER_KEYS = new Set([
-  'cursor', 'limit', 'includeTotals', 'category', 'year', 'status',
+  'cursor', 'limit', 'includeTotals', 'includeSourceCounts', 'category', 'year', 'status',
   'query', 'source', 'review', 'importReview', 'sort',
 ]);
 const LIBRARY_RANDOM_PARAMETER_KEYS = new Set(['limit', 't', 'category', 'status']);
@@ -59,6 +59,9 @@ export function parseLibraryListParameters(query: Record<string, unknown>) {
     cursor,
     limit: parsePositiveIntegerParameter(query.limit, 'limit', 50, 200),
     includeTotals: parseBooleanParameter(query.includeTotals, 'includeTotals', true),
+    includeSourceCounts: parseBooleanParameter(
+      query.includeSourceCounts, 'includeSourceCounts', false,
+    ),
     category: parseEnumParameter(query.category, 'category', LIBRARY_CATEGORIES) ?? 'all',
     year: parseYearParameter(query.year) ?? undefined,
     status: parseRecordStatusParameter(query.status, null) ?? undefined,

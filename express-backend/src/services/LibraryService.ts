@@ -40,6 +40,7 @@ export interface ListRecordsOptions {
   cursor?: string;
   limit?: number;
   includeTotals?: boolean;
+  includeSourceCounts?: boolean;
   category?: LibraryCategoryFilter;
   year?: number;
   status?: RecordStatus;
@@ -357,7 +358,17 @@ function compareLibraryRecords(
 
 export async function listRecords(
   options?: ListRecordsOptions,
-): Promise<{ records: LibraryRecordResponse[]; nextCursor: string | null; totals?: { total: number; rated: number; reviewed: number; completed: number } }> {
+): Promise<{
+  records: LibraryRecordResponse[];
+  nextCursor: string | null;
+  totals?: {
+    total: number;
+    rated: number;
+    reviewed: number;
+    completed: number;
+    sourceCounts?: Record<'all' | 'douban' | 'trakt' | 'steam' | 'xbox' | 'psn', number>;
+  };
+}> {
   const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
   const pageTake = limit + 1;
   const sort = options?.sort ?? 'recent';
@@ -441,12 +452,16 @@ async function fetchTotals(options?: ListRecordsOptions) {
     && sourceSupportsKind(options?.source, 'media');
   const includeGames = (category === 'all' || category === 'game')
     && sourceSupportsKind(options?.source, 'game');
+  const sourceCountsPromise = options?.includeSourceCounts
+    ? fetchSourceCounts(options)
+    : Promise.resolve(undefined);
 
   const [
     movieCount, tvCount, gameCount,
     movieRated, tvRated, gameRated,
     movieReviewed, tvReviewed, gameReviewed,
     movieDone, tvDone, gameDone,
+    sourceCounts,
   ] = await Promise.all([
     includeMovies ? db.movie.count({ where: movieWhere }) : Promise.resolve(0),
     includeTvShows ? db.tvShow.count({ where: tvShowWhere }) : Promise.resolve(0),
@@ -460,13 +475,38 @@ async function fetchTotals(options?: ListRecordsOptions) {
     includeMovies && completedWhere ? db.movie.count({ where: { AND: [movieWhere, completedWhere] } }) : Promise.resolve(0),
     includeTvShows && completedWhere ? db.tvShow.count({ where: { AND: [tvShowWhere, completedWhere] } }) : Promise.resolve(0),
     includeGames && completedWhere ? db.game.count({ where: { AND: [gameWhere, completedWhere] } }) : Promise.resolve(0),
+    sourceCountsPromise,
   ]);
   return {
     total: movieCount + tvCount + gameCount,
     rated: movieRated + tvRated + gameRated,
     reviewed: movieReviewed + tvReviewed + gameReviewed,
     completed: movieDone + tvDone + gameDone,
+    ...(sourceCounts ? { sourceCounts } : {}),
   };
+}
+
+async function fetchSourceCounts(options: ListRecordsOptions) {
+  const db = getDb();
+  const sources = ['all', 'douban', 'trakt', 'steam', 'xbox', 'psn'] as const;
+  const counts = await Promise.all(sources.map(async source => {
+    const sourceOptions = { ...options, source };
+    const includeMedia = sourceSupportsKind(source, 'media');
+    const includeGames = sourceSupportsKind(source, 'game');
+    const [movies, tvShows, games] = await Promise.all([
+      includeMedia
+        ? db.movie.count({ where: buildEntityWhere('movie', sourceOptions) })
+        : Promise.resolve(0),
+      includeMedia
+        ? db.tvShow.count({ where: buildEntityWhere('tv_show', sourceOptions) })
+        : Promise.resolve(0),
+      includeGames
+        ? db.game.count({ where: buildEntityWhere('game', sourceOptions) })
+        : Promise.resolve(0),
+    ]);
+    return [source, movies + tvShows + games] as const;
+  }));
+  return Object.fromEntries(counts) as Record<(typeof sources)[number], number>;
 }
 
 export async function getRandomRecord(

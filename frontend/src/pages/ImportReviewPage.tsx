@@ -11,15 +11,18 @@ import type { ImportReviewState, LibraryRecord } from "../types/library"
 
 type ReviewTab = Extract<ImportReviewState, "PENDING" | "IGNORED">
 type ReviewDecision = Extract<ImportReviewState, "ACCEPTED" | "IGNORED">
-type ReviewSource = "all" | "douban" | "steam" | "xbox" | "psn"
+type ReviewSource = "all" | "douban" | "trakt" | "steam" | "xbox" | "psn"
 
-const REVIEW_SOURCES: ReviewSource[] = ["all", "douban", "steam", "xbox", "psn"]
+const REVIEW_SOURCES: ReviewSource[] = ["all", "douban", "trakt", "steam", "xbox", "psn"]
 const REVIEW_TABS: ReviewTab[] = ["PENDING", "IGNORED"]
 
 interface ReviewResponse {
   records: LibraryRecord[]
   nextCursor: string | null
-  totals?: { total: number }
+  totals?: {
+    total: number
+    sourceCounts?: Record<ReviewSource, number>
+  }
 }
 
 interface GameDuplicateHint {
@@ -50,6 +53,7 @@ export default function ImportReviewPage() {
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
+  const [sourceCounts, setSourceCounts] = useState<Partial<Record<ReviewSource, number>>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -92,6 +96,7 @@ export default function ImportReviewPage() {
         sort: "recent",
         limit: "100",
         includeTotals: append ? "false" : "true",
+        includeSourceCounts: append ? "false" : "true",
       })
       if (cursor) params.set("cursor", cursor)
       const response = await apiFetch<ReviewResponse>(`/library?${params}`)
@@ -102,7 +107,10 @@ export default function ImportReviewPage() {
       ) return
       setRecords(current => append ? [...current, ...response.records] : response.records)
       setNextCursor(response.nextCursor)
-      if (response.totals) setTotal(response.totals.total)
+      if (response.totals) {
+        setTotal(response.totals.total)
+        if (response.totals.sourceCounts) setSourceCounts(response.totals.sourceCounts)
+      }
       if (!append) setSelected(new Set())
 
       const gameIds = response.records
@@ -203,6 +211,7 @@ export default function ImportReviewPage() {
     setRecords([])
     setNextCursor(null)
     setTotal(0)
+    setSourceCounts({})
     setSelected(new Set())
     setLoading(true)
     setLoadingMore(false)
@@ -338,6 +347,7 @@ export default function ImportReviewPage() {
               className={source === value ? "brutal-btn-accent" : "brutal-btn"}
             >
               {t(`review.source.${value}`)}
+              {sourceCounts[value] != null && ` ${sourceCounts[value]}`}
             </button>
           ))}
         </div>
