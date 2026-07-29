@@ -365,6 +365,16 @@ export function buildGameDuplicateHints(
   });
 }
 
+export function countPendingGameDuplicateGroups(
+  groups: ReturnType<typeof findDuplicateGroups>,
+  reviewedKeys: ReadonlySet<string>,
+) {
+  return groups.filter(group => (
+    !reviewedKeys.has(group.key)
+    && group.records.some(record => record.importReviewState === 'PENDING')
+  )).length;
+}
+
 export async function listGameDuplicateHints(recordIds: number[]) {
   const [groups, decisions] = await Promise.all([
     loadDuplicateCandidates('game').then(findDuplicateGroups),
@@ -377,6 +387,7 @@ export async function listGameDuplicateHints(recordIds: number[]) {
 
   return {
     hints: buildGameDuplicateHints(groups, recordIds, reviewedKeys),
+    pendingGroupCount: countPendingGameDuplicateGroups(groups, reviewedKeys),
   };
 }
 

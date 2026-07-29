@@ -22,10 +22,12 @@ type DuplicateScope = "all" | "pending"
 
 export function DuplicateCandidatePanel({
   category,
+  initialScope,
   focusGroupKey,
   importReviewReturnPath,
 }: {
   category: DataHealthCategory
+  initialScope?: DuplicateScope
   focusGroupKey?: string | null
   importReviewReturnPath?: string | null
 }) {
@@ -43,7 +45,7 @@ export function DuplicateCandidatePanel({
   const [rescrapeRecord, setRescrapeRecord] = useState<LibraryRecord | null>(null)
   const [openingRecordId, setOpeningRecordId] = useState<number | null>(null)
   const [review, setReview] = useState<DuplicateReviewFilter>("unreviewed")
-  const [scope, setScope] = useState<DuplicateScope>("all")
+  const [scope, setScope] = useState<DuplicateScope>(initialScope === "pending" ? "pending" : "all")
   const [allScopeGroups, setAllScopeGroups] = useState(0)
   const [pendingScopeGroups, setPendingScopeGroups] = useState(0)
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
@@ -396,6 +398,17 @@ export function DuplicateCandidatePanel({
           </button>
         ))}
       </div>
+
+      {importReviewReturnPath && !focusGroupKey && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[rgba(212,255,0,0.04)] px-5 py-3">
+          <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
+            {t("health.duplicates.focused")}
+          </span>
+          <Link to={importReviewReturnPath} className="brutal-btn">
+            ← {t("health.duplicates.back_to_review")}
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-5 py-4">

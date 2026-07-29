@@ -36,6 +36,7 @@ export default function DataHealthPage() {
   const [searchParams] = useSearchParams()
   const initialCategory = searchParams.get("category")
   const initialView = searchParams.get("view")
+  const initialDuplicateScope = searchParams.get("scope") === "pending" ? "pending" : "all"
   const initialGroupKey = searchParams.get("group")
   const importReviewReturnPath = parseImportReviewReturnPath(searchParams.get("returnTo"))
   const focusedGameGroupKey = initialGroupKey?.startsWith("game:") && initialGroupKey.length <= 80
@@ -381,6 +382,7 @@ export default function DataHealthPage() {
       {view === "duplicates" ? (
         <DuplicateCandidatePanel
           category={category}
+          initialScope={initialDuplicateScope}
           focusGroupKey={category === "game" ? focusedGameGroupKey : null}
           importReviewReturnPath={category === "game" ? importReviewReturnPath : null}
         />

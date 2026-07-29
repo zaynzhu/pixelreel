@@ -38,6 +38,7 @@ interface GameDuplicateHint {
 
 interface GameDuplicateHintResponse {
   hints: GameDuplicateHint[]
+  pendingGroupCount: number
 }
 
 function recordKey(record: LibraryRecord) {
@@ -61,6 +62,7 @@ export default function ImportReviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [duplicateHintError, setDuplicateHintError] = useState<string | null>(null)
   const [duplicateHints, setDuplicateHints] = useState<Record<number, GameDuplicateHint>>({})
+  const [pendingDuplicateGroupCount, setPendingDuplicateGroupCount] = useState<number | null>(null)
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
   const [focusedRecordKey, setFocusedRecordKey] = useState<string | null>(null)
   const [focusMissing, setFocusMissing] = useState(false)
@@ -130,6 +132,7 @@ export default function ImportReviewPage() {
             hintResponse.hints.map(hint => [hint.recordId, hint]),
           )
           setDuplicateHints(current => append ? { ...current, ...nextHints } : nextHints)
+          setPendingDuplicateGroupCount(hintResponse.pendingGroupCount)
         } catch (reason) {
           if (
             requestId === latestLoadRequest.current
@@ -137,6 +140,7 @@ export default function ImportReviewPage() {
             && requestSource === sourceRef.current
           ) {
             if (!append) setDuplicateHints({})
+            if (!append) setPendingDuplicateGroupCount(null)
             setDuplicateHintError(
               reason instanceof Error ? reason.message : t("review.duplicate_error"),
             )
@@ -144,6 +148,7 @@ export default function ImportReviewPage() {
         }
       } else if (!append) {
         setDuplicateHints({})
+        setPendingDuplicateGroupCount(null)
       }
     } catch (reason) {
       if (
@@ -218,6 +223,7 @@ export default function ImportReviewPage() {
     setError(null)
     setDuplicateHintError(null)
     setDuplicateHints({})
+    setPendingDuplicateGroupCount(null)
     setFailedCursor(null)
     setFocusedRecordKey(null)
     setFocusMissing(false)
@@ -237,6 +243,7 @@ export default function ImportReviewPage() {
     setError(null)
     setDuplicateHintError(null)
     setDuplicateHints({})
+    setPendingDuplicateGroupCount(null)
     setFailedCursor(null)
     setFocusedRecordKey(null)
     setFocusMissing(false)
@@ -351,6 +358,22 @@ export default function ImportReviewPage() {
             </button>
           ))}
         </div>
+
+        {tab === "PENDING" && pendingDuplicateGroupCount != null && pendingDuplicateGroupCount > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--accent-deep)] bg-[rgba(255,68,0,0.08)] px-4 py-3 sm:px-5">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-[var(--accent-deep)]">
+                {t("review.duplicate_queue", String(pendingDuplicateGroupCount))}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--muted)]">
+                {t("review.duplicate_queue_desc")}
+              </p>
+            </div>
+            <Link to={buildPendingDuplicatePath(tab, source)} className="brutal-btn-accent">
+              {t("review.duplicate_queue_open")} <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        )}
 
         {duplicateHintError && records.length > 0 && (
           <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[10px] text-amber-300 sm:px-5">
@@ -575,7 +598,22 @@ function buildDuplicateGroupPath(
   const params = new URLSearchParams({
     category: "game",
     view: "duplicates",
+    ...(tab === "PENDING" ? { scope: "pending" } : {}),
     group: groupKey,
+    returnTo: `/sync/review?${returnParams}`,
+  })
+  return `/data-health?${params}`
+}
+
+function buildPendingDuplicatePath(tab: ReviewTab, source: ReviewSource) {
+  const returnParams = new URLSearchParams({
+    tab: tab.toLowerCase(),
+    source,
+  })
+  const params = new URLSearchParams({
+    category: "game",
+    view: "duplicates",
+    scope: "pending",
     returnTo: `/sync/review?${returnParams}`,
   })
   return `/data-health?${params}`

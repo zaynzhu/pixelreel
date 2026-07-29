@@ -197,6 +197,7 @@ import {
 } from '../services/DataHealthRepairService';
 import {
   buildGameDuplicateHints,
+  countPendingGameDuplicateGroups,
   findDuplicateGroups,
   normalizeDuplicateTitle,
 } from '../services/DuplicateDetectionService';
@@ -1240,6 +1241,8 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
     ],
   }]);
   assert.deepEqual(buildGameDuplicateHints(gameGroups, [7], new Set([gameGroups[0].key])), []);
+  assert.equal(countPendingGameDuplicateGroups(gameGroups, new Set()), 1);
+  assert.equal(countPendingGameDuplicateGroups(gameGroups, new Set([gameGroups[0].key])), 0);
   assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
     category: 'game', cursor: 0, limit: 10, review: 'unreviewed', scope: 'all',
   });
