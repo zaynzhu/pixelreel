@@ -400,7 +400,7 @@ export default function ImportReviewPage() {
                             .join(" / ")}
                         </p>
                         <Link
-                          to="/data-health?category=game&view=duplicates"
+                          to={buildDuplicateGroupPath(duplicateHint.groupKey)}
                           className="mt-2 inline-flex text-[9px] uppercase tracking-wider text-white underline decoration-[var(--accent)] underline-offset-4"
                         >
                           {t("review.duplicate_open")}
@@ -475,4 +475,13 @@ function formatGameProgress(
     return `${t("review.unlocked")} ${unlocked}`
   }
   return null
+}
+
+function buildDuplicateGroupPath(groupKey: string) {
+  const params = new URLSearchParams({
+    category: "game",
+    view: "duplicates",
+    group: groupKey,
+  })
+  return `/data-health?${params}`
 }

@@ -18,7 +18,13 @@ import RescrapeModal from "../RescrapeModal"
 
 type DuplicateReviewFilter = "unreviewed" | "reviewed"
 
-export function DuplicateCandidatePanel({ category }: { category: DataHealthCategory }) {
+export function DuplicateCandidatePanel({
+  category,
+  focusGroupKey,
+}: {
+  category: DataHealthCategory
+  focusGroupKey?: string | null
+}) {
   const { t } = useI18nStore()
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   const [totalGroups, setTotalGroups] = useState(0)
@@ -37,6 +43,8 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const [mergePreview, setMergePreview] = useState<{ groupKey: string; data: GameMergePreview } | null>(null)
   const [previewingRecordId, setPreviewingRecordId] = useState<number | null>(null)
   const [mergingRecordId, setMergingRecordId] = useState<number | null>(null)
+  const [focusedGroupKey, setFocusedGroupKey] = useState<string | null>(null)
+  const [focusMissing, setFocusMissing] = useState(false)
   const duplicateViewKey = `${category}:${review}`
   const duplicateViewRef = useRef(duplicateViewKey)
   const latestDuplicateRequest = useRef(0)
@@ -46,6 +54,7 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
   const openRequestActive = useRef(false)
   const reviewRequestActive = useRef(false)
   const mergeRequestActive = useRef(false)
+  const groupElements = useRef(new Map<string, HTMLElement>())
   duplicateViewRef.current = duplicateViewKey
 
   const fetchGroups = useCallback(async (cursor?: string) => {
@@ -110,6 +119,11 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
     }
   }, [duplicateViewKey, fetchGroups, t])
 
+  useEffect(() => {
+    setFocusedGroupKey(null)
+    setFocusMissing(false)
+  }, [focusGroupKey, duplicateViewKey])
+
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return
     const requestId = latestDuplicateRequest.current
@@ -134,6 +148,25 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       }
     }
   }
+
+  useEffect(() => {
+    if (!focusGroupKey || review !== "unreviewed" || loading || error) return
+    const target = groupElements.current.get(focusGroupKey)
+    if (target) {
+      setFocusedGroupKey(focusGroupKey)
+      setFocusMissing(false)
+      const timer = window.setTimeout(() => {
+        target.focus({ preventScroll: true })
+        target.scrollIntoView({ behavior: "auto", block: "center" })
+      }, 100)
+      return () => window.clearTimeout(timer)
+    }
+    if (nextCursor && !loadingMore) {
+      void loadMore()
+      return
+    }
+    if (!nextCursor && !loadingMore) setFocusMissing(true)
+  }, [error, focusGroupKey, groups, loading, loadingMore, nextCursor, review])
 
   const refreshGroups = async () => {
     const requestViewKey = duplicateViewKey
@@ -351,6 +384,12 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
         </div>
       )}
 
+      {focusMissing && (
+        <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-5 py-3 text-[10px] text-amber-300">
+          {t("health.duplicates.focus_missing")}
+        </div>
+      )}
+
       {loading ? (
         <div className="px-5 py-16 text-center text-xs uppercase tracking-widest text-[var(--muted)]">
           {t("health.loading")}
@@ -368,7 +407,19 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
       ) : (
         <div className="space-y-4 p-4 sm:p-5">
           {groups.map((group, groupIndex) => (
-            <article key={group.key} className="border border-[var(--line)] bg-[var(--surface-hover)]">
+            <article
+              key={group.key}
+              ref={element => {
+                if (element) groupElements.current.set(group.key, element)
+                else groupElements.current.delete(group.key)
+              }}
+              tabIndex={-1}
+              className={`border bg-[var(--surface-hover)] outline-none transition-colors ${
+                focusedGroupKey === group.key
+                  ? "border-[var(--accent-deep)] shadow-[0_0_24px_rgba(255,68,0,0.2)]"
+                  : "border-[var(--line)]"
+              }`}
+            >
               <div className="flex flex-col gap-3 border-b border-[var(--line)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[10px] text-[var(--muted)]">
@@ -377,6 +428,11 @@ export function DuplicateCandidatePanel({ category }: { category: DataHealthCate
                   {group.reasons.map(reason => (
                     <ReasonTag key={reason} reason={reason} />
                   ))}
+                  {focusedGroupKey === group.key && (
+                    <span className="border border-[var(--accent-deep)] px-2 py-1 text-[8px] uppercase tracking-widest text-[var(--accent-deep)]">
+                      {t("health.duplicates.focused")}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">

@@ -36,6 +36,10 @@ export default function DataHealthPage() {
   const [searchParams] = useSearchParams()
   const initialCategory = searchParams.get("category")
   const initialView = searchParams.get("view")
+  const initialGroupKey = searchParams.get("group")
+  const focusedGameGroupKey = initialGroupKey?.startsWith("game:") && initialGroupKey.length <= 80
+    ? initialGroupKey
+    : null
   const tasks = useTaskStore(state => state.tasks)
   const taskStateReady = useTaskStore(state => state.initialized && state.pollError === null)
   const pollTasks = useTaskStore(state => state.pollTasks)
@@ -374,7 +378,10 @@ export default function DataHealthPage() {
       </section>
 
       {view === "duplicates" ? (
-        <DuplicateCandidatePanel category={category} />
+        <DuplicateCandidatePanel
+          category={category}
+          focusGroupKey={category === "game" ? focusedGameGroupKey : null}
+        />
       ) : <section className="border border-[var(--line)] bg-[var(--surface)]">
         <div className="flex flex-col gap-4 border-b border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
