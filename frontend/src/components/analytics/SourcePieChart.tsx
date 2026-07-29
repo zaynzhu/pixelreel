@@ -77,7 +77,7 @@ export function SourcePieChart({ data }: Props) {
   return (
     <div className="showcase-panel p-5">
       <div className="section-kicker mb-4">{t("analytics.source.title")}</div>
-      <div className="flex justify-around">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <MiniPie title={t("analytics.source.movies")} items={data.movies} colors={MOVIE_COLORS} />
         <MiniPie title={t("analytics.source.tvshows")} items={data.tvShows} colors={TV_COLORS} />
         <MiniPie title={t("analytics.source.game_profiles")} items={data.games} colors={GAME_COLORS} />

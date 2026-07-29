@@ -68,7 +68,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* 标题栏 + 年份选择器 */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="section-kicker">{t("analytics.kicker")}</div>
           <h1
@@ -86,7 +86,7 @@ export default function AnalyticsPage() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
           <button
             className="cursor-pointer px-2 py-0.5 text-[10px] uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
             style={{
@@ -138,7 +138,7 @@ export default function AnalyticsPage() {
       <MonthlyChart data={data.monthlyCompletion} />
 
       {/* 评分分布 + 来源饼图 并排 */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <RatingChart data={data.ratingDistribution} />
         <SourcePieChart data={data.sourceBreakdown} />
       </div>

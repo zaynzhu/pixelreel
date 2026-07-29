@@ -49,7 +49,7 @@ export function OverviewCards({ overview }: Props) {
   ]
 
   return (
-    <div className="grid grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       {cards.map((card) => (
         <div
           key={card.label}
