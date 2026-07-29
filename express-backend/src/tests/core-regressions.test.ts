@@ -1199,11 +1199,12 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
       rating: 5,
       hasReview: true,
       playtimeMinutes: 120,
+      importReviewState: 'ACCEPTED',
       protected: false,
       identityValues: {},
     },
     { id: 6n, category: 'game', title: 'Portal II', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
-    { id: 7n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PSN', protected: false, identityValues: {} },
+    { id: 7n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PSN', importReviewState: 'PENDING', protected: false, identityValues: {} },
     { id: 8n, category: 'game', title: 'Portal 2', posterUrl: null, year: null, platform: 'PC', protected: false, identityValues: {} },
     { id: 9n, category: 'game', title: 'Halo', posterUrl: null, year: null, platform: 'Xbox', protected: false, identityValues: {} },
     { id: 10n, category: 'game', title: 'Halo', posterUrl: null, year: null, platform: 'Xbox', protected: false, identityValues: {} },
@@ -1216,12 +1217,15 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
     rating: gameGroups[0].records[0].rating,
     hasReview: gameGroups[0].records[0].hasReview,
     playtimeMinutes: gameGroups[0].records[0].playtimeMinutes,
+    importReviewState: gameGroups[0].records[0].importReviewState,
   }, {
     status: 'DONE',
     rating: 5,
     hasReview: true,
     playtimeMinutes: 120,
+    importReviewState: 'ACCEPTED',
   });
+  assert.equal(gameGroups[0].records[1].importReviewState, 'PENDING');
   assert.deepEqual(gameGroups[1].records.map(record => record.id), [9, 10]);
   assert.deepEqual(gameGroups[1].reasons, ['title_platform']);
   assert.deepEqual(buildGameDuplicateHints(gameGroups, [7], new Set()), [{
@@ -1354,6 +1358,10 @@ test('游戏合并只自动汇总不冲突的个人记录和平台身份', () =>
     psnId: '20',
     platform: 'STEAM',
   });
+  assert.equal(
+    resolveGameMergeValues(source, [target, source]).importReviewState,
+    'ACCEPTED',
+  );
   assert.throws(
     () => resolveGameMergeValues(target, [{ ...target, status: 'DONE' }, { ...source, status: 'DROPPED' }]),
     /个人状态存在冲突/,

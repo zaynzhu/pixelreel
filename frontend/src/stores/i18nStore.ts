@@ -406,6 +406,7 @@ const dictionaries = {
     "review.empty.pending": "No imports are waiting. New synced records will appear here.",
     "review.empty.ignored": "No ignored imports.",
     "review.state.pending": "PENDING REVIEW",
+    "review.state.accepted": "IN LIBRARY",
     "review.state.ignored": "IGNORED",
     "review.back_to_queue": "BACK TO IMPORT REVIEW",
 
@@ -659,6 +660,7 @@ const dictionaries = {
     "health.duplicates.preview.moved": "PROFILES MOVED",
     "health.duplicates.preview.total": "PROFILES AFTER",
     "health.duplicates.preview.result": "PERSONAL RECORD AFTER MERGE",
+    "health.duplicates.preview.review_state": "IMPORT REVIEW",
     "health.duplicates.preview.kept": "KEPT",
     "health.duplicates.preview.none": "NONE",
     "health.duplicates.preview.safe": "The complete pre-merge snapshot will be saved. This merge can be undone from Activity.",
@@ -1235,6 +1237,7 @@ const dictionaries = {
     "review.empty.pending": "没有等待审核的导入。新的同步记录会出现在这里。",
     "review.empty.ignored": "没有已忽略的导入。",
     "review.state.pending": "待审核",
+    "review.state.accepted": "已正式入库",
     "review.state.ignored": "已忽略",
     "review.back_to_queue": "返回导入审核",
 
@@ -1488,6 +1491,7 @@ const dictionaries = {
     "health.duplicates.preview.moved": "迁移档案",
     "health.duplicates.preview.total": "合并后档案",
     "health.duplicates.preview.result": "合并后的个人记录",
+    "health.duplicates.preview.review_state": "导入审核",
     "health.duplicates.preview.kept": "保留",
     "health.duplicates.preview.none": "无",
     "health.duplicates.preview.safe": "系统会保存完整合并前快照，之后可从操作日志撤销。",

@@ -32,6 +32,7 @@ export interface DuplicateCandidate {
   rating?: number | null;
   hasReview?: boolean;
   playtimeMinutes?: number | null;
+  importReviewState?: string | null;
   protected: boolean;
   identityValues: Partial<Record<DuplicateReason, string | null>>;
 }
@@ -186,6 +187,7 @@ export function findDuplicateGroups(candidates: DuplicateCandidate[]) {
           rating: candidate.rating ?? null,
           hasReview: candidate.hasReview ?? false,
           playtimeMinutes: candidate.playtimeMinutes ?? null,
+          importReviewState: candidate.importReviewState ?? null,
           protected: candidate.protected,
           sourceIds: Object.fromEntries(
             Object.entries(candidate.identityValues).filter(([, value]) => Boolean(value)),
@@ -222,6 +224,7 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
         status: true,
         rating: true,
         shortReview: true,
+        importReviewState: true,
       },
     });
     return records.map(record => ({
@@ -235,6 +238,7 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       rating: record.rating,
       hasReview: Boolean(record.shortReview?.trim()),
       playtimeMinutes: null,
+      importReviewState: record.importReviewState,
       protected: Boolean(record.doubanId),
       identityValues: {
         douban_id: record.doubanId,
@@ -259,6 +263,7 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
         status: true,
         rating: true,
         shortReview: true,
+        importReviewState: true,
       },
     });
     return records.map(record => ({
@@ -272,6 +277,7 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       rating: record.rating,
       hasReview: Boolean(record.shortReview?.trim()),
       playtimeMinutes: null,
+      importReviewState: record.importReviewState,
       protected: Boolean(record.doubanId),
       identityValues: {
         douban_id: record.doubanId,
@@ -295,6 +301,7 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       rating: true,
       shortReview: true,
       playtimeMinutes: true,
+      importReviewState: true,
       platformEntries: {
         select: { platform: true, playtimeMinutes: true },
         orderBy: { platform: 'asc' },
@@ -315,6 +322,7 @@ async function loadDuplicateCandidates(category: DataHealthCategory): Promise<Du
       rating: record.rating,
       hasReview: Boolean(record.shortReview?.trim()),
       playtimeMinutes: gamePlaytimeMinutes(record),
+      importReviewState: record.importReviewState,
       protected: false,
       identityValues: {
         rawg_id: record.rawgId?.toString() ?? null,

@@ -48,6 +48,7 @@ export interface DuplicateRecord {
   rating: number | null
   hasReview: boolean
   playtimeMinutes: number | null
+  importReviewState: "PENDING" | "ACCEPTED" | "IGNORED" | null
   protected: boolean
   sourceIds: Partial<Record<DuplicateReason, string>>
 }
@@ -85,5 +86,6 @@ export interface GameMergePreview {
     status: string
     rating: number | null
     hasReview: boolean
+    importReviewState: "PENDING" | "ACCEPTED" | "IGNORED"
   } | null
 }

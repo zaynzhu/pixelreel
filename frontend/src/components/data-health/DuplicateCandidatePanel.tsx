@@ -514,6 +514,15 @@ export function DuplicateCandidatePanel({
                               {t("health.duplicates.personal.playtime", formatPlaytime(record.playtimeMinutes))}
                             </span>
                           )}
+                          {record.importReviewState && (
+                            <span className={`border px-1.5 py-0.5 text-[8px] ${
+                              record.importReviewState === "PENDING"
+                                ? "border-[var(--accent-deep)] text-[var(--accent-deep)]"
+                                : "border-[var(--line)] text-[var(--muted)]"
+                            }`}>
+                              {importReviewStateLabel(record.importReviewState, t)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-1.5 sm:justify-end">
@@ -644,7 +653,7 @@ function GameMergePreviewDialog({
               <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
                 {t("health.duplicates.preview.result")}
               </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="mt-3 grid gap-2 sm:grid-cols-4">
                 <PreviewValue
                   label={t("detail.status")}
                   value={duplicateStatusLabel(preview.result.status, t)}
@@ -658,6 +667,10 @@ function GameMergePreviewDialog({
                   value={preview.result.hasReview
                     ? t("health.duplicates.preview.kept")
                     : t("health.duplicates.preview.none")}
+                />
+                <PreviewValue
+                  label={t("health.duplicates.preview.review_state")}
+                  value={importReviewStateLabel(preview.result.importReviewState, t)}
                 />
               </div>
               <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
@@ -744,4 +757,16 @@ function duplicateStatusLabel(
 ) {
   const key = DUPLICATE_STATUS_KEYS[status as keyof typeof DUPLICATE_STATUS_KEYS]
   return key ? t(key) : status
+}
+
+function importReviewStateLabel(
+  state: "PENDING" | "ACCEPTED" | "IGNORED",
+  t: ReturnType<typeof useI18nStore.getState>["t"],
+) {
+  const key = {
+    PENDING: "review.state.pending",
+    ACCEPTED: "review.state.accepted",
+    IGNORED: "review.state.ignored",
+  } as const
+  return t(key[state])
 }

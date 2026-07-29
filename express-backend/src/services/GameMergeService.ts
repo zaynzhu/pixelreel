@@ -169,6 +169,7 @@ export async function previewDuplicateGameMerge(groupKey: string, targetId: bigi
       status: values.status,
       rating: values.rating,
       hasReview: Boolean(values.shortReview),
+      importReviewState: values.importReviewState,
     } : null,
   };
 }
