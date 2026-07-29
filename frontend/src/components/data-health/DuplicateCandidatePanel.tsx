@@ -48,6 +48,8 @@ export function DuplicateCandidatePanel({
   const [scope, setScope] = useState<DuplicateScope>(initialScope === "pending" ? "pending" : "all")
   const [guidedReview, setGuidedReview] = useState(false)
   const [guidedIndex, setGuidedIndex] = useState(0)
+  const [guidedInitialTotal, setGuidedInitialTotal] = useState(0)
+  const [guidedCompleted, setGuidedCompleted] = useState(0)
   const [allScopeGroups, setAllScopeGroups] = useState(0)
   const [pendingScopeGroups, setPendingScopeGroups] = useState(0)
   const [reviewingGroupKey, setReviewingGroupKey] = useState<string | null>(null)
@@ -143,6 +145,8 @@ export function DuplicateCandidatePanel({
   useEffect(() => {
     setGuidedReview(false)
     setGuidedIndex(0)
+    setGuidedInitialTotal(0)
+    setGuidedCompleted(0)
   }, [duplicateViewKey])
 
   const loadMore = async () => {
@@ -251,6 +255,7 @@ export function DuplicateCandidatePanel({
     if (reviewRequestActive.current) return
     const requestId = ++latestReviewRequest.current
     const actionViewKey = duplicateViewKey
+    const actionWasGuided = guidedReview
     reviewRequestActive.current = true
     try {
       if (!(await confirmDialog(t("health.duplicates.distinct_confirm")))) return
@@ -261,6 +266,9 @@ export function DuplicateCandidatePanel({
         body: JSON.stringify({ category, groupKey: group.key }),
       })
       if (requestId !== latestReviewRequest.current || actionViewKey !== duplicateViewRef.current) return
+      if (actionWasGuided) {
+        setGuidedCompleted(current => Math.min(guidedInitialTotal, current + 1))
+      }
       toast(t("health.duplicates.distinct_success"))
       await refreshGroups()
     } catch (reason) {
@@ -328,6 +336,7 @@ export function DuplicateCandidatePanel({
     const requestId = ++latestMergeRequest.current
     const actionViewKey = duplicateViewKey
     const { groupKey, data } = mergePreview
+    const actionWasGuided = guidedReview
     mergeRequestActive.current = true
     setMergingRecordId(data.targetId)
     try {
@@ -336,6 +345,9 @@ export function DuplicateCandidatePanel({
         body: JSON.stringify({ groupKey, targetId: String(data.targetId) }),
       })
       if (requestId !== latestMergeRequest.current || actionViewKey !== duplicateViewRef.current) return
+      if (actionWasGuided) {
+        setGuidedCompleted(current => Math.min(guidedInitialTotal, current + 1))
+      }
       setMergePreview(null)
       toast(t("health.duplicates.merge_success"))
       await refreshGroups()
@@ -365,10 +377,34 @@ export function DuplicateCandidatePanel({
     }
   }
 
+  const toggleGuidedReview = () => {
+    if (guidedReview) {
+      setGuidedReview(false)
+      setGuidedIndex(0)
+      return
+    }
+    setGuidedInitialTotal(totalGroups)
+    setGuidedCompleted(0)
+    setGuidedIndex(0)
+    setGuidedReview(true)
+  }
+
   const visibleGroups = guidedReview
     ? groups.slice(guidedIndex, guidedIndex + 1)
     : groups
   const guidedPosition = totalGroups === 0 ? 0 : Math.min(guidedIndex + 1, totalGroups)
+  const guidedComplete = (
+    guidedReview
+    && guidedInitialTotal > 0
+    && guidedCompleted > 0
+    && groups.length === 0
+    && !loading
+    && !error
+  )
+  const guidedProgress = guidedInitialTotal > 0
+    ? guidedCompleted / guidedInitialTotal * 100
+    : 0
+  const reviewReturnPath = importReviewReturnPath || "/sync/review?tab=pending&source=all"
 
   return (
     <section className="border border-[var(--line)] bg-[var(--surface)]">
@@ -431,10 +467,7 @@ export function DuplicateCandidatePanel({
         {category === "game" && review === "unreviewed" && totalGroups > 0 && (
           <button
             type="button"
-            onClick={() => {
-              setGuidedReview(current => !current)
-              setGuidedIndex(0)
-            }}
+            onClick={toggleGuidedReview}
             disabled={loading || groups.length === 0}
             className={guidedReview ? "brutal-btn" : "brutal-btn-accent"}
           >
@@ -450,10 +483,18 @@ export function DuplicateCandidatePanel({
           <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[var(--accent)]">
-                {t("health.duplicates.guide.progress", String(guidedPosition), String(totalGroups))}
+                {t(
+                  "health.duplicates.guide.progress",
+                  String(guidedCompleted),
+                  String(guidedInitialTotal),
+                )}
               </p>
               <p className="mt-1 text-[10px] leading-5 text-[var(--muted)]">
-                {t("health.duplicates.guide.hint")}
+                {t(
+                  "health.duplicates.guide.position",
+                  String(guidedPosition),
+                  String(totalGroups),
+                )} // {t("health.duplicates.guide.hint")}
               </p>
             </div>
             <div className="flex gap-2">
@@ -478,13 +519,41 @@ export function DuplicateCandidatePanel({
           <div className="h-0.5 bg-black/40">
             <div
               className="h-full bg-[var(--accent)] transition-[width] duration-200"
-              style={{ width: `${totalGroups > 0 ? guidedPosition / totalGroups * 100 : 0}%` }}
+              style={{ width: `${guidedProgress}%` }}
             />
           </div>
         </div>
       )}
 
-      {importReviewReturnPath && !focusGroupKey && (
+      {guidedComplete && (
+        <div role="status" className="border-b border-[var(--accent)] bg-[rgba(212,255,0,0.06)] px-5 py-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="font-display text-4xl text-[var(--accent)]">✓</div>
+            <h3 className="mt-3 text-lg text-white">{t("health.duplicates.guide.complete")}</h3>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+              {t(
+                "health.duplicates.guide.complete_desc",
+                String(guidedCompleted),
+                String(guidedInitialTotal),
+              )}
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Link to={reviewReturnPath} className="brutal-btn-accent">
+                {t("health.duplicates.guide.return_review")} →
+              </Link>
+              <button
+                type="button"
+                onClick={() => setGuidedReview(false)}
+                className="brutal-btn"
+              >
+                {t("health.duplicates.guide.stop")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importReviewReturnPath && !focusGroupKey && !guidedComplete && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[rgba(212,255,0,0.04)] px-5 py-3">
           <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
             {t("health.duplicates.focused")}
@@ -524,7 +593,7 @@ export function DuplicateCandidatePanel({
         <div className="px-5 py-16 text-center text-xs uppercase tracking-widest text-[var(--muted)]">
           {t("health.loading")}
         </div>
-      ) : error && groups.length === 0 ? null : groups.length === 0 ? (
+      ) : error && groups.length === 0 ? null : guidedComplete ? null : groups.length === 0 ? (
         <div className="px-5 py-16 text-center">
           <div className="text-2xl text-[var(--accent)]">✓</div>
           <p className="mt-3 text-sm text-white">
