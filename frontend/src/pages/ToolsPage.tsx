@@ -27,6 +27,78 @@ interface ConvertResponse {
   error?: string;
 }
 
+interface ExportSummary {
+  version: number
+  recordCount: number
+  platformProfileCount: number
+  recordsSha256: string
+}
+
+interface LibraryExportSnapshot {
+  format?: unknown
+  version?: unknown
+  counts?: {
+    total?: unknown
+    platformProfiles?: unknown
+  }
+  integrity?: {
+    algorithm?: unknown
+    recordsSha256?: unknown
+  }
+  records?: unknown
+}
+
+async function verifyExportSnapshot(
+  blob: Blob,
+  metadata: {
+    exportVersion: number | null
+    recordCount: number | null
+    platformProfileCount: number | null
+    recordsSha256: string | null
+  },
+): Promise<ExportSummary | null> {
+  if (
+    metadata.exportVersion == null
+    || metadata.recordCount == null
+    || metadata.platformProfileCount == null
+    || !metadata.recordsSha256
+  ) return null
+
+  let snapshot: LibraryExportSnapshot
+  try {
+    snapshot = JSON.parse(await blob.text()) as LibraryExportSnapshot
+  } catch {
+    return null
+  }
+
+  const recordsJson = JSON.stringify(snapshot.records)
+  if (
+    snapshot.format !== 'pixelreel-library-export'
+    || snapshot.version !== metadata.exportVersion
+    || snapshot.counts?.total !== metadata.recordCount
+    || snapshot.counts?.platformProfiles !== metadata.platformProfileCount
+    || snapshot.integrity?.algorithm !== 'sha256'
+    || snapshot.integrity.recordsSha256 !== metadata.recordsSha256
+    || recordsJson == null
+  ) return null
+
+  const hashBytes = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(recordsJson),
+  )
+  const calculatedHash = Array.from(new Uint8Array(hashBytes))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('')
+  if (calculatedHash !== metadata.recordsSha256) return null
+
+  return {
+    version: metadata.exportVersion,
+    recordCount: metadata.recordCount,
+    platformProfileCount: metadata.platformProfileCount,
+    recordsSha256: calculatedHash,
+  }
+}
+
 export default function ToolsPage() {
   const { t } = useI18nStore();
   const [query, setQuery] = useState('');
@@ -38,6 +110,7 @@ export default function ToolsPage() {
   const [converting, setConverting] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [lastExport, setLastExport] = useState<ExportSummary | null>(null);
   const latestSearchRequest = useRef(0);
   const conversionRequestActive = useRef(false);
 
@@ -50,7 +123,10 @@ export default function ToolsPage() {
     if (exporting) return
     setExporting(true)
     try {
-      const { blob, filename } = await apiDownload('/tools/export-library')
+      const { blob, filename, metadata } = await apiDownload('/tools/export-library')
+      const summary = await verifyExportSnapshot(blob, metadata)
+      if (!summary) throw new Error(t('tools.export.verify_failed'))
+
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -59,7 +135,12 @@ export default function ToolsPage() {
       anchor.click()
       anchor.remove()
       setTimeout(() => URL.revokeObjectURL(url), 0)
-      toast(t('tools.export.success'))
+      setLastExport(summary)
+      toast(t(
+        'tools.export.success_summary',
+        summary.recordCount,
+        summary.platformProfileCount,
+      ))
     } catch (error) {
       toast(error instanceof Error ? error.message : t('tools.export.failed'), 'error')
     } finally {
@@ -156,6 +237,28 @@ export default function ToolsPage() {
               <ExportSeal label={t('tools.export.douban')} value={t('tools.export.douban_value')} />
               <ExportSeal label={t('tools.export.secrets')} value={t('tools.export.secrets_value')} />
             </div>
+            {lastExport && (
+              <div role="status" className="mt-4 border border-[var(--accent)] bg-[rgba(212,255,0,0.04)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--accent)]">
+                    {t('tools.export.verified')}
+                  </span>
+                  <span className="font-mono text-[9px] text-[var(--muted)]">
+                    V{lastExport.version} // {t(
+                      'tools.export.summary',
+                      lastExport.recordCount,
+                      lastExport.platformProfileCount,
+                    )}
+                  </span>
+                </div>
+                <p className="mt-3 font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
+                  {t('tools.export.checksum')}
+                </p>
+                <code className="mt-1 block break-all font-mono text-[9px] text-white">
+                  {lastExport.recordsSha256}
+                </code>
+              </div>
+            )}
           </div>
           <div className="flex flex-col justify-between bg-[#080808] p-6">
             <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-[var(--muted)]">

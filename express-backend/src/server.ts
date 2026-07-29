@@ -43,6 +43,13 @@ app.use(cors({
     const allowed = !origin || config.cors.allowedOrigins.includes(origin);
     callback(null, allowed);
   },
+  exposedHeaders: [
+    'Content-Disposition',
+    'X-PixelReel-Export-Version',
+    'X-PixelReel-Record-Count',
+    'X-PixelReel-Platform-Profile-Count',
+    'X-PixelReel-Records-SHA256',
+  ],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

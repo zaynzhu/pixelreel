@@ -67,7 +67,24 @@ export async function apiFetch<T = unknown>(
   return undefined as unknown as T;
 }
 
-export async function apiDownload(path: string): Promise<{ blob: Blob; filename: string | null }> {
+export interface ApiDownloadMetadata {
+  exportVersion: number | null
+  recordCount: number | null
+  platformProfileCount: number | null
+  recordsSha256: string | null
+}
+
+function parseNonNegativeHeader(value: string | null) {
+  if (!value || !/^\d+$/.test(value)) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
+}
+
+export async function apiDownload(path: string): Promise<{
+  blob: Blob
+  filename: string | null
+  metadata: ApiDownloadMetadata
+}> {
   const token = getToken()
   const headers = new Headers()
   if (token) headers.set("Authorization", `Bearer ${token}`)
@@ -82,5 +99,19 @@ export async function apiDownload(path: string): Promise<{ blob: Blob; filename:
 
   const disposition = response.headers.get("content-disposition") || ""
   const filename = disposition.match(/filename="([^"]+)"/i)?.[1] ?? null
-  return { blob: await response.blob(), filename }
+  const recordsSha256 = response.headers.get("x-pixelreel-records-sha256")
+  return {
+    blob: await response.blob(),
+    filename,
+    metadata: {
+      exportVersion: parseNonNegativeHeader(response.headers.get("x-pixelreel-export-version")),
+      recordCount: parseNonNegativeHeader(response.headers.get("x-pixelreel-record-count")),
+      platformProfileCount: parseNonNegativeHeader(
+        response.headers.get("x-pixelreel-platform-profile-count"),
+      ),
+      recordsSha256: recordsSha256 && /^[a-f0-9]{64}$/i.test(recordsSha256)
+        ? recordsSha256.toLowerCase()
+        : null,
+    },
+  }
 }

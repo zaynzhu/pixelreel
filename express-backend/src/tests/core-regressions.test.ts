@@ -132,6 +132,7 @@ import {
 } from '../routes/tools';
 import {
   buildLibraryExportSnapshot,
+  calculateLibraryRecordsSha256,
   libraryExportFilename,
   serializeLibraryExportSnapshot,
 } from '../services/LibraryExportService';
@@ -2908,13 +2909,29 @@ test('资料库快照保留豆瓣原始字段并生成可移植 JSON', () => {
       doubanComment: '保留原始短评',
     }],
     tvShows: [{ id: 9_007_199_254_740_992n, title: '剧集' }],
-    games: [{ id: 3n, title: '游戏' }],
+    games: [{
+      id: 3n,
+      title: '游戏',
+      platformEntries: [
+        { id: 4n, platform: 'STEAM', externalId: '10' },
+        { id: 5n, platform: 'PSN', externalId: '20' },
+      ],
+    }],
   }, exportedAt);
 
-  assert.deepEqual(snapshot.counts, { movies: 1, tvShows: 1, games: 1, total: 3 });
+  assert.deepEqual(snapshot.counts, {
+    movies: 1,
+    tvShows: 1,
+    games: 1,
+    platformProfiles: 2,
+    total: 3,
+  });
   assert.equal(snapshot.format, 'pixelreel-library-export');
-  assert.equal(snapshot.version, 1);
+  assert.equal(snapshot.version, 2);
   assert.equal(snapshot.exportedAt, exportedAt.toISOString());
+  assert.equal(snapshot.integrity.algorithm, 'sha256');
+  assert.equal(snapshot.integrity.recordsSha256.length, 64);
+  assert.equal(snapshot.integrity.recordsSha256, calculateLibraryRecordsSha256(snapshot.records));
   assert.equal(libraryExportFilename(exportedAt), 'pixelreel-library-2026-07-15T08-30-45Z.json');
 
   const parsed = JSON.parse(serializeLibraryExportSnapshot(snapshot));
@@ -2923,7 +2940,18 @@ test('资料库快照保留豆瓣原始字段并生成可移植 JSON', () => {
   assert.equal(parsed.records.movies[0].doubanId, '1292052');
   assert.equal(parsed.records.movies[0].doubanTitle, '肖申克的救赎');
   assert.equal(parsed.records.movies[0].doubanComment, '保留原始短评');
-  assert.deepEqual(Object.keys(parsed), ['format', 'version', 'exportedAt', 'counts', 'records']);
+  assert.equal(parsed.records.games[0].platformEntries[1].externalId, '20');
+  assert.notEqual(
+    snapshot.integrity.recordsSha256,
+    calculateLibraryRecordsSha256({
+      ...snapshot.records,
+      games: [{ id: 3n, title: '已变化', platformEntries: [] }],
+    }),
+  );
+  assert.deepEqual(
+    Object.keys(parsed),
+    ['format', 'version', 'exportedAt', 'counts', 'integrity', 'records'],
+  );
 });
 
 test('健康检查区分数据库正常和不可用', async () => {

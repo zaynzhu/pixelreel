@@ -47,10 +47,14 @@ export function assertConvertedSourceDeleted(deletedCount: number) {
 // 导出完整资料库快照，只读，不包含环境变量或凭据
 router.get('/export-library', async (req: Request, res: Response) => {
   assertNoQueryParameters(req.query)
-  const { filename, json } = await exportLibrarySnapshot()
+  const { filename, json, snapshot } = await exportLibrarySnapshot()
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   res.setHeader('Content-Length', Buffer.byteLength(json, 'utf8'))
+  res.setHeader('X-PixelReel-Export-Version', String(snapshot.version))
+  res.setHeader('X-PixelReel-Record-Count', String(snapshot.counts.total))
+  res.setHeader('X-PixelReel-Platform-Profile-Count', String(snapshot.counts.platformProfiles))
+  res.setHeader('X-PixelReel-Records-SHA256', snapshot.integrity.recordsSha256)
   res.send(json)
 })
 
