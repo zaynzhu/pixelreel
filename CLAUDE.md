@@ -164,7 +164,7 @@ frontend/src/
 - **时间线轻量 API：** `/api/timeline` 返回轻量 `TimelineRecordResponse`（仅 id/category/title/posterUrl/status/rating/playtimeMinutes/sourceLabel/platformLabel/createdAt），不包含豆瓣/TMDB 详情。点击卡片时按需通过 `GET /api/library/:category/:id` 获取完整记录，前端用 `timelineDetailStore` 缓存（key 格式 `category:id`）。`/api/timeline/years?category=` 用 `SELECT DISTINCT YEAR(createdAt)` 高效返回年份列表。
 - **记录库服务端过滤与排序：** `GET /api/library` 支持 `category`、`year`、`status`、`query`、`source`、`review` 和 `sort`，列表、后续分页与 totals 使用同一条件。`category=media` 等于 `movie + tv_show`；`query` 最长 200 字符；`review` 为 `reviewed|unreviewed`；`sort` 为 `recent|rating`。
 - **统一记录详情：** `/library/:category/:id` 展示个人状态、评分、短评、来源身份与原始字段、游戏指标和记录级操作历史，并可保存个人记录、重新匹配元数据或进入数据健康页。记录库、时间线、活动日志和 Showcase 均提供详情入口；路由变化或页面卸载时必须使旧详情读取失效，旧成功或旧错误不能覆盖当前记录；有效地址读取失败必须显示具体原因和原地重试，无效地址只提供返回入口。
-- **记录库读取：** 记录库首屏、筛选与分页必须绑定当前列表请求；切换筛选时立即清空旧筛选记录和分页状态，同条件刷新失败时保留已有记录与游标；旧分页的成功或失败不能追加或污染新列表，首屏、刷新和分页失败都必须显示原因并可重试原请求。
+- **记录库读取：** 记录库首屏、筛选与分页必须绑定当前列表请求；切换筛选时立即清空旧筛选记录和分页状态，同条件刷新失败时保留已有记录与游标；旧分页的成功或失败不能追加或污染新列表，首屏、刷新和分页失败都必须显示原因并可重试原请求。游戏卡片的遥测摘要必须优先逐条读取 `GamePlatformEntry`，分别展示各平台游玩时长，不能跨平台合计；非空的零时长必须显示为零，只有 `null` 才表示未知。分别标明 PSN 奖杯和其他平台成就，并使用最新平台档案同步时间；总数未知时保留可信的已解锁数量，不能因缺少总数而隐藏，只有无平台档案的遗留记录才回退游戏旧字段。
 - **仪表盘语义：** 首页统计按钮只重新读取 `/api/profile/summary`，必须标为“刷新统计”，不能伪装成同步操作；共享 `profileStore` 的并发读取必须采用最新请求获胜。初次读取失败必须显示原因和重试，不能用全零指标伪装成空库；已有摘要刷新失败时保留旧数据并明确报错。真实同步统一进入 `/sync`。最新入库记录直接链接统一详情页。
 - **随机推荐：** Showcase 的随机推荐可按类别和 WANT/IN_PROGRESS 状态筛选；筛选直接下推到 `/api/library/random`，不能先随机全库再由前端过滤。批量随机接口在当前筛选无记录时返回空数组；首次读取失败必须显示原因和重试，不能伪装为当前筛选无记录，已有推荐的手动或定时刷新失败必须保留现有结果并显示可重试错误。
 - **展示读取：** Showcase 摘要的加载、失败和重试文案必须使用 i18n；初次读取失败时必须持续显示具体原因和原地重试入口，已有摘要的刷新期间与刷新失败后必须保留现有展厅内容并显示可重试错误，不能留下无法恢复的错误页。

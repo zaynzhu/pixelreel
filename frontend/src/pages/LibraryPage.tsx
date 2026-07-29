@@ -704,21 +704,19 @@ function buildRecordMeta(record: LibraryRecord, t: any) {
   parts.push(lastSyncedAt
     ? `${t("lib.list.synced")} ${formatDate(lastSyncedAt)}`
     : formatDate(record.updatedAt ?? record.createdAt));
-  if (record.playtimeMinutes && record.playtimeMinutes > 0) {
-    parts.push(`${Math.round(record.playtimeMinutes / 60)}${t("lib.list.hr")}`);
-  }
   if (record.category === "game") {
-    parts.push(...buildPlatformProgress(record, t));
+    parts.push(...buildPlatformTelemetry(record, t));
   }
 
   return parts.join(" // ");
 }
 
-function buildPlatformProgress(record: LibraryRecord, t: any) {
+function buildPlatformTelemetry(record: LibraryRecord, t: any) {
   const entries = record.platformEntries?.length
     ? record.platformEntries
     : [{
         platform: record.platform || record.platformLabel || record.sourceLabel,
+        playtimeMinutes: record.playtimeMinutes ?? null,
         achievementTotal: record.achievementTotal ?? null,
         achievementUnlocked: record.achievementUnlocked ?? null,
       }];
@@ -727,18 +725,25 @@ function buildPlatformProgress(record: LibraryRecord, t: any) {
     const metric = entry.platform.trim().toUpperCase() === "PSN"
       ? t("lib.list.trophies")
       : t("lib.list.achievements");
+    const telemetry = [];
+    if (entry.playtimeMinutes != null) {
+      telemetry.push(t(
+        "detail.playtime_value",
+        String(Math.floor(entry.playtimeMinutes / 60)),
+        String(entry.playtimeMinutes % 60),
+      ));
+    }
     if (
       entry.achievementTotal != null
       && entry.achievementTotal > 0
       && entry.achievementUnlocked != null
       && entry.achievementUnlocked <= entry.achievementTotal
     ) {
-      return [`${platform} ${entry.achievementUnlocked}/${entry.achievementTotal} ${metric}`];
+      telemetry.push(`${entry.achievementUnlocked}/${entry.achievementTotal} ${metric}`);
+    } else if (entry.achievementUnlocked != null && entry.achievementUnlocked > 0) {
+      telemetry.push(t("lib.list.unlocked", entry.achievementUnlocked, metric));
     }
-    if (entry.achievementUnlocked != null && entry.achievementUnlocked > 0) {
-      return [`${platform} ${t("lib.list.unlocked", entry.achievementUnlocked, metric)}`];
-    }
-    return [];
+    return telemetry.length ? [`${platform} ${telemetry.join(" · ")}`] : [];
   });
 }
 
