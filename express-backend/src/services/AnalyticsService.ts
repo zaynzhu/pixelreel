@@ -222,7 +222,7 @@ export function buildSourceBreakdown(
     .map(([source, count]) => ({ source, label: movieLabels[source] || source, count }))
     .sort((a, b) => b.count - a.count)
 
-  const gamePlatformCounts = countBy(games, game => detectGameSource(game).toUpperCase())
+  const gamePlatformCounts = buildGamePlatformCounts(games)
   const gameLabels: Record<string, string> = { STEAM: 'Steam', RAWG: 'RAWG', XBOX: 'Xbox', PSN: 'PSN', MANUAL: '手动' }
   const gamePlatforms = Object.entries(gamePlatformCounts)
     .map(([platform, count]) => ({ platform, label: gameLabels[platform] || platform, count }))
@@ -235,6 +235,25 @@ export function buildSourceBreakdown(
     .sort((a, b) => b.count - a.count)
 
   return { movies: movieSources, games: gamePlatforms, tvShows: tvSources }
+}
+
+export function buildGamePlatformCounts(games: any[]) {
+  const counts: Record<string, number> = {}
+  for (const game of games) {
+    const platformEntries = Array.isArray(game.platformEntries) ? game.platformEntries : []
+    let countedProfiles = 0
+    for (const entry of platformEntries) {
+      const platform = String(entry.platform ?? '').trim().toUpperCase()
+      if (!platform) continue
+      counts[platform] = (counts[platform] || 0) + 1
+      countedProfiles++
+    }
+    if (countedProfiles === 0) {
+      const platform = detectGameSource(game).toUpperCase()
+      counts[platform] = (counts[platform] || 0) + 1
+    }
+  }
+  return counts
 }
 
 export function buildCrossPlatformRatings(

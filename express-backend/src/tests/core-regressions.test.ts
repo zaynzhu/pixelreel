@@ -3115,9 +3115,25 @@ test('首页与年度分析统一按豆瓣优先判定媒体主来源', () => {
   );
 
   const createdAt = new Date('2026-07-15T00:00:00.000Z');
+  const games = [
+    {
+      createdAt,
+      platformEntries: [{ platform: 'XBOX' }, { platform: 'PSN' }],
+      steamAppId: 1n,
+    },
+    {
+      createdAt,
+      platformEntries: [],
+      steamAppId: 2n,
+    },
+    {
+      createdAt: new Date('2025-07-15T00:00:00.000Z'),
+      platformEntries: [{ platform: 'XBOX' }],
+    },
+  ];
   const breakdown = buildSourceBreakdown(
     records.map(record => ({ ...record, createdAt })),
-    [],
+    games,
     [],
     new Date('2026-01-01T00:00:00.000Z'),
     new Date('2027-01-01T00:00:00.000Z'),
@@ -3125,6 +3141,10 @@ test('首页与年度分析统一按豆瓣优先判定媒体主来源', () => {
   assert.deepEqual(
     Object.fromEntries(breakdown.movies.map(item => [item.source, item.count])),
     { DOUBAN: 1, TMDB: 1, IMDB: 1, TRAKT: 1, MANUAL: 1 },
+  );
+  assert.deepEqual(
+    Object.fromEntries(breakdown.games.map(item => [item.platform, item.count])),
+    { XBOX: 1, PSN: 1, STEAM: 1 },
   );
 });
 

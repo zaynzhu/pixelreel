@@ -80,7 +80,7 @@ export function SourcePieChart({ data }: Props) {
       <div className="flex justify-around">
         <MiniPie title={t("analytics.source.movies")} items={data.movies} colors={MOVIE_COLORS} />
         <MiniPie title={t("analytics.source.tvshows")} items={data.tvShows} colors={TV_COLORS} />
-        <MiniPie title={t("analytics.source.games")} items={data.games} colors={GAME_COLORS} />
+        <MiniPie title={t("analytics.source.game_profiles")} items={data.games} colors={GAME_COLORS} />
       </div>
     </div>
   )
