@@ -1274,6 +1274,36 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
   );
 });
 
+test('重复标题规范化不会把罗马数字合集误判为续作', () => {
+  assert.notEqual(
+    normalizeDuplicateTitle('Shenmue I & II'),
+    normalizeDuplicateTitle('Shenmue III'),
+  );
+  const groups = findDuplicateGroups([
+    {
+      id: 1n,
+      category: 'game',
+      title: 'Shenmue I & II',
+      posterUrl: null,
+      year: null,
+      platform: 'STEAM',
+      protected: false,
+      identityValues: { steam_id: '758330' },
+    },
+    {
+      id: 2n,
+      category: 'game',
+      title: 'Shenmue III',
+      posterUrl: null,
+      year: null,
+      platform: 'STEAM',
+      protected: false,
+      identityValues: { steam_id: '878670' },
+    },
+  ]);
+  assert.deepEqual(groups, []);
+});
+
 test('游戏合并只自动汇总不冲突的个人记录和平台身份', () => {
   const base = {
     status: 'WANT',

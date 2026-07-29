@@ -43,6 +43,7 @@ interface DuplicateKey {
 
 export function normalizeDuplicateTitle(value: string): string {
   return value.normalize('NFKC').toLocaleLowerCase()
+    .replace(/&/g, ' and ')
     .replace(/[\p{P}\p{S}\s]+/gu, '')
     .trim();
 }
