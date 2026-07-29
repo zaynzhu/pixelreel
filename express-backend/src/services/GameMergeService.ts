@@ -33,6 +33,24 @@ export interface GameMergeValues {
 
 export type GameMergeBlocker = 'status' | 'rating' | 'review' | 'rawg';
 
+export function gameMergePreviewRecord(record: {
+  id: bigint;
+  title: string;
+  platform: string | null;
+  importReviewState: string;
+  platformEntries: Array<{ platform: string }>;
+}) {
+  const platforms = Array.from(new Set(
+    record.platformEntries.map(entry => entry.platform.trim()).filter(Boolean),
+  ));
+  return {
+    id: Number(record.id),
+    title: record.title,
+    platform: platforms.length > 0 ? platforms.join(' / ') : record.platform,
+    importReviewState: record.importReviewState,
+  };
+}
+
 interface GameMergeInspection {
   meaningfulStatuses: string[];
   ratings: number[];
@@ -142,14 +160,16 @@ export async function previewDuplicateGameMerge(groupKey: string, targetId: bigi
     where: { id: { in: recordIds } },
     include: {
       platformEntries: {
-        select: { id: true },
+        select: { id: true, platform: true },
       },
     },
   });
   if (records.length !== recordIds.length) conflict('候选记录已变化，请刷新后重试');
   const target = records.find(record => record.id === targetId);
   if (!target) conflict('保留记录不存在');
-  const sources = records.filter(record => record.id !== targetId);
+  const sources = records
+    .filter(record => record.id !== targetId)
+    .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
   const inspection = inspectGameMerge(records);
   const movedProfiles = sources.reduce((sum, source) => sum + source.platformEntries.length, 0);
   const values = inspection.blockers.length === 0 ? resolveGameMergeValues(target, records) : null;
@@ -158,6 +178,8 @@ export async function previewDuplicateGameMerge(groupKey: string, targetId: bigi
     targetId: Number(targetId),
     targetTitle: target.title,
     removedIds: sources.map(source => Number(source.id)),
+    target: gameMergePreviewRecord(target),
+    sources: sources.map(gameMergePreviewRecord),
     canMerge: inspection.blockers.length === 0,
     blockers: inspection.blockers,
     platformProfiles: {

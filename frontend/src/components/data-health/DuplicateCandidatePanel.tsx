@@ -11,6 +11,7 @@ import type {
   DuplicateGroupResponse,
   DuplicateReason,
   GameMergePreview,
+  GameMergePreviewRecord,
 } from "../../types/dataHealth"
 import type { LibraryRecord } from "../../types/library"
 import { ImgWithFallback } from "../ImgWithFallback"
@@ -648,6 +649,23 @@ function GameMergePreviewDialog({
             <PreviewMetric label={t("health.duplicates.preview.total")} value={String(preview.platformProfiles.total)} />
           </div>
 
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
+              {t("health.duplicates.preview.keep_record")}
+            </p>
+            <div className="mt-2">
+              <PreviewRecordRow record={preview.target} retained />
+            </div>
+            <p className="mt-4 font-mono text-[9px] uppercase tracking-widest text-[var(--muted)]">
+              {t("health.duplicates.preview.merge_records")}
+            </p>
+            <div className="mt-2 divide-y divide-[var(--line)] border border-[var(--line)]">
+              {preview.sources.map(record => (
+                <PreviewRecordRow key={record.id} record={record} />
+              ))}
+            </div>
+          </div>
+
           {preview.canMerge && preview.result ? (
             <div>
               <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
@@ -705,6 +723,37 @@ function GameMergePreviewDialog({
           )}
         </footer>
       </div>
+    </div>
+  )
+}
+
+function PreviewRecordRow({
+  record,
+  retained = false,
+}: {
+  record: GameMergePreviewRecord
+  retained?: boolean
+}) {
+  const { t } = useI18nStore()
+  return (
+    <div className={`flex flex-wrap items-center justify-between gap-3 px-3 py-3 ${
+      retained
+        ? "border border-[var(--accent)] bg-[rgba(212,255,0,0.04)]"
+        : "bg-black/20"
+    }`}>
+      <div className="min-w-0">
+        <p className="truncate text-sm text-white">{record.title}</p>
+        <p className="mt-1 font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
+          ID {record.id} // {record.platform || "—"}
+        </p>
+      </div>
+      <span className={`border px-2 py-1 text-[8px] uppercase tracking-wider ${
+        record.importReviewState === "PENDING"
+          ? "border-[var(--accent-deep)] text-[var(--accent-deep)]"
+          : "border-[var(--line)] text-[var(--muted)]"
+      }`}>
+        {importReviewStateLabel(record.importReviewState, t)}
+      </span>
     </div>
   )
 }

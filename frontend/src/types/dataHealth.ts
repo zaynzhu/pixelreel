@@ -71,10 +71,19 @@ export interface DuplicateGroupResponse {
 
 export type GameMergeBlocker = "status" | "rating" | "review" | "rawg"
 
+export interface GameMergePreviewRecord {
+  id: number
+  title: string
+  platform: string | null
+  importReviewState: "PENDING" | "ACCEPTED" | "IGNORED"
+}
+
 export interface GameMergePreview {
   targetId: number
   targetTitle: string
   removedIds: number[]
+  target: GameMergePreviewRecord
+  sources: GameMergePreviewRecord[]
   canMerge: boolean
   blockers: GameMergeBlocker[]
   platformProfiles: {

@@ -201,6 +201,7 @@ import {
 } from '../services/DuplicateDetectionService';
 import {
   buildGameMergeArchive,
+  gameMergePreviewRecord,
   inspectGameMerge,
   parseGameMergeArchive,
   resolveGameMergeValues,
@@ -1362,6 +1363,16 @@ test('游戏合并只自动汇总不冲突的个人记录和平台身份', () =>
     resolveGameMergeValues(source, [target, source]).importReviewState,
     'ACCEPTED',
   );
+  assert.deepEqual(gameMergePreviewRecord({
+    ...target,
+    title: '跨平台游戏',
+    platformEntries: [{ platform: 'STEAM' }, { platform: 'PSN' }, { platform: 'STEAM' }],
+  }), {
+    id: 1,
+    title: '跨平台游戏',
+    platform: 'STEAM / PSN',
+    importReviewState: 'ACCEPTED',
+  });
   assert.throws(
     () => resolveGameMergeValues(target, [{ ...target, status: 'DONE' }, { ...source, status: 'DROPPED' }]),
     /个人状态存在冲突/,
