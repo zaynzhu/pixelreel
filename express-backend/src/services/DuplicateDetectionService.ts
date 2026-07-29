@@ -330,6 +330,46 @@ export async function findDuplicateGroupByKey(category: DataHealthCategory, grou
     .find(group => group.key === groupKey) ?? null;
 }
 
+export function buildGameDuplicateHints(
+  groups: ReturnType<typeof findDuplicateGroups>,
+  recordIds: number[],
+  reviewedKeys: ReadonlySet<string>,
+) {
+  const requestedIds = new Set(recordIds);
+  return groups.flatMap(group => {
+    if (reviewedKeys.has(group.key)) return [];
+    return group.records
+      .filter(record => requestedIds.has(record.id))
+      .map(record => ({
+        recordId: record.id,
+        groupKey: group.key,
+        reasons: group.reasons,
+        peers: group.records
+          .filter(peer => peer.id !== record.id)
+          .map(peer => ({
+            id: peer.id,
+            title: peer.title,
+            platform: peer.platform,
+          })),
+      }));
+  });
+}
+
+export async function listGameDuplicateHints(recordIds: number[]) {
+  const [groups, decisions] = await Promise.all([
+    loadDuplicateCandidates('game').then(findDuplicateGroups),
+    getDb().duplicateReview.findMany({
+      where: { category: 'game', decision: 'DISTINCT' },
+      select: { groupKey: true },
+    }),
+  ]);
+  const reviewedKeys = new Set(decisions.map(item => item.groupKey));
+
+  return {
+    hints: buildGameDuplicateHints(groups, recordIds, reviewedKeys),
+  };
+}
+
 export async function listDuplicateGroups(
   category: DataHealthCategory,
   limit: number,

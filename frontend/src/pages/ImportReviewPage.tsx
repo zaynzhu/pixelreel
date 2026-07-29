@@ -20,6 +20,21 @@ interface ReviewResponse {
   totals?: { total: number }
 }
 
+interface GameDuplicateHint {
+  recordId: number
+  groupKey: string
+  reasons: string[]
+  peers: Array<{
+    id: number
+    title: string
+    platform: string | null
+  }>
+}
+
+interface GameDuplicateHintResponse {
+  hints: GameDuplicateHint[]
+}
+
 function recordKey(record: LibraryRecord) {
   return `${record.category}:${record.id}`
 }
@@ -36,6 +51,8 @@ export default function ImportReviewPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [duplicateHintError, setDuplicateHintError] = useState<string | null>(null)
+  const [duplicateHints, setDuplicateHints] = useState<Record<number, GameDuplicateHint>>({})
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
   const tabRef = useRef(tab)
   const latestLoadRequest = useRef(0)
@@ -58,6 +75,7 @@ export default function ImportReviewPage() {
       setLoadingMore(false)
     }
     setError(null)
+    setDuplicateHintError(null)
     setFailedCursor(null)
     try {
       const params = new URLSearchParams({
@@ -79,6 +97,39 @@ export default function ImportReviewPage() {
       setNextCursor(response.nextCursor)
       if (response.totals) setTotal(response.totals.total)
       if (!append) setSelected(new Set())
+
+      const gameIds = response.records
+        .filter(record => record.category === "game")
+        .map(record => record.id)
+      if (gameIds.length > 0) {
+        try {
+          const hintResponse = await apiFetch<GameDuplicateHintResponse>(
+            `/data-health/duplicates/game-hints?ids=${gameIds.join(",")}`,
+          )
+          if (
+            requestId !== latestLoadRequest.current
+            || requestTab !== tabRef.current
+            || requestSource !== sourceRef.current
+          ) return
+          const nextHints = Object.fromEntries(
+            hintResponse.hints.map(hint => [hint.recordId, hint]),
+          )
+          setDuplicateHints(current => append ? { ...current, ...nextHints } : nextHints)
+        } catch (reason) {
+          if (
+            requestId === latestLoadRequest.current
+            && requestTab === tabRef.current
+            && requestSource === sourceRef.current
+          ) {
+            if (!append) setDuplicateHints({})
+            setDuplicateHintError(
+              reason instanceof Error ? reason.message : t("review.duplicate_error"),
+            )
+          }
+        }
+      } else if (!append) {
+        setDuplicateHints({})
+      }
     } catch (reason) {
       if (
         requestId === latestLoadRequest.current
@@ -118,6 +169,8 @@ export default function ImportReviewPage() {
     setLoading(true)
     setLoadingMore(false)
     setError(null)
+    setDuplicateHintError(null)
+    setDuplicateHints({})
     setFailedCursor(null)
     setTab(value)
   }
@@ -132,6 +185,8 @@ export default function ImportReviewPage() {
     setLoading(true)
     setLoadingMore(false)
     setError(null)
+    setDuplicateHintError(null)
+    setDuplicateHints({})
     setFailedCursor(null)
     setSource(value)
   }
@@ -153,6 +208,9 @@ export default function ImportReviewPage() {
       })
       if (requestId !== latestDecisionRequest.current || requestTab !== tabRef.current) return
       setRecords(current => current.filter(record => !targetKeys.has(recordKey(record))))
+      setDuplicateHints(current => Object.fromEntries(
+        Object.entries(current).filter(([id]) => !targetKeys.has(`game:${id}`)),
+      ))
       setSelected(current => {
         const next = new Set(current)
         for (const key of targetKeys) next.delete(key)
@@ -231,6 +289,12 @@ export default function ImportReviewPage() {
           ))}
         </div>
 
+        {duplicateHintError && records.length > 0 && (
+          <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[10px] text-amber-300 sm:px-5">
+            {t("review.duplicate_error")} {duplicateHintError}
+          </div>
+        )}
+
         {error && records.length > 0 && (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-red-500/40 bg-red-500/10 p-4 sm:px-5">
             <div>
@@ -286,6 +350,7 @@ export default function ImportReviewPage() {
               const key = recordKey(record)
               const poster = proxiedImageUrl(record.posterUrl || record.tmdbPosterUrl)
               const progress = formatGameProgress(record, t)
+              const duplicateHint = duplicateHints[record.id]
               return (
                 <article key={key} className="grid gap-4 p-4 sm:grid-cols-[auto_64px_minmax(0,1fr)_auto] sm:items-center sm:p-5">
                   <input
@@ -323,6 +388,24 @@ export default function ImportReviewPage() {
                       <p className="mt-2 font-mono text-[9px] uppercase tracking-wider text-[var(--accent)]">
                         {progress}
                       </p>
+                    )}
+                    {duplicateHint && (
+                      <div className="mt-3 border-l-2 border-[var(--accent-deep)] bg-[rgba(255,68,0,0.06)] px-3 py-2">
+                        <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--accent-deep)]">
+                          {t("review.duplicate_hint")}
+                        </p>
+                        <p className="mt-1 text-[10px] text-[var(--muted)]">
+                          {duplicateHint.peers
+                            .map(peer => `${peer.platform || "—"} · ${peer.title}`)
+                            .join(" / ")}
+                        </p>
+                        <Link
+                          to="/data-health?category=game&view=duplicates"
+                          className="mt-2 inline-flex text-[9px] uppercase tracking-wider text-white underline decoration-[var(--accent)] underline-offset-4"
+                        >
+                          {t("review.duplicate_open")}
+                        </Link>
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 sm:justify-end">

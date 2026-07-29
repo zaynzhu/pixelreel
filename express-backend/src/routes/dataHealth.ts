@@ -13,6 +13,7 @@ import {
 } from '../services/DataHealthRepairService';
 import {
   listDuplicateGroups,
+  listGameDuplicateHints,
   restoreDuplicateGroupReview,
   reviewDuplicateGroup,
 } from '../services/DuplicateDetectionService';
@@ -31,6 +32,7 @@ const router = Router();
 const ISSUE_PARAMETER_KEYS = new Set(['category', 'issue', 'cursor', 'limit']);
 const REPAIR_BODY_KEYS = new Set(['category', 'issue', 'limit']);
 const DUPLICATE_PARAMETER_KEYS = new Set(['category', 'cursor', 'limit', 'review']);
+const DUPLICATE_GAME_HINT_PARAMETER_KEYS = new Set(['ids']);
 const DUPLICATE_REVIEW_BODY_KEYS = new Set(['category', 'groupKey']);
 const DUPLICATE_MERGE_BODY_KEYS = new Set(['groupKey', 'targetId']);
 
@@ -79,6 +81,27 @@ export function parseDuplicateListParameters(query: Record<string, unknown>) {
     limit: parsePositiveIntegerParameter(query.limit, 'limit', 20, 50),
     review: parseEnumParameter(query.review, 'review', ['unreviewed', 'reviewed'] as const) ?? 'unreviewed',
   };
+}
+
+export function parseDuplicateGameHintParameters(query: Record<string, unknown>) {
+  const unknownKey = Object.keys(query).find(key => !DUPLICATE_GAME_HINT_PARAMETER_KEYS.has(key));
+  if (unknownKey) throw new RequestValidationError(`未知参数: ${unknownKey}`);
+  const rawIds = parseBoundedStringParameter(query.ids, 'ids', 2000, true)!;
+  const ids = rawIds.split(',').map((value, index) => {
+    if (!/^\d+$/.test(value)) {
+      throw new RequestValidationError(`ids[${index}] 必须是正整数`);
+    }
+    const id = Number(value);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new RequestValidationError(`ids[${index}] 必须是安全范围内的正整数`);
+    }
+    return id;
+  });
+  const uniqueIds = Array.from(new Set(ids));
+  if (uniqueIds.length > 100) {
+    throw new RequestValidationError('ids 最多包含 100 条记录');
+  }
+  return uniqueIds;
 }
 
 export function parseDuplicateReviewBody(value: unknown) {
@@ -130,6 +153,11 @@ router.get('/duplicates', async (req: Request, res: Response) => {
     parameters.cursor,
     parameters.review,
   ));
+});
+
+router.get('/duplicates/game-hints', async (req: Request, res: Response) => {
+  const ids = parseDuplicateGameHintParameters(req.query as Record<string, unknown>);
+  res.json(await listGameDuplicateHints(ids));
 });
 
 router.post('/duplicates/review', async (req: Request, res: Response) => {

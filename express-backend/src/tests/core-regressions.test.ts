@@ -33,6 +33,7 @@ import { parseAnalyticsParameters, parseAnalyticsYear } from '../routes/analytic
 import {
   parseDataHealthIssueParameters,
   parseDataHealthRepairBody,
+  parseDuplicateGameHintParameters,
   parseDuplicateListParameters,
   parseDuplicateMergeBody,
   parseDuplicateReviewBody,
@@ -194,6 +195,7 @@ import {
   isDataHealthRepairSupported,
 } from '../services/DataHealthRepairService';
 import {
+  buildGameDuplicateHints,
   findDuplicateGroups,
   normalizeDuplicateTitle,
 } from '../services/DuplicateDetectionService';
@@ -1079,6 +1081,23 @@ test('数据健康查询只接受适用的问题类型和有界分页参数', ()
   });
 });
 
+test('游戏重复提示只接受不超过一百个安全记录 ID', () => {
+  assert.deepEqual(parseDuplicateGameHintParameters({ ids: '1,2,2,9007199254740991' }), [
+    1, 2, 9007199254740991,
+  ]);
+  assert.throws(() => parseDuplicateGameHintParameters({}), /ids/);
+  assert.throws(() => parseDuplicateGameHintParameters({ ids: '1,' }), /正整数/);
+  assert.throws(() => parseDuplicateGameHintParameters({ ids: '0' }), /正整数/);
+  assert.throws(() => parseDuplicateGameHintParameters({ ids: '9007199254740992' }), /安全范围/);
+  assert.throws(
+    () => parseDuplicateGameHintParameters({
+      ids: Array.from({ length: 101 }, (_, index) => index + 1).join(','),
+    }),
+    /最多包含 100/,
+  );
+  assert.throws(() => parseDuplicateGameHintParameters({ ids: '1', category: 'game' }), /未知参数/);
+});
+
 test('数据健康自动修复限制批量大小并拒绝不安全的游戏标识匹配', () => {
   assert.equal(isDataHealthRepairSupported('movie', 'missing_overview'), true);
   assert.equal(isDataHealthRepairSupported('game', 'missing_poster'), true);
@@ -1205,6 +1224,16 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
   });
   assert.deepEqual(gameGroups[1].records.map(record => record.id), [9, 10]);
   assert.deepEqual(gameGroups[1].reasons, ['title_platform']);
+  assert.deepEqual(buildGameDuplicateHints(gameGroups, [7], new Set()), [{
+    recordId: 7,
+    groupKey: gameGroups[0].key,
+    reasons: ['title_platform', 'title_cross_platform'],
+    peers: [
+      { id: 5, title: 'Portal 2', platform: 'PC' },
+      { id: 8, title: 'Portal 2', platform: 'PC' },
+    ],
+  }]);
+  assert.deepEqual(buildGameDuplicateHints(gameGroups, [7], new Set([gameGroups[0].key])), []);
   assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
     category: 'game', cursor: 0, limit: 10, review: 'unreviewed',
   });

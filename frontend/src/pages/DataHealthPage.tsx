@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
 import { confirmDialog } from "../components/Toast"
@@ -33,11 +33,18 @@ interface RepairTaskResponse {
 
 export default function DataHealthPage() {
   const { lang, t } = useI18nStore()
+  const [searchParams] = useSearchParams()
+  const initialCategory = searchParams.get("category")
+  const initialView = searchParams.get("view")
   const tasks = useTaskStore(state => state.tasks)
   const taskStateReady = useTaskStore(state => state.initialized && state.pollError === null)
   const pollTasks = useTaskStore(state => state.pollTasks)
   const [summary, setSummary] = useState<DataHealthSummary | null>(null)
-  const [category, setCategory] = useState<DataHealthCategory>("movie")
+  const [category, setCategory] = useState<DataHealthCategory>(
+    initialCategory === "movie" || initialCategory === "tv_show" || initialCategory === "game"
+      ? initialCategory
+      : "movie",
+  )
   const [issue, setIssue] = useState<DataHealthIssue>("missing_poster")
   const [items, setItems] = useState<DataHealthIssueItem[]>([])
   const [total, setTotal] = useState(0)
@@ -52,7 +59,9 @@ export default function DataHealthPage() {
   const [repairTaskId, setRepairTaskId] = useState<string | null>(null)
   const [summaryRefreshVersion, setSummaryRefreshVersion] = useState(0)
   const [issueRefreshVersion, setIssueRefreshVersion] = useState(0)
-  const [view, setView] = useState<"fields" | "duplicates">("fields")
+  const [view, setView] = useState<"fields" | "duplicates">(
+    initialView === "duplicates" ? "duplicates" : "fields",
+  )
   const issueViewKey = `${category}:${issue}`
   const repairViewKey = `${view}:${issueViewKey}`
   const issueViewRef = useRef(issueViewKey)
