@@ -715,7 +715,7 @@ export function DuplicateCandidatePanel({
                           )}
                           {record.playtimeMinutes != null && (
                             <span className="border border-[var(--line)] px-1.5 py-0.5 text-[8px] text-[var(--muted)]">
-                              {t("health.duplicates.personal.playtime", formatPlaytime(record.playtimeMinutes))}
+                              {t("health.duplicates.personal.playtime", formatPlaytime(record.playtimeMinutes, t))}
                             </span>
                           )}
                           {record.importReviewState && (
@@ -882,8 +882,8 @@ function GameMergePreviewDialog({
                         </p>
                         <p className="mt-1 font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
                           {t("health.duplicates.preview.profile_source", String(profile.sourceRecordId))}
-                          {profile.playtimeMinutes != null && profile.playtimeMinutes > 0
-                            ? ` // ${t("health.duplicates.personal.playtime", formatPlaytime(profile.playtimeMinutes))}`
+                          {profile.playtimeMinutes != null
+                            ? ` // ${t("health.duplicates.personal.playtime", formatPlaytime(profile.playtimeMinutes, t))}`
                             : ""}
                           {progress ? ` // ${progress}` : ""}
                         </p>
@@ -1031,7 +1031,7 @@ function PreviewValue({ label, value }: { label: string; value: string }) {
 
 function formatPreviewProfileProgress(
   profile: GameMergePreview["platformProfiles"]["entries"][number],
-  t: (key: "detail.trophies" | "detail.achievements") => string,
+  t: ReturnType<typeof useI18nStore.getState>["t"],
 ) {
   const unlocked = profile.achievementUnlocked
   const total = profile.achievementTotal
@@ -1041,7 +1041,9 @@ function formatPreviewProfileProgress(
   if (total != null && total > 0 && unlocked != null && unlocked >= 0 && unlocked <= total) {
     return `${label} ${unlocked}/${total}`
   }
-  if (unlocked != null && unlocked > 0) return `${label} ${unlocked}`
+  if (unlocked != null && unlocked > 0) {
+    return `${label} ${t("detail.achievements_unlocked", unlocked)}`
+  }
   return null
 }
 
@@ -1054,11 +1056,15 @@ function ReasonTag({ reason }: { reason: DuplicateReason }) {
   )
 }
 
-function formatPlaytime(minutes: number) {
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  const remainder = minutes % 60
-  return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`
+function formatPlaytime(
+  minutes: number,
+  t: ReturnType<typeof useI18nStore.getState>["t"],
+) {
+  return t(
+    "detail.playtime_value",
+    String(Math.floor(minutes / 60)),
+    String(minutes % 60),
+  )
 }
 
 const DUPLICATE_STATUS_KEYS = {
