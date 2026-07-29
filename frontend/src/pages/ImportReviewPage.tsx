@@ -3,6 +3,7 @@ import { Check, ChevronRight, EyeOff, Inbox, RefreshCw } from "lucide-react"
 import { Link, useSearchParams } from "react-router-dom"
 import { apiFetch } from "../api"
 import { ImgWithFallback } from "../components/ImgWithFallback"
+import { confirmDialog } from "../components/Toast"
 import { proxiedImageUrl } from "../imageProxy"
 import { useI18nStore } from "../stores/i18nStore"
 import { toast } from "../stores/toastStore"
@@ -242,6 +243,15 @@ export default function ImportReviewPage() {
     decisionRequestActive.current = true
     setDeciding(true)
     try {
+      const duplicateCount = decision === "ACCEPTED"
+        ? targets.filter(record => record.category === "game" && duplicateHints[record.id]).length
+        : 0
+      if (
+        duplicateCount > 0
+        && !(await confirmDialog(t("review.duplicate_accept_confirm", duplicateCount)))
+      ) return
+      if (requestId !== latestDecisionRequest.current || requestTab !== tabRef.current) return
+
       await apiFetch("/library/import-review", {
         method: "POST",
         body: JSON.stringify({
