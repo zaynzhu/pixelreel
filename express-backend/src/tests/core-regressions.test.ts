@@ -204,6 +204,7 @@ import {
 import {
   buildGameMergeArchive,
   gameMergePreviewRecord,
+  gameMergePreviewProfiles,
   inspectGameMerge,
   parseGameMergeArchive,
   resolveGameMergeValues,
@@ -1384,6 +1385,47 @@ test('游戏合并只自动汇总不冲突的个人记录和平台身份', () =>
     platform: 'STEAM / PSN',
     importReviewState: 'ACCEPTED',
   });
+  assert.deepEqual(gameMergePreviewProfiles([
+    {
+      id: 1n,
+      platformEntries: [{
+        platform: 'STEAM',
+        externalId: '10',
+        playtimeMinutes: 120,
+        achievementTotal: null,
+        achievementUnlocked: null,
+      }],
+    },
+    {
+      id: 2n,
+      platformEntries: [{
+        platform: 'PSN',
+        externalId: '20',
+        playtimeMinutes: null,
+        achievementTotal: 40,
+        achievementUnlocked: 12,
+      }],
+    },
+  ], 1n), [
+    {
+      sourceRecordId: 1,
+      platform: 'STEAM',
+      externalId: '10',
+      playtimeMinutes: 120,
+      achievementTotal: null,
+      achievementUnlocked: null,
+      disposition: 'retained',
+    },
+    {
+      sourceRecordId: 2,
+      platform: 'PSN',
+      externalId: '20',
+      playtimeMinutes: null,
+      achievementTotal: 40,
+      achievementUnlocked: 12,
+      disposition: 'moved',
+    },
+  ]);
   assert.throws(
     () => resolveGameMergeValues(target, [{ ...target, status: 'DONE' }, { ...source, status: 'DROPPED' }]),
     /个人状态存在冲突/,

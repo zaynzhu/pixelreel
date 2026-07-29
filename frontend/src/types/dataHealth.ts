@@ -82,6 +82,16 @@ export interface GameMergePreviewRecord {
   importReviewState: "PENDING" | "ACCEPTED" | "IGNORED"
 }
 
+export interface GameMergePreviewProfile {
+  sourceRecordId: number
+  platform: string
+  externalId: string
+  playtimeMinutes: number | null
+  achievementTotal: number | null
+  achievementUnlocked: number | null
+  disposition: "retained" | "moved"
+}
+
 export interface GameMergePreview {
   targetId: number
   targetTitle: string
@@ -94,6 +104,7 @@ export interface GameMergePreview {
     retained: number
     moved: number
     total: number
+    entries: GameMergePreviewProfile[]
   }
   result: {
     status: string

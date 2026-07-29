@@ -686,6 +686,46 @@ function GameMergePreviewDialog({
             <PreviewMetric label={t("health.duplicates.preview.total")} value={String(preview.platformProfiles.total)} />
           </div>
 
+          {preview.platformProfiles.entries.length > 0 && (
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
+                {t("health.duplicates.preview.profiles")}
+              </p>
+              <div className="mt-2 divide-y divide-[var(--line)] border border-[var(--line)]">
+                {preview.platformProfiles.entries.map(profile => {
+                  const progress = formatPreviewProfileProgress(profile, t)
+                  return (
+                    <div
+                      key={`${profile.platform}:${profile.externalId}`}
+                      className="flex flex-wrap items-start justify-between gap-3 bg-black/20 px-3 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-white">{profile.platform}</p>
+                        <p className="mt-1 break-all font-mono text-[8px] text-[var(--muted)]">
+                          ID {profile.externalId}
+                        </p>
+                        <p className="mt-1 font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
+                          {t("health.duplicates.preview.profile_source", String(profile.sourceRecordId))}
+                          {profile.playtimeMinutes != null && profile.playtimeMinutes > 0
+                            ? ` // ${t("health.duplicates.personal.playtime", formatPlaytime(profile.playtimeMinutes))}`
+                            : ""}
+                          {progress ? ` // ${progress}` : ""}
+                        </p>
+                      </div>
+                      <span className={`border px-2 py-1 text-[8px] uppercase tracking-wider ${
+                        profile.disposition === "retained"
+                          ? "border-[var(--accent)] text-[var(--accent)]"
+                          : "border-[var(--accent-deep)] text-[var(--accent-deep)]"
+                      }`}>
+                        {t(`health.duplicates.preview.profile_${profile.disposition}`)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <p className="font-mono text-[9px] uppercase tracking-widest text-[var(--accent)]">
               {t("health.duplicates.preview.keep_record")}
@@ -811,6 +851,22 @@ function PreviewValue({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-sm text-white">{value}</p>
     </div>
   )
+}
+
+function formatPreviewProfileProgress(
+  profile: GameMergePreview["platformProfiles"]["entries"][number],
+  t: (key: "detail.trophies" | "detail.achievements") => string,
+) {
+  const unlocked = profile.achievementUnlocked
+  const total = profile.achievementTotal
+  const label = profile.platform.trim().toUpperCase() === "PSN"
+    ? t("detail.trophies")
+    : t("detail.achievements")
+  if (total != null && total > 0 && unlocked != null && unlocked >= 0 && unlocked <= total) {
+    return `${label} ${unlocked}/${total}`
+  }
+  if (unlocked != null && unlocked > 0) return `${label} ${unlocked}`
+  return null
 }
 
 function ReasonTag({ reason }: { reason: DuplicateReason }) {

@@ -51,6 +51,30 @@ export function gameMergePreviewRecord(record: {
   };
 }
 
+export function gameMergePreviewProfiles(
+  records: Array<{
+    id: bigint;
+    platformEntries: Array<{
+      platform: string;
+      externalId: string;
+      playtimeMinutes: number | null;
+      achievementTotal: number | null;
+      achievementUnlocked: number | null;
+    }>;
+  }>,
+  targetId: bigint,
+) {
+  return records.flatMap(record => record.platformEntries.map(entry => ({
+    sourceRecordId: Number(record.id),
+    platform: entry.platform,
+    externalId: entry.externalId,
+    playtimeMinutes: entry.playtimeMinutes,
+    achievementTotal: entry.achievementTotal,
+    achievementUnlocked: entry.achievementUnlocked,
+    disposition: record.id === targetId ? 'retained' as const : 'moved' as const,
+  })));
+}
+
 interface GameMergeInspection {
   meaningfulStatuses: string[];
   ratings: number[];
@@ -160,7 +184,18 @@ export async function previewDuplicateGameMerge(groupKey: string, targetId: bigi
     where: { id: { in: recordIds } },
     include: {
       platformEntries: {
-        select: { id: true, platform: true },
+        select: {
+          id: true,
+          platform: true,
+          externalId: true,
+          playtimeMinutes: true,
+          achievementTotal: true,
+          achievementUnlocked: true,
+        },
+        orderBy: [
+          { platform: 'asc' },
+          { externalId: 'asc' },
+        ],
       },
     },
   });
@@ -186,6 +221,7 @@ export async function previewDuplicateGameMerge(groupKey: string, targetId: bigi
       retained: target.platformEntries.length,
       moved: movedProfiles,
       total: target.platformEntries.length + movedProfiles,
+      entries: gameMergePreviewProfiles([target, ...sources], targetId),
     },
     result: values ? {
       status: values.status,
