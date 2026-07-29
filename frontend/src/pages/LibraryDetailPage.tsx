@@ -224,34 +224,62 @@ export default function LibraryDetailPage() {
             </span>
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            {record.platformEntries.map(entry => (
-              <article
-                key={`${entry.platform}:${entry.externalId}`}
-                className="relative overflow-hidden border border-[var(--line)] bg-black/30 p-4"
-              >
-                <div className="absolute inset-y-0 left-0 w-1 bg-[var(--accent)] opacity-70" />
-                <div className="flex flex-wrap items-center justify-between gap-2 pl-2">
-                  <Badge>{platformName(entry.platform)}</Badge>
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
-                    {t("detail.last_synced")} {formatDate(entry.lastSyncedAt)}
-                  </span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-px border border-[var(--line)] bg-[var(--line)]">
-                  <Metric label={t("detail.playtime")} value={formatPlaytime(entry.playtimeMinutes, t)} />
-                  <Metric
-                    label={t("detail.achievements")}
-                    value={formatAchievementProgress(
-                      entry.achievementUnlocked,
-                      entry.achievementTotal,
-                      t,
-                    )}
-                  />
-                </div>
-                <div className="mt-3 pl-2 font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
-                  {t("detail.external_id")} <span className="break-all text-white">{entry.externalId}</span>
-                </div>
-              </article>
-            ))}
+            {record.platformEntries.map(entry => {
+              const completion = achievementCompletion(
+                entry.achievementUnlocked,
+                entry.achievementTotal,
+              )
+              return (
+                <article
+                  key={`${entry.platform}:${entry.externalId}`}
+                  className="relative overflow-hidden border border-[var(--line)] bg-black/30 p-4"
+                >
+                  <div className="absolute inset-y-0 left-0 w-1 bg-[var(--accent)] opacity-70" />
+                  <div className="flex flex-wrap items-start justify-between gap-2 pl-2">
+                    <Badge>{platformName(entry.platform)}</Badge>
+                    <div className="space-y-1 text-right font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
+                      <div>{t("detail.imported")} {formatTimestamp(entry.importedAt)}</div>
+                      <div>{t("detail.last_synced")} {formatTimestamp(entry.lastSyncedAt)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-px border border-[var(--line)] bg-[var(--line)]">
+                    <Metric label={t("detail.playtime")} value={formatPlaytime(entry.playtimeMinutes, t)} />
+                    <Metric
+                      label={platformAchievementLabel(entry.platform, t)}
+                      value={formatAchievementProgress(
+                        entry.achievementUnlocked,
+                        entry.achievementTotal,
+                        t,
+                      )}
+                    />
+                  </div>
+                  {completion != null && (
+                    <div className="mt-3 pl-2">
+                      <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
+                        <span>{t("detail.completion")}</span>
+                        <span className="text-[var(--accent)]">{completion}%</span>
+                      </div>
+                      <div
+                        role="progressbar"
+                        aria-label={`${platformName(entry.platform)} ${t("detail.completion")}`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={completion}
+                        className="mt-2 h-1.5 overflow-hidden bg-[var(--line)]"
+                      >
+                        <div
+                          className="h-full bg-[var(--accent)]"
+                          style={{ width: `${completion}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-3 pl-2 font-mono text-[9px] uppercase tracking-wider text-[var(--muted)]">
+                    {t("detail.external_id")} <span className="break-all text-white">{entry.externalId}</span>
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </section>
       ) : record.category === "game" && (
@@ -500,6 +528,20 @@ function formatAchievementProgress(
   return "—";
 }
 
+function achievementCompletion(
+  unlocked: number | null | undefined,
+  total: number | null | undefined,
+) {
+  if (unlocked == null || total == null || total <= 0 || unlocked > total) return null
+  return Math.round((unlocked / total) * 100)
+}
+
+function platformAchievementLabel(platform: string, t: Translate) {
+  return platform.trim().toUpperCase() === "PSN"
+    ? t("detail.trophies")
+    : t("detail.achievements")
+}
+
 function Badge({ children, muted = false }: { children: React.ReactNode; muted?: boolean }) {
   return (
     <span className={`border px-2 py-1 text-[9px] uppercase tracking-widest ${
@@ -529,6 +571,12 @@ function formatDate(value?: string | null) {
   if (!value) return "—"
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
+}
+
+function formatTimestamp(value?: string | null) {
+  if (!value) return "—"
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
 function formatNumber(value?: number | null) {
