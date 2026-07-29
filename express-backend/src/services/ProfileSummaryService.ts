@@ -292,7 +292,9 @@ export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTe
   const platformHealth = new Map<string, {
     platform: string;
     profiles: number;
+    playtimeMinutes: number;
     playtimeProfiles: number;
+    achievementUnlocked: number;
     achievementProfiles: number;
     achievementsWithoutTotal: number;
     lastSyncedAt: Date;
@@ -330,14 +332,18 @@ export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTe
       const current = platformHealth.get(platform) ?? {
         platform,
         profiles: 0,
+        playtimeMinutes: 0,
         playtimeProfiles: 0,
+        achievementUnlocked: 0,
         achievementProfiles: 0,
         achievementsWithoutTotal: 0,
         lastSyncedAt,
       };
 
       current.profiles++;
+      current.playtimeMinutes += entry.playtimeMinutes ?? 0;
       if (entry.playtimeMinutes != null) current.playtimeProfiles++;
+      current.achievementUnlocked += progress.achievementUnlocked ?? 0;
       if ((progress.achievementUnlocked ?? 0) > 0 || progress.achievementTotal != null) {
         current.achievementProfiles++;
       }

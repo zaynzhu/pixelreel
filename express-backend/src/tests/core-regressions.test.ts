@@ -3066,7 +3066,9 @@ test('游戏遥测按平台档案汇总并归一化不完整成就进度', () =>
       {
         platform: 'XBOX',
         profiles: 2,
+        playtimeMinutes: 45,
         playtimeProfiles: 1,
+        achievementUnlocked: 23,
         achievementProfiles: 2,
         achievementsWithoutTotal: 1,
         lastSyncedAt: '2026-01-03T00:00:00.000Z',
@@ -3074,7 +3076,9 @@ test('游戏遥测按平台档案汇总并归一化不完整成就进度', () =>
       {
         platform: 'STEAM',
         profiles: 1,
+        playtimeMinutes: 30,
         playtimeProfiles: 1,
+        achievementUnlocked: 5,
         achievementProfiles: 1,
         achievementsWithoutTotal: 0,
         lastSyncedAt: '2026-01-01T00:00:00.000Z',
@@ -3082,7 +3086,9 @@ test('游戏遥测按平台档案汇总并归一化不完整成就进度', () =>
       {
         platform: 'PSN',
         profiles: 1,
+        playtimeMinutes: 0,
         playtimeProfiles: 0,
+        achievementUnlocked: 0,
         achievementProfiles: 1,
         achievementsWithoutTotal: 0,
         lastSyncedAt: '2026-01-04T00:00:00.000Z',

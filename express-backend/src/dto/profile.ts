@@ -57,7 +57,9 @@ export interface CountItem {
 export interface GamePlatformHealthItem {
   platform: string;
   profiles: number;
+  playtimeMinutes: number;
   playtimeProfiles: number;
+  achievementUnlocked: number;
   achievementProfiles: number;
   achievementsWithoutTotal: number;
   lastSyncedAt: string;

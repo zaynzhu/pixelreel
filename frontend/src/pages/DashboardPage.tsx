@@ -478,7 +478,9 @@ function PlatformHealthRow({
   item: {
     platform: string;
     profiles: number;
+    playtimeMinutes: number;
     playtimeProfiles: number;
+    achievementUnlocked: number;
     achievementProfiles: number;
     achievementsWithoutTotal: number;
     lastSyncedAt: string;
@@ -493,6 +495,21 @@ function PlatformHealthRow({
           {t("dash.platforms.synced")} {formatDate(item.lastSyncedAt)}
         </span>
       </div>
+      {(item.playtimeMinutes > 0 || item.achievementProfiles > 0) && (
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-[var(--accent)]">
+          {item.playtimeMinutes > 0 && (
+            <span>{formatTotalPlaytime(item.playtimeMinutes, t)}</span>
+          )}
+          {item.achievementProfiles > 0 && (
+            <span>
+              {t(item.platform === "PSN"
+                ? "dash.platforms.trophies"
+                : "dash.platforms.platform_achievements")}{" "}
+              {item.achievementUnlocked.toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[9px] text-[var(--muted)]">
         <span>{t("dash.platforms.playtime_coverage")} {item.playtimeProfiles}/{item.profiles}</span>
         <span>{t("dash.platforms.achievement_coverage")} {item.achievementProfiles}/{item.profiles}</span>
