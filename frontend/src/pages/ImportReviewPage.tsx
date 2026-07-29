@@ -62,6 +62,7 @@ export default function ImportReviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [duplicateHintError, setDuplicateHintError] = useState<string | null>(null)
   const [duplicateHints, setDuplicateHints] = useState<Record<number, GameDuplicateHint>>({})
+  const [duplicateCheckedGameIds, setDuplicateCheckedGameIds] = useState<Set<number>>(new Set())
   const [pendingDuplicateGroupCount, setPendingDuplicateGroupCount] = useState<number | null>(null)
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
   const [focusedRecordKey, setFocusedRecordKey] = useState<string | null>(null)
@@ -86,6 +87,7 @@ export default function ImportReviewPage() {
     } else {
       setLoading(true)
       setLoadingMore(false)
+      setDuplicateCheckedGameIds(new Set())
     }
     setError(null)
     setDuplicateHintError(null)
@@ -132,6 +134,9 @@ export default function ImportReviewPage() {
             hintResponse.hints.map(hint => [hint.recordId, hint]),
           )
           setDuplicateHints(current => append ? { ...current, ...nextHints } : nextHints)
+          setDuplicateCheckedGameIds(current => append
+            ? new Set([...current, ...gameIds])
+            : new Set(gameIds))
           setPendingDuplicateGroupCount(hintResponse.pendingGroupCount)
         } catch (reason) {
           if (
@@ -148,6 +153,7 @@ export default function ImportReviewPage() {
         }
       } else if (!append) {
         setDuplicateHints({})
+        setDuplicateCheckedGameIds(new Set())
         setPendingDuplicateGroupCount(null)
       }
     } catch (reason) {
@@ -223,6 +229,7 @@ export default function ImportReviewPage() {
     setError(null)
     setDuplicateHintError(null)
     setDuplicateHints({})
+    setDuplicateCheckedGameIds(new Set())
     setPendingDuplicateGroupCount(null)
     setFailedCursor(null)
     setFocusedRecordKey(null)
@@ -243,6 +250,7 @@ export default function ImportReviewPage() {
     setError(null)
     setDuplicateHintError(null)
     setDuplicateHints({})
+    setDuplicateCheckedGameIds(new Set())
     setPendingDuplicateGroupCount(null)
     setFailedCursor(null)
     setFocusedRecordKey(null)
@@ -259,6 +267,15 @@ export default function ImportReviewPage() {
     decisionRequestActive.current = true
     setDeciding(true)
     try {
+      const uncheckedGameCount = decision === "ACCEPTED"
+        ? targets.filter(record => (
+            record.category === "game" && !duplicateCheckedGameIds.has(record.id)
+          )).length
+        : 0
+      if (uncheckedGameCount > 0) {
+        toast(t("review.duplicate_check_required", uncheckedGameCount), "error")
+        return
+      }
       const duplicateCount = decision === "ACCEPTED"
         ? targets.filter(record => record.category === "game" && duplicateHints[record.id]).length
         : 0
@@ -279,6 +296,9 @@ export default function ImportReviewPage() {
       setRecords(current => current.filter(record => !targetKeys.has(recordKey(record))))
       setDuplicateHints(current => Object.fromEntries(
         Object.entries(current).filter(([id]) => !targetKeys.has(`game:${id}`)),
+      ))
+      setDuplicateCheckedGameIds(current => new Set(
+        [...current].filter(id => !targetKeys.has(`game:${id}`)),
       ))
       setSelected(current => {
         const next = new Set(current)
@@ -301,6 +321,21 @@ export default function ImportReviewPage() {
 
   const selectedRecords = records.filter(record => selected.has(recordKey(record)))
   const allSelected = records.length > 0 && selectedRecords.length === records.length
+  const safeLoadedRecords = records.filter(record => (
+    record.category !== "game"
+    || (duplicateCheckedGameIds.has(record.id) && !duplicateHints[record.id])
+  ))
+  const duplicateRiskRecords = records.filter(record => (
+    record.category === "game"
+    && duplicateCheckedGameIds.has(record.id)
+    && duplicateHints[record.id]
+  ))
+  const uncheckedGameRecords = records.filter(record => (
+    record.category === "game" && !duplicateCheckedGameIds.has(record.id)
+  ))
+  const selectedHasUncheckedGame = selectedRecords.some(record => (
+    record.category === "game" && !duplicateCheckedGameIds.has(record.id)
+  ))
 
   return (
     <div className="space-y-6">
@@ -376,8 +411,11 @@ export default function ImportReviewPage() {
         )}
 
         {duplicateHintError && records.length > 0 && (
-          <div role="status" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[10px] text-amber-300 sm:px-5">
-            {t("review.duplicate_error")} {duplicateHintError}
+          <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[10px] text-amber-300 sm:px-5">
+            <span>{t("review.duplicate_error")} {duplicateHintError}</span>
+            <button type="button" onClick={() => void loadRecords()} className="brutal-btn">
+              {t("review.duplicate_retry")}
+            </button>
           </div>
         )}
 
@@ -400,6 +438,32 @@ export default function ImportReviewPage() {
         )}
 
         {!loading && records.length > 0 && (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[rgba(212,255,0,0.04)] px-4 py-3 sm:px-5">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[9px] uppercase tracking-wider">
+              <span className="text-[var(--muted)]">{t("review.risk_loaded")}</span>
+              <span className="text-[var(--accent)]">
+                {t("review.risk_ready", safeLoadedRecords.length)}
+              </span>
+              <span className="text-[var(--accent-deep)]">
+                {t("review.risk_review", duplicateRiskRecords.length)}
+              </span>
+              <span className={uncheckedGameRecords.length > 0 ? "text-amber-300" : "text-[var(--muted)]"}>
+                {t("review.risk_unchecked", uncheckedGameRecords.length)}
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={deciding || safeLoadedRecords.length === 0}
+              onClick={() => setSelected(new Set(safeLoadedRecords.map(recordKey)))}
+              className="brutal-btn"
+            >
+              <Check className="h-3.5 w-3.5" />
+              {t("review.select_safe_loaded", safeLoadedRecords.length)}
+            </button>
+          </div>
+        )}
+
+        {!loading && records.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-black/20 p-4 sm:px-5">
             <label className="flex cursor-pointer items-center gap-3 text-[10px] uppercase tracking-widest text-[var(--muted)]">
               <input
@@ -412,7 +476,12 @@ export default function ImportReviewPage() {
             </label>
             {selectedRecords.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={deciding} onClick={() => void decide(selectedRecords, "ACCEPTED")} className="brutal-btn-accent">
+                <button
+                  type="button"
+                  disabled={deciding || selectedHasUncheckedGame}
+                  onClick={() => void decide(selectedRecords, "ACCEPTED")}
+                  className="brutal-btn-accent"
+                >
                   <Check className="h-3.5 w-3.5" /> {t("review.accept_selected")}
                 </button>
                 {tab === "PENDING" && (
@@ -519,7 +588,14 @@ export default function ImportReviewPage() {
                     <Link to={`/library/${record.category}/${record.id}`} className="brutal-btn">
                       {t("review.correct")} <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
-                    <button type="button" disabled={deciding} onClick={() => void decide([record], "ACCEPTED")} className="brutal-btn-accent">
+                    <button
+                      type="button"
+                      disabled={deciding || (
+                        record.category === "game" && !duplicateCheckedGameIds.has(record.id)
+                      )}
+                      onClick={() => void decide([record], "ACCEPTED")}
+                      className="brutal-btn-accent"
+                    >
                       <Check className="h-3.5 w-3.5" /> {t("review.accept")}
                     </button>
                     {tab === "PENDING" && (
