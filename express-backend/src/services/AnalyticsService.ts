@@ -2,7 +2,10 @@ import { getDb } from '../config/db'
 import { AnalyticsResponse } from '../dto/analytics'
 import { RecordStatus } from '../enums/RecordStatus'
 import { detectGameSource, detectMovieSource, detectTvShowSource } from './LibraryService'
-import { resolveCompletionDate } from './RecordDateService'
+import {
+  resolveCompletionCalendarParts,
+  resolveCompletionDate,
+} from './RecordDateService'
 import { normalizeDoubanShortReview } from './douban-harvester/short-review'
 
 export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
@@ -192,13 +195,18 @@ export function collectAvailableAnalyticsYears(
 ) {
   const years = new Set<number>([selectedYear])
   const addYear = (date: Date | null) => {
-    const year = date?.getUTCFullYear()
+    const year = date?.getFullYear()
     if (year != null && year >= 1900 && year <= 3000) years.add(year)
   }
 
   for (const record of records) {
     addYear(record.createdAt)
-    if (record.status === RecordStatus.DONE) addYear(resolveCompletionDate(record))
+    if (record.status === RecordStatus.DONE) {
+      const completionYear = resolveCompletionCalendarParts(record)?.year
+      if (completionYear != null && completionYear >= 1900 && completionYear <= 3000) {
+        years.add(completionYear)
+      }
+    }
   }
 
   return [...years].sort((left, right) => right - left)
@@ -212,9 +220,9 @@ function buildMonthlyCompletion(
     const mm = i.toString().padStart(2, '0')
     months.push({
       month: mm,
-      movies: movies.filter(m => (resolveCompletionDate(m)?.getUTCMonth() ?? -1) === i - 1).length,
-      games: games.filter(g => (resolveCompletionDate(g)?.getUTCMonth() ?? -1) === i - 1).length,
-      tvShows: tvShows.filter(s => (resolveCompletionDate(s)?.getUTCMonth() ?? -1) === i - 1).length,
+      movies: movies.filter(m => resolveCompletionCalendarParts(m)?.month === i).length,
+      games: games.filter(g => resolveCompletionCalendarParts(g)?.month === i).length,
+      tvShows: tvShows.filter(s => resolveCompletionCalendarParts(s)?.month === i).length,
     })
   }
   return months

@@ -187,7 +187,10 @@ import {
   buildSourceBreakdown,
   collectAvailableAnalyticsYears,
 } from '../services/AnalyticsService';
-import { resolveCompletionDate } from '../services/RecordDateService';
+import {
+  resolveCompletionCalendarParts,
+  resolveCompletionDate,
+} from '../services/RecordDateService';
 import { SyncHistoryStore } from '../services/SyncHistoryService';
 import {
   buildDataHealthWhere,
@@ -3380,6 +3383,20 @@ test('年度分析优先使用严格合法的豆瓣标记日期', () => {
   assert.equal(resolveCompletionDate({ doubanDate: null, updatedAt }), updatedAt);
   assert.equal(resolveCompletionDate({ doubanDate: '2024-02-31', updatedAt }), updatedAt);
   assert.equal(resolveCompletionDate({ doubanDate: 'not-a-date', updatedAt }), updatedAt);
+  assert.deepEqual(
+    resolveCompletionCalendarParts({ doubanDate: '2024-11-09', updatedAt }),
+    { year: 2024, month: 11, day: 9 },
+  );
+
+  const localNewYear = new Date(2026, 0, 1, 0, 30);
+  assert.deepEqual(
+    resolveCompletionCalendarParts({ doubanDate: null, updatedAt: localNewYear }),
+    { year: 2026, month: 1, day: 1 },
+  );
+  assert.deepEqual(
+    resolveCompletionCalendarParts({ doubanDate: '2024-02-31', updatedAt: localNewYear }),
+    { year: 2026, month: 1, day: 1 },
+  );
 });
 
 test('年度分析只列出实际数据年份并保留当前选择', () => {
@@ -3396,6 +3413,13 @@ test('年度分析只列出实际数据年份并保留当前选择', () => {
       status: RecordStatus.WANT,
     },
   ], 2027), [2027, 2026, 2025, 2019]);
+  assert.deepEqual(collectAvailableAnalyticsYears([
+    {
+      createdAt: new Date(2026, 0, 1, 0, 30),
+      updatedAt: new Date(2026, 0, 1, 0, 30),
+      status: RecordStatus.WANT,
+    },
+  ], 2028), [2028, 2026]);
 });
 
 test('当前年度按去年同期比较且历史年度按全年比较', () => {
