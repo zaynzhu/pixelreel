@@ -8,7 +8,13 @@ import { StarRating } from "../components/StarRating"
 import { proxiedImageUrl } from "../imageProxy"
 import { useI18nStore } from "../stores/i18nStore"
 import { toast } from "../stores/toastStore"
-import type { LibraryCategory, LibraryRecord, LibraryRecordUpdateInput, RecordStatus } from "../types/library"
+import type {
+  GamePlatformEntry,
+  LibraryCategory,
+  LibraryRecord,
+  LibraryRecordUpdateInput,
+  RecordStatus,
+} from "../types/library"
 
 const CATEGORIES: LibraryCategory[] = ["movie", "tv_show", "game"]
 type Translate = ReturnType<typeof useI18nStore.getState>["t"]
@@ -139,6 +145,8 @@ export default function LibraryDetailPage() {
   const poster = proxiedImageUrl(record.posterUrl || record.tmdbPosterUrl)
   const entityType = record.category === "tv_show" ? "TV_SHOW" : record.category.toUpperCase()
   const sources = buildSourceEntries(record, t)
+  const platformEntries = record.category === "game" ? record.platformEntries ?? [] : []
+  const platformSummary = summarizePlatformProfiles(platformEntries)
 
   return (
     <div className="space-y-6">
@@ -209,7 +217,7 @@ export default function LibraryDetailPage() {
         </div>
       </section>
 
-      {record.category === "game" && record.platformEntries && record.platformEntries.length > 0 ? (
+      {record.category === "game" && platformEntries.length > 0 ? (
         <section className="border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
           <div className="section-kicker">{t("detail.platform_profiles_kicker")}</div>
           <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
@@ -219,12 +227,31 @@ export default function LibraryDetailPage() {
                 {t("detail.platform_profiles_desc")}
               </p>
             </div>
-            <span className="font-mono text-3xl text-[var(--accent)]">
-              {String(record.platformEntries.length).padStart(2, "0")}
-            </span>
+            <div className="text-right">
+              <span className="block font-mono text-3xl text-[var(--accent)]">
+                {String(platformEntries.length).padStart(2, "0")}
+              </span>
+              <span className="font-mono text-[8px] uppercase tracking-widest text-[var(--muted)]">
+                {t("detail.platform_profiles_count")}
+              </span>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
+            <PlatformSummaryMetric
+              label={t("detail.platform_profiles_playtime_coverage")}
+              value={`${platformSummary.playtimeProfiles} / ${platformEntries.length}`}
+            />
+            <PlatformSummaryMetric
+              label={t("detail.platform_profiles_achievement_coverage")}
+              value={`${platformSummary.achievementProfiles} / ${platformEntries.length}`}
+            />
+            <PlatformSummaryMetric
+              label={t("detail.platform_profiles_latest_sync")}
+              value={formatTimestamp(platformSummary.latestSyncedAt)}
+            />
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            {record.platformEntries.map(entry => {
+            {platformEntries.map(entry => {
               const completion = achievementCompletion(
                 entry.achievementUnlocked,
                 entry.achievementTotal,
@@ -509,6 +536,40 @@ function Metric({ label, value }: { label: string; value: string }) {
       <div className="mt-2 font-display text-2xl text-white">{value}</div>
     </div>
   )
+}
+
+function PlatformSummaryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-black/30 px-4 py-4">
+      <div className="font-mono text-[8px] uppercase tracking-widest text-[var(--muted)]">{label}</div>
+      <div className="mt-2 font-mono text-sm text-white">{value}</div>
+    </div>
+  )
+}
+
+function summarizePlatformProfiles(entries: GamePlatformEntry[]) {
+  let playtimeProfiles = 0
+  let achievementProfiles = 0
+  let latestSyncedAt: string | null = null
+  let latestSyncTimestamp = Number.NEGATIVE_INFINITY
+
+  for (const entry of entries) {
+    if (entry.playtimeMinutes != null) playtimeProfiles += 1
+    if (entry.achievementUnlocked != null || entry.achievementTotal != null) {
+      achievementProfiles += 1
+    }
+    const timestamp = Date.parse(entry.lastSyncedAt)
+    if (Number.isFinite(timestamp) && timestamp > latestSyncTimestamp) {
+      latestSyncTimestamp = timestamp
+      latestSyncedAt = entry.lastSyncedAt
+    }
+  }
+
+  return {
+    playtimeProfiles,
+    achievementProfiles,
+    latestSyncedAt,
+  }
 }
 
 function formatAchievementProgress(
