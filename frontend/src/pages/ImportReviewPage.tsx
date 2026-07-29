@@ -10,6 +10,9 @@ import type { ImportReviewState, LibraryRecord } from "../types/library"
 
 type ReviewTab = Extract<ImportReviewState, "PENDING" | "IGNORED">
 type ReviewDecision = Extract<ImportReviewState, "ACCEPTED" | "IGNORED">
+type ReviewSource = "all" | "douban" | "steam" | "xbox" | "psn"
+
+const REVIEW_SOURCES: ReviewSource[] = ["all", "douban", "steam", "xbox", "psn"]
 
 interface ReviewResponse {
   records: LibraryRecord[]
@@ -24,6 +27,7 @@ function recordKey(record: LibraryRecord) {
 export default function ImportReviewPage() {
   const { t, lang } = useI18nStore()
   const [tab, setTab] = useState<ReviewTab>("PENDING")
+  const [source, setSource] = useState<ReviewSource>("all")
   const [records, setRecords] = useState<LibraryRecord[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
@@ -37,11 +41,14 @@ export default function ImportReviewPage() {
   const latestLoadRequest = useRef(0)
   const latestDecisionRequest = useRef(0)
   const decisionRequestActive = useRef(false)
+  const sourceRef = useRef(source)
   tabRef.current = tab
+  sourceRef.current = source
 
   const loadRecords = useCallback(async (cursor?: string) => {
     const requestTab = tab
-    if (requestTab !== tabRef.current) return
+    const requestSource = source
+    if (requestTab !== tabRef.current || requestSource !== sourceRef.current) return
     const append = Boolean(cursor)
     const requestId = append ? latestLoadRequest.current : ++latestLoadRequest.current
     if (append) {
@@ -56,28 +63,41 @@ export default function ImportReviewPage() {
       const params = new URLSearchParams({
         category: "all",
         importReview: tab.toLowerCase(),
+        source,
         sort: "recent",
-        limit: "50",
+        limit: "100",
         includeTotals: append ? "false" : "true",
       })
       if (cursor) params.set("cursor", cursor)
       const response = await apiFetch<ReviewResponse>(`/library?${params}`)
-      if (requestId !== latestLoadRequest.current || requestTab !== tabRef.current) return
+      if (
+        requestId !== latestLoadRequest.current
+        || requestTab !== tabRef.current
+        || requestSource !== sourceRef.current
+      ) return
       setRecords(current => append ? [...current, ...response.records] : response.records)
       setNextCursor(response.nextCursor)
       if (response.totals) setTotal(response.totals.total)
       if (!append) setSelected(new Set())
     } catch (reason) {
-      if (requestId === latestLoadRequest.current && requestTab === tabRef.current) {
+      if (
+        requestId === latestLoadRequest.current
+        && requestTab === tabRef.current
+        && requestSource === sourceRef.current
+      ) {
         setError(reason instanceof Error ? reason.message : t("review.load_error"))
         setFailedCursor(cursor ?? null)
       }
     } finally {
-      if (requestId === latestLoadRequest.current && requestTab === tabRef.current) {
+      if (
+        requestId === latestLoadRequest.current
+        && requestTab === tabRef.current
+        && requestSource === sourceRef.current
+      ) {
         append ? setLoadingMore(false) : setLoading(false)
       }
     }
-  }, [t, tab])
+  }, [t, tab, source])
 
   useEffect(() => {
     void loadRecords()
@@ -100,6 +120,20 @@ export default function ImportReviewPage() {
     setError(null)
     setFailedCursor(null)
     setTab(value)
+  }
+
+  const changeSource = (value: ReviewSource) => {
+    if (value === source || decisionRequestActive.current) return
+    latestLoadRequest.current += 1
+    setRecords([])
+    setNextCursor(null)
+    setTotal(0)
+    setSelected(new Set())
+    setLoading(true)
+    setLoadingMore(false)
+    setError(null)
+    setFailedCursor(null)
+    setSource(value)
   }
 
   const decide = async (targets: LibraryRecord[], decision: ReviewDecision) => {
@@ -183,6 +217,20 @@ export default function ImportReviewPage() {
           </button>
         </header>
 
+        <div className="flex flex-wrap gap-2 border-b border-[var(--line)] bg-black/20 p-4 sm:px-5">
+          {REVIEW_SOURCES.map(value => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => changeSource(value)}
+              disabled={deciding}
+              className={source === value ? "brutal-btn-accent" : "brutal-btn"}
+            >
+              {t(`review.source.${value}`)}
+            </button>
+          ))}
+        </div>
+
         {error && records.length > 0 && (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-red-500/40 bg-red-500/10 p-4 sm:px-5">
             <div>
@@ -237,6 +285,7 @@ export default function ImportReviewPage() {
             {records.map(record => {
               const key = recordKey(record)
               const poster = proxiedImageUrl(record.posterUrl || record.tmdbPosterUrl)
+              const progress = formatGameProgress(record, t)
               return (
                 <article key={key} className="grid gap-4 p-4 sm:grid-cols-[auto_64px_minmax(0,1fr)_auto] sm:items-center sm:p-5">
                   <input
@@ -270,6 +319,11 @@ export default function ImportReviewPage() {
                     <p className="mt-1 text-[10px] uppercase tracking-wider text-[var(--muted)]">
                       {record.platformLabel || record.status}
                     </p>
+                    {progress && (
+                      <p className="mt-2 font-mono text-[9px] uppercase tracking-wider text-[var(--accent)]">
+                        {progress}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 sm:justify-end">
                     <Link to={`/library/${record.category}/${record.id}`} className="brutal-btn">
@@ -322,4 +376,20 @@ function PosterFallback({ title }: { title: string }) {
 function formatDate(value: string, lang: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US")
+}
+
+function formatGameProgress(
+  record: LibraryRecord,
+  t: (key: "review.progress" | "review.unlocked") => string,
+) {
+  if (record.category !== "game") return null
+  const unlocked = record.achievementUnlocked
+  const total = record.achievementTotal
+  if (total != null && total > 0) {
+    return `${t("review.progress")} ${unlocked ?? 0}/${total}`
+  }
+  if (unlocked != null && unlocked > 0) {
+    return `${t("review.unlocked")} ${unlocked}`
+  }
+  return null
 }
