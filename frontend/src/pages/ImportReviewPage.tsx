@@ -646,16 +646,23 @@ function formatDate(value: string, lang: string) {
 
 function formatGameProgress(
   record: LibraryRecord,
-  t: (key: "review.progress" | "review.unlocked") => string,
+  t: (
+    key: "lib.list.achievements" | "lib.list.trophies" | "lib.list.unlocked",
+    ...args: (string | number)[]
+  ) => string,
 ) {
   if (record.category !== "game") return null
   const unlocked = record.achievementUnlocked
   const total = record.achievementTotal
+  const platform = record.platformLabel || record.platform || record.sourceLabel
+  const progressLabel = platform.trim().toUpperCase() === "PSN"
+    ? t("lib.list.trophies")
+    : t("lib.list.achievements")
   if (total != null && total > 0) {
-    return `${t("review.progress")} ${unlocked ?? 0}/${total}`
+    return `${progressLabel} ${unlocked ?? 0}/${total}`
   }
   if (unlocked != null && unlocked > 0) {
-    return `${t("review.unlocked")} ${unlocked}`
+    return t("lib.list.unlocked", unlocked, progressLabel)
   }
   return null
 }
