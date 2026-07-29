@@ -8,15 +8,21 @@ interface Props {
 export function OverviewCards({ overview }: Props) {
   const { t } = useI18nStore()
 
+  const comparisonLabel = overview.comparisonPeriod === "year_to_date"
+    ? t("analytics.overview.vs_last_year_same_period")
+    : t("analytics.overview.vs_last_year")
   const changePercent = overview.completedLastYear > 0
     ? Math.round(((overview.completedThisYear - overview.completedLastYear) / overview.completedLastYear) * 100)
-    : overview.completedThisYear > 0 ? 100 : 0
+    : null
+  const comparison = changePercent == null
+    ? `${overview.completedThisYear > 0 ? t("analytics.overview.new") : "0%"} · ${comparisonLabel}`
+    : `${changePercent > 0 ? "+" : ""}${changePercent}% · ${comparisonLabel}`
 
   const cards = [
     {
       label: t("analytics.overview.completed"),
       value: overview.completedThisYear,
-      suffix: changePercent !== 0 ? `${changePercent > 0 ? "+" : ""}${changePercent}%` : undefined,
+      suffix: comparison,
       accent: true,
     },
     {

@@ -4,6 +4,7 @@ export interface AnalyticsData {
   overview: {
     completedThisYear: number
     completedLastYear: number
+    comparisonPeriod: "year_to_date" | "full_year"
     avgRatingThisYear: number | null
     ratedThisYear: number
     reviewedThisYear: number

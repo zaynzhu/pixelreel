@@ -69,31 +69,40 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     }),
   ])
 
-  const yearStart = new Date(year, 0, 1)
-  const yearEnd = new Date(year + 1, 0, 1)
+  const period = buildAnalyticsPeriodWindow(year)
+  const {
+    yearStart,
+    yearEnd,
+    previousYearStart,
+    previousYearEnd,
+    comparisonPeriod,
+  } = period
 
   const inYear = (d: Date | null) => d != null && d >= yearStart && d < yearEnd
 
   // 豆瓣记录使用原始标记日期，其他来源才用 updatedAt 作为完成时间近似
   const doneMoviesThisYear = movies.filter(
-    m => m.status === RecordStatus.DONE && completionFallsInYear(m, year),
+    m => m.status === RecordStatus.DONE && completionFallsInRange(m, yearStart, yearEnd),
   )
   const doneGamesThisYear = games.filter(
-    g => g.status === RecordStatus.DONE && completionFallsInYear(g, year),
+    g => g.status === RecordStatus.DONE && completionFallsInRange(g, yearStart, yearEnd),
   )
   const doneTvShowsThisYear = tvShows.filter(
-    s => s.status === RecordStatus.DONE && completionFallsInYear(s, year),
+    s => s.status === RecordStatus.DONE && completionFallsInRange(s, yearStart, yearEnd),
   )
 
-  // 上年完成的记录
+  // 当前年度只和上年同期比较，历史完整年份仍和上年全年比较
   const doneMoviesLastYear = movies.filter(
-    m => m.status === RecordStatus.DONE && completionFallsInYear(m, year - 1),
+    m => m.status === RecordStatus.DONE
+      && completionFallsInRange(m, previousYearStart, previousYearEnd),
   )
   const doneGamesLastYear = games.filter(
-    g => g.status === RecordStatus.DONE && completionFallsInYear(g, year - 1),
+    g => g.status === RecordStatus.DONE
+      && completionFallsInRange(g, previousYearStart, previousYearEnd),
   )
   const doneTvShowsLastYear = tvShows.filter(
-    s => s.status === RecordStatus.DONE && completionFallsInYear(s, year - 1),
+    s => s.status === RecordStatus.DONE
+      && completionFallsInRange(s, previousYearStart, previousYearEnd),
   )
 
   const completedThisYear = doneMoviesThisYear.length + doneGamesThisYear.length + doneTvShowsThisYear.length
@@ -128,6 +137,7 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     overview: {
       completedThisYear,
       completedLastYear,
+      comparisonPeriod,
       avgRatingThisYear,
       ratedThisYear,
       reviewedThisYear,
@@ -139,6 +149,36 @@ export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
     crossPlatformRatings: buildCrossPlatformRatings(movies, yearStart, yearEnd),
     topRated: buildTopRated(movies, games, tvShows, yearStart, yearEnd),
   }
+}
+
+export function buildAnalyticsPeriodWindow(year: number, now = new Date()) {
+  const yearStart = new Date(year, 0, 1)
+  const fullYearEnd = new Date(year + 1, 0, 1)
+  const previousYearStart = new Date(year - 1, 0, 1)
+  const isCurrentYear = year === now.getFullYear()
+
+  if (!isCurrentYear) {
+    return {
+      yearStart,
+      yearEnd: fullYearEnd,
+      previousYearStart,
+      previousYearEnd: yearStart,
+      comparisonPeriod: 'full_year' as const,
+    }
+  }
+
+  return {
+    yearStart,
+    yearEnd: endAfterCalendarDay(year, now.getMonth(), now.getDate()),
+    previousYearStart,
+    previousYearEnd: endAfterCalendarDay(year - 1, now.getMonth(), now.getDate()),
+    comparisonPeriod: 'year_to_date' as const,
+  }
+}
+
+function endAfterCalendarDay(year: number, month: number, day: number) {
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, lastDayOfMonth) + 1)
 }
 
 export function collectAvailableAnalyticsYears(
@@ -180,11 +220,13 @@ function buildMonthlyCompletion(
   return months
 }
 
-function completionFallsInYear(
+function completionFallsInRange(
   record: { doubanDate?: string | null; updatedAt: Date | null },
-  year: number,
+  start: Date,
+  end: Date,
 ) {
-  return resolveCompletionDate(record)?.getUTCFullYear() === year
+  const completionDate = resolveCompletionDate(record)
+  return completionDate != null && completionDate >= start && completionDate < end
 }
 
 function buildRatingDistribution(

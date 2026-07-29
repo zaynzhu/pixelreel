@@ -182,6 +182,7 @@ import {
   gamePlaytimeMinutes,
 } from '../services/GameStatusService';
 import {
+  buildAnalyticsPeriodWindow,
   buildCrossPlatformRatings,
   buildSourceBreakdown,
   collectAvailableAnalyticsYears,
@@ -3395,6 +3396,65 @@ test('年度分析只列出实际数据年份并保留当前选择', () => {
       status: RecordStatus.WANT,
     },
   ], 2027), [2027, 2026, 2025, 2019]);
+});
+
+test('当前年度按去年同期比较且历史年度按全年比较', () => {
+  const currentPeriod = buildAnalyticsPeriodWindow(
+    2026,
+    new Date(2026, 6, 29, 18, 30),
+  );
+  assert.equal(currentPeriod.comparisonPeriod, 'year_to_date');
+  assert.deepEqual(
+    [
+      currentPeriod.yearEnd.getFullYear(),
+      currentPeriod.yearEnd.getMonth(),
+      currentPeriod.yearEnd.getDate(),
+    ],
+    [2026, 6, 30],
+  );
+  assert.deepEqual(
+    [
+      currentPeriod.previousYearEnd.getFullYear(),
+      currentPeriod.previousYearEnd.getMonth(),
+      currentPeriod.previousYearEnd.getDate(),
+    ],
+    [2025, 6, 30],
+  );
+
+  const historicalPeriod = buildAnalyticsPeriodWindow(
+    2025,
+    new Date(2026, 6, 29, 18, 30),
+  );
+  assert.equal(historicalPeriod.comparisonPeriod, 'full_year');
+  assert.deepEqual(
+    [
+      historicalPeriod.yearEnd.getFullYear(),
+      historicalPeriod.yearEnd.getMonth(),
+      historicalPeriod.yearEnd.getDate(),
+    ],
+    [2026, 0, 1],
+  );
+  assert.deepEqual(
+    [
+      historicalPeriod.previousYearEnd.getFullYear(),
+      historicalPeriod.previousYearEnd.getMonth(),
+      historicalPeriod.previousYearEnd.getDate(),
+    ],
+    [2025, 0, 1],
+  );
+
+  const leapDayPeriod = buildAnalyticsPeriodWindow(
+    2028,
+    new Date(2028, 1, 29, 12),
+  );
+  assert.deepEqual(
+    [
+      leapDayPeriod.previousYearEnd.getFullYear(),
+      leapDayPeriod.previousYearEnd.getMonth(),
+      leapDayPeriod.previousYearEnd.getDate(),
+    ],
+    [2027, 2, 1],
+  );
 });
 
 test('Steam 搜索失败返回明确提示而不是伪装成空结果', async () => {
