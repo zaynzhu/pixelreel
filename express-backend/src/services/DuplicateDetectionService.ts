@@ -375,6 +375,13 @@ export function countPendingGameDuplicateGroups(
   )).length;
 }
 
+export function recommendGameMergeTargetId(
+  records: Array<{ id: number; importReviewState?: string | null }>,
+) {
+  const acceptedRecords = records.filter(record => record.importReviewState === 'ACCEPTED');
+  return acceptedRecords.length === 1 ? acceptedRecords[0].id : null;
+}
+
 export async function listGameDuplicateHints(recordIds: number[]) {
   const [groups, decisions] = await Promise.all([
     loadDuplicateCandidates('game').then(findDuplicateGroups),
@@ -414,6 +421,9 @@ export async function listDuplicateGroups(
   const page = scopedGroups.slice(cursor, cursor + limit).map(group => ({
     ...group,
     reviewId: reviewByKey.get(group.key) != null ? Number(reviewByKey.get(group.key)) : null,
+    recommendedTargetId: category === 'game'
+      ? recommendGameMergeTargetId(group.records)
+      : null,
   }));
   return {
     groups: page,

@@ -200,6 +200,7 @@ import {
   countPendingGameDuplicateGroups,
   findDuplicateGroups,
   normalizeDuplicateTitle,
+  recommendGameMergeTargetId,
 } from '../services/DuplicateDetectionService';
 import {
   buildGameMergeArchive,
@@ -1244,6 +1245,12 @@ test('疑似重复检测覆盖强标识、同平台同名和跨平台同名候�
   assert.deepEqual(buildGameDuplicateHints(gameGroups, [7], new Set([gameGroups[0].key])), []);
   assert.equal(countPendingGameDuplicateGroups(gameGroups, new Set()), 1);
   assert.equal(countPendingGameDuplicateGroups(gameGroups, new Set([gameGroups[0].key])), 0);
+  assert.equal(recommendGameMergeTargetId(gameGroups[0].records), 5);
+  assert.equal(recommendGameMergeTargetId(gameGroups[1].records), null);
+  assert.equal(recommendGameMergeTargetId([
+    { id: 1, importReviewState: 'ACCEPTED' },
+    { id: 2, importReviewState: 'ACCEPTED' },
+  ]), null);
   assert.deepEqual(parseDuplicateListParameters({ category: 'game', limit: '10' }), {
     category: 'game', cursor: 0, limit: 10, review: 'unreviewed', scope: 'all',
   });

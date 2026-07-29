@@ -520,6 +520,11 @@ export function DuplicateCandidatePanel({
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="truncate text-sm text-white">{record.title}</h3>
+                          {group.recommendedTargetId === record.id && (
+                            <span className="border border-[var(--accent)] px-1.5 py-0.5 text-[8px] text-[var(--accent)]">
+                              {t("health.duplicates.recommended")}
+                            </span>
+                          )}
                           {record.protected && (
                             <span className="border border-[var(--accent-deep)] px-1.5 py-0.5 text-[8px] text-[var(--accent-deep)]">
                               {t("health.duplicates.protected")}
@@ -596,7 +601,9 @@ export function DuplicateCandidatePanel({
                           >
                             {previewingRecordId === record.id
                               ? t("health.duplicates.previewing")
-                              : t("health.duplicates.merge_into")}
+                              : t(group.recommendedTargetId === record.id
+                                ? "health.duplicates.merge_recommended"
+                                : "health.duplicates.merge_into")}
                           </button>
                         )}
                       </div>
@@ -610,7 +617,14 @@ export function DuplicateCandidatePanel({
       )}
 
       <footer className="flex flex-col gap-3 border-t border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[10px] leading-5 text-[var(--muted)]">{t("health.duplicates.review_note")}</p>
+        <div className="space-y-1">
+          <p className="text-[10px] leading-5 text-[var(--muted)]">{t("health.duplicates.review_note")}</p>
+          {category === "game" && review === "unreviewed" && (
+            <p className="text-[10px] leading-5 text-[var(--muted)]">
+              {t("health.duplicates.recommendation_note")}
+            </p>
+          )}
+        </div>
         {nextCursor && !failedFetch && (
           <button type="button" onClick={loadMore} disabled={loadingMore} className="brutal-btn shrink-0">
             {loadingMore ? t("health.loading") : t("health.more")}

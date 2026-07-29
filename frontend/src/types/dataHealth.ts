@@ -58,6 +58,7 @@ export interface DuplicateGroup {
   reasons: DuplicateReason[]
   records: DuplicateRecord[]
   reviewId: number | null
+  recommendedTargetId: number | null
 }
 
 export interface DuplicateGroupResponse {
