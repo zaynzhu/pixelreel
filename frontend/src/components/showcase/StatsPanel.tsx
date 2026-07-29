@@ -37,10 +37,14 @@ function useCountUp(target: number, duration = 1200) {
 
 function StatNumber({ value, suffix, size }: { value: number; suffix?: string; size: "lg" | "md" | "sm" }) {
   const animated = useCountUp(value)
-  const sizeClass = size === "lg" ? "text-6xl" : size === "md" ? "text-4xl" : "text-3xl"
+  const sizeClass = size === "lg"
+    ? "text-3xl sm:text-4xl xl:text-6xl"
+    : size === "md"
+      ? "text-2xl sm:text-3xl xl:text-4xl"
+      : "text-xl sm:text-2xl xl:text-3xl"
 
   return (
-    <div className={`showcase-number ${sizeClass} leading-none`} style={{ animation: "stat-flicker 4s ease-in-out infinite" }}>
+    <div className={`showcase-number showcase-stat-number ${sizeClass} leading-none`} style={{ animation: "stat-flicker 4s ease-in-out infinite" }}>
       {animated.toLocaleString()}{suffix}
     </div>
   )
@@ -55,19 +59,19 @@ export function StatsPanel({ summary, compact }: StatsPanelProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-8">
         <div className="section-kicker">{t("showcase.stats.kicker")}</div>
-        <div className="showcase-number text-9xl" style={{ animation: "stat-flicker 4s ease-in-out infinite" }}>
+        <div className="showcase-number showcase-stat-number text-5xl sm:text-7xl lg:text-9xl" style={{ animation: "stat-flicker 4s ease-in-out infinite" }}>
           {overview.totalRecords.toLocaleString()}
         </div>
         <div className="text-sm uppercase tracking-widest" style={{ color: "var(--muted)" }}>
           {t("showcase.stats.total")}
         </div>
-        <div className="flex gap-8 mt-4">
+        <div className="mt-4 flex gap-4 sm:gap-8">
           {[
             { label: t("showcase.stats.completed"), value: completed },
             { label: t("showcase.stats.avg_rating"), value: ratings.overallAverage?.toFixed(1) ?? "—" },
           ].map((item) => (
             <div key={item.label} className="text-center">
-              <div className="showcase-number text-5xl">{typeof item.value === "number" ? item.value.toLocaleString() : item.value}</div>
+              <div className="showcase-number showcase-stat-number text-3xl sm:text-4xl lg:text-5xl">{typeof item.value === "number" ? item.value.toLocaleString() : item.value}</div>
               <div className="text-xs uppercase tracking-widest mt-2" style={{ color: "var(--muted)" }}>
                 {item.label}
               </div>
@@ -79,12 +83,12 @@ export function StatsPanel({ summary, compact }: StatsPanelProps) {
   }
 
   return (
-    <div className="showcase-panel p-5 flex items-center gap-6" style={{ height: 120 }}>
+    <div className="showcase-panel flex flex-col gap-4 p-4 lg:h-[120px] lg:flex-row lg:items-center lg:gap-6 lg:p-5">
       <div className="section-kicker shrink-0">{t("showcase.stats.kicker")}</div>
 
       {/* 大数字区 */}
-      <div className="flex items-center gap-6">
-        <div className="text-center">
+      <div className="grid grid-cols-2 items-center gap-3 sm:grid-cols-3 sm:gap-6">
+        <div className="col-span-2 text-center sm:col-span-1">
           <StatNumber value={overview.totalRecords} size="lg" />
           <div className="text-[10px] uppercase tracking-widest mt-1" style={{ color: "var(--muted)" }}>
             {t("showcase.stats.total")}
@@ -99,7 +103,7 @@ export function StatsPanel({ summary, compact }: StatsPanelProps) {
         </div>
 
         <div className="text-center">
-          <div className="showcase-number text-4xl leading-none" style={{ animation: "stat-flicker 4s ease-in-out infinite" }}>
+          <div className="showcase-number showcase-stat-number text-2xl leading-none sm:text-3xl xl:text-4xl" style={{ animation: "stat-flicker 4s ease-in-out infinite" }}>
             {ratings.overallAverage?.toFixed(1) ?? "—"}
           </div>
           <div className="text-[10px] uppercase tracking-widest mt-1" style={{ color: "var(--muted)" }}>
@@ -109,13 +113,13 @@ export function StatsPanel({ summary, compact }: StatsPanelProps) {
       </div>
 
       {/* 发光分隔线 */}
-      <div className="w-px h-16 shrink-0" style={{
+      <div className="hidden h-16 w-px shrink-0 lg:block" style={{
         background: "linear-gradient(to bottom, transparent, var(--accent), transparent)",
         boxShadow: "0 0 8px rgba(212,255,0,0.3)",
       }} />
 
       {/* 分类卡片 */}
-      <div className="flex gap-3 ml-auto">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:ml-auto">
         {[
           { label: t("showcase.stats.movies"), avg: ratings.movieAverage, icon: "M" },
           { label: t("showcase.stats.tvshows"), avg: ratings.tvShowAverage, icon: "T" },
@@ -123,7 +127,7 @@ export function StatsPanel({ summary, compact }: StatsPanelProps) {
         ].map((item) => (
           <div
             key={item.label}
-            className="flex flex-col items-center justify-center px-4 py-2 relative overflow-hidden group"
+            className="group relative flex min-w-0 flex-col items-center justify-center overflow-hidden px-2 py-2 sm:px-4"
             style={{
               border: "1px solid rgba(212,255,0,0.2)",
               background: "var(--surface-hover)",

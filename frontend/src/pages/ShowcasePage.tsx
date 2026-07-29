@@ -115,18 +115,18 @@ export default function ShowcasePage() {
           <StatsPanel summary={summary} />
 
           {/* 底部：海报 + 时间线/随机 */}
-          <div className="flex min-h-[560px] flex-1 gap-4">
+          <div className="flex flex-1 flex-col gap-4 lg:min-h-[560px] lg:flex-row">
             {/* 左侧海报墙 60% */}
-            <div className="h-full min-h-0 w-[60%] min-w-0 overflow-hidden">
+            <div className="h-[560px] min-h-0 w-full min-w-0 overflow-hidden lg:h-auto lg:w-[60%]">
               <PosterCarousel items={summary.recentItems} />
             </div>
 
             {/* 右侧 40%：时间线 + 随机推荐堆叠 */}
-            <div className="flex min-h-0 w-[40%] min-w-0 flex-col gap-4 overflow-hidden">
-              <div className="flex-1 min-h-0">
+            <div className="flex min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden lg:w-[40%]">
+              <div className="h-[260px] min-h-0 lg:h-auto lg:flex-1">
                 <TimelineMini items={summary.recentItems} yearlyTimeline={summary.yearlyTimeline} />
               </div>
-              <div className="h-[300px] min-h-[260px]">
+              <div className="h-[420px] min-h-[260px] lg:h-[300px]">
                 <RandomPick />
               </div>
             </div>

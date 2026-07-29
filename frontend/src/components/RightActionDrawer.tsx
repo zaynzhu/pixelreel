@@ -50,38 +50,37 @@ export default function RightActionDrawer() {
 
   return (
     <>
+      {/* 把手 (Handle) */}
+      <button
+        ref={toggleRef}
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`group fixed top-[10%] z-50 flex h-24 w-10 flex-col items-center justify-center border-y border-l border-[var(--line)] bg-[var(--surface)] text-white transition-[right,border-color,background-color] duration-300 ease-[cubic-bezier(.25,.46,.45,.94)] hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus:outline-none ${
+          isOpen ? 'right-[300px]' : 'right-0'
+        }`}
+        aria-label={t(isOpen ? 'drawer.close' : 'drawer.open')}
+        aria-controls="command-drawer"
+        aria-expanded={isOpen}
+      >
+        <div className="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-b border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
+
+        <span className="writing-vertical-rl rotate-180 text-[10px] font-bold tracking-widest text-[var(--muted)] group-hover:text-[var(--accent)] transition-colors">
+          {t(isOpen ? 'drawer.handle.open' : 'drawer.handle.closed')}
+        </span>
+      </button>
+
+      {/* 面板内容 */}
       <div
-        className={`fixed top-[10%] right-0 z-50 flex transition-transform duration-300 ease-[cubic-bezier(.25,.46,.45,.94)] ${
-          isOpen ? 'translate-x-0' : 'translate-x-[300px]'
+        ref={panelRef}
+        id="command-drawer"
+        role="region"
+        aria-labelledby="command-drawer-title"
+        aria-hidden={!isOpen}
+        className={`fixed right-0 top-[10%] z-50 flex max-h-[80vh] w-[300px] flex-col gap-8 overflow-y-auto border-y border-l border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] backdrop-blur-md custom-scrollbar ${
+          isOpen ? 'animate-[slideIn_0.3s_cubic-bezier(.25,.46,.45,.94)]' : 'hidden'
         }`}
       >
-        {/* 把手 (Handle) */}
-        <button
-          ref={toggleRef}
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="group relative flex h-24 w-10 flex-col items-center justify-center border-y border-l border-[var(--line)] bg-[var(--surface)] text-white hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus:outline-none"
-          aria-label={t(isOpen ? 'drawer.close' : 'drawer.open')}
-          aria-controls="command-drawer"
-          aria-expanded={isOpen}
-        >
-          <div className="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute bottom-0 left-0 w-1.5 h-1.5 border-b border-l border-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity" />
-
-          <span className="writing-vertical-rl rotate-180 text-[10px] font-bold tracking-widest text-[var(--muted)] group-hover:text-[var(--accent)] transition-colors">
-            {t(isOpen ? 'drawer.handle.open' : 'drawer.handle.closed')}
-          </span>
-        </button>
-
-        {/* 面板内容 */}
-        <div
-          ref={panelRef}
-          id="command-drawer"
-          role="region"
-          aria-labelledby="command-drawer-title"
-          aria-hidden={!isOpen}
-          className="w-[300px] border-y border-l border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] backdrop-blur-md flex flex-col gap-8 max-h-[80vh] overflow-y-auto custom-scrollbar relative"
-        >
           <div className="absolute inset-y-0 right-0 w-1 bg-[radial-gradient(circle_at_center,_rgba(212,255,0,0.3),_transparent_70%)]" />
 
           {/* Header */}
@@ -189,7 +188,6 @@ export default function RightActionDrawer() {
               <span>→</span>
             </Link>
           </div>
-        </div>
       </div>
     </>
   );

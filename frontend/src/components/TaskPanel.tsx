@@ -50,8 +50,8 @@ export default function TaskPanel({ open, onClose }: { open: boolean; onClose: (
         aria-modal={open ? 'true' : undefined}
         aria-labelledby="task-panel-title"
         aria-hidden={!open}
-        className={`fixed top-0 right-0 z-50 h-full w-[380px] border-l border-[var(--line)] bg-[var(--surface)] shadow-[0_0_60px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-[cubic-bezier(.25,.46,.45,.94)] ${
-          open ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-0 right-0 z-50 h-full w-[380px] max-w-[calc(100vw-1rem)] border-l border-[var(--line)] bg-[var(--surface)] shadow-[0_0_60px_rgba(0,0,0,0.8)] ${
+          open ? 'animate-[slideIn_0.3s_cubic-bezier(.25,.46,.45,.94)]' : 'hidden'
         }`}
       >
         {/* 装饰线 */}

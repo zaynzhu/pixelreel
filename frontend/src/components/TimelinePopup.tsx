@@ -149,7 +149,7 @@ export default function TimelinePopup({ lightweightRecord, fullRecord, loading, 
         role="dialog"
         aria-modal="true"
         aria-labelledby="timeline-popup-title"
-        className="relative w-full max-w-[720px] overflow-hidden border border-[var(--line)] bg-[var(--surface)] shadow-2xl"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-[720px] overflow-x-hidden overflow-y-auto border border-[var(--line)] bg-[var(--surface)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
