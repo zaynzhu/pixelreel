@@ -8,6 +8,7 @@ import {
   gamePlaytimeMinutes,
 } from './GameStatusService';
 import { normalizePlatformAchievementProgress } from './import/PlatformGameSyncService';
+import { normalizeDoubanShortReview } from './douban-harvester/short-review';
 
 // Library 混合列表服务，与 Java 端 LibraryService 完全对齐
 
@@ -686,7 +687,9 @@ export function toMovieRecord(movie: any): LibraryRecordResponse {
     platformLabel: null,
     status: movie.status || RecordStatus.UNSET,
     rating: movie.rating,
-    shortReview: movie.shortReview,
+    shortReview: movie.doubanId
+      ? normalizeDoubanShortReview(movie.shortReview)
+      : movie.shortReview,
     playtimeMinutes: null,
     achievementTotal: null,
     achievementUnlocked: null,
@@ -809,7 +812,9 @@ export function toTvShowRecord(show: any): LibraryRecordResponse {
     platformLabel: null,
     status: show.status || RecordStatus.UNSET,
     rating: show.rating,
-    shortReview: show.shortReview,
+    shortReview: show.doubanId
+      ? normalizeDoubanShortReview(show.shortReview)
+      : show.shortReview,
     playtimeMinutes: null,
     achievementTotal: null,
     achievementUnlocked: null,

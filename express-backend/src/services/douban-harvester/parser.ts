@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CollectItem, ReviewItem } from "./types";
+import { normalizeDoubanShortReview } from "./short-review";
 
 /**
  * 安全获取元素文本，元素不存在时返回默认值
@@ -76,7 +77,7 @@ export function parseCollectListHtml(html: string): CollectItem[] {
 
     // 短评（在 <div class="comment"> 中）
     const commentMatch = block.match(/<div class="comment">([\s\S]*?)<\/div>/);
-    const comment = commentMatch ? decodeHtml(commentMatch[1].trim()) : "";
+    const comment = normalizeDoubanShortReview(commentMatch?.[1]) ?? "";
 
     if (title) {
       items.push({ title, altTitle, intro, rating, date, comment, link });
@@ -113,7 +114,7 @@ export function parseCollectGridHtml(html: string): CollectItem[] {
     const date = dateMatch ? dateMatch[1].trim() : "";
 
     const commentMatch = block.match(/<span class="comment">(.*?)<\/span>/);
-    const comment = commentMatch ? commentMatch[1].trim() : "";
+    const comment = normalizeDoubanShortReview(commentMatch?.[1]) ?? "";
 
     if (title) {
       items.push({ title, altTitle, intro, rating, date, comment, link });
@@ -169,7 +170,7 @@ export async function parseCollectPage(page: Page): Promise<CollectItem[]> {
       }
 
       const date = await safeText(card.locator(".date"));
-      const comment = await safeText(card.locator(".comment"));
+      const comment = normalizeDoubanShortReview(await safeText(card.locator(".comment"))) ?? "";
       const link = await safeAttr(card.locator(".title a"), "href");
 
       if (title) {

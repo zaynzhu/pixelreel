@@ -3,6 +3,7 @@ import { AnalyticsResponse } from '../dto/analytics'
 import { RecordStatus } from '../enums/RecordStatus'
 import { detectGameSource, detectMovieSource, detectTvShowSource } from './LibraryService'
 import { resolveCompletionDate } from './RecordDateService'
+import { normalizeDoubanShortReview } from './douban-harvester/short-review'
 
 export async function getAnalytics(year: number): Promise<AnalyticsResponse> {
   const db = getDb()
@@ -295,7 +296,9 @@ function buildTopRated(
       title: m.title,
       posterUrl: m.posterUrl,
       rating: m.rating!,
-      shortReview: m.shortReview,
+      shortReview: m.doubanId
+        ? normalizeDoubanShortReview(m.shortReview)
+        : m.shortReview,
       source: detectMovieSource(m).toUpperCase(),
     })),
     ...games.filter(g => g.rating != null && inYear(g.createdAt)).map(g => ({
@@ -313,7 +316,9 @@ function buildTopRated(
       title: s.title,
       posterUrl: s.posterUrl,
       rating: s.rating!,
-      shortReview: s.shortReview,
+      shortReview: s.doubanId
+        ? normalizeDoubanShortReview(s.shortReview)
+        : s.shortReview,
       source: detectTvShowSource(s).toUpperCase(),
     })),
   ]

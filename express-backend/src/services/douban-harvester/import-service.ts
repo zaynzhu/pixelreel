@@ -7,6 +7,7 @@ import { config } from '../../config';
 import { loadData } from './storage';
 import { enrichFromTmdb } from './tmdb-enrich';
 import type { CollectItem } from './types';
+import { normalizeDoubanShortReview } from './short-review';
 import {
   createTask, updateProgress, completeTask, failTask,
 } from '../task-manager';
@@ -199,7 +200,7 @@ export async function importFromJson(
             tmdbPopularity: enrich.popularity,
             status: RecordStatus.DONE,
             rating,
-            shortReview: item.comment || null,
+            shortReview: normalizeDoubanShortReview(item.comment),
             createdAt: watchedDate,
             importReviewState: 'PENDING',
           },
@@ -226,7 +227,7 @@ export async function importFromJson(
             tmdbPopularity: enrich.popularity,
             status: RecordStatus.DONE,
             rating,
-            shortReview: item.comment || null,
+            shortReview: normalizeDoubanShortReview(item.comment),
             createdAt: watchedDate,
             importReviewState: 'PENDING',
           },

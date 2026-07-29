@@ -160,7 +160,7 @@ frontend/src/
 - **状态显示规则：** 有游玩时长（`playtimeMinutes > 0`）且原状态为 WANT 的游戏，在统计、记录库、详情、时间线和随机推荐中按 IN_PROGRESS 处理；不批量改写已有数据库记录。
 - **豆瓣图片代理：** 豆瓣图片有防盗链，需通过 `/api/search/proxy/image?url=` 代理访问，自动将 `imgN.doubanio.com` 替换为 `img1.doubanio.com`（反爬较松）。
 - **Trakt 导入：** 自动分页，按 traktId/tmdbId/imdbId 去重，导入时拉取 TMDB 海报。
-- **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。
+- **数据原则：** 豆瓣数据为主（`douban_*` 字段原样存入），TMDB 为辅（`tmdb_*` 字段补缺），各平台评分互不转换。豆瓣页面的“有用”计数和 `.pl` 辅助标记不属于用户短评；新导入生成 `shortReview` 时必须剔除，历史污染值只在 API 展示字段中规范化，`doubanComment`、资料库快照和现有数据库原始字段不得被改写。
 - **主来源归属：** 首页、记录库、时间线和年度分析统一复用 `LibraryService` 的来源判定；媒体按豆瓣 → TMDB → IMDb → Trakt → 手动的优先级归属，TMDB 补全不能把豆瓣记录改判为 TMDB。
 - **TMDB 详情回填：** `TmdbDetailBackfillService` 按 tmdbId 调 `/movie/{id}` 或 `/tv/{id}+external_ids`，补全 imdbId/voteAverage/popularity/title/overview/genres。只写空字段，不覆盖已有数据；Prisma `BigInt` 的 tmdbId 只有在可安全转换为正整数时才能发起外部请求，超出范围必须跳过并记录错误；HTTP 请求和 429 重试必须绑定任务取消信号，请求返回后写库前再次确认任务仍有效。
 - **年份筛选：** AnalyticsService 中「已完成」对豆瓣影视优先使用严格合法的 `doubanDate`，缺失或非法时回退 `updatedAt`；其他来源使用 `updatedAt`。评分、短评、Top 榜、来源分布和跨平台评分使用 `createdAt`。本年入库游戏的来源图必须按每条 `GamePlatformEntry` 统计游戏平台档案，一条跨平台游戏可以分别贡献多个平台档案；只有无有效平台档案的遗留游戏才回退旧来源判定，前端不能把该图标成游戏记录数。

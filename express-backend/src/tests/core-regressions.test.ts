@@ -255,6 +255,8 @@ import {
   buildDoubanRawData,
   buildMissingDoubanRawData,
 } from '../services/douban-harvester/import-service';
+import { parseCollectListHtml } from '../services/douban-harvester/parser';
+import { normalizeDoubanShortReview } from '../services/douban-harvester/short-review';
 import {
   assertDoubanCsvRowLimit,
   claimCsvIdentifiers,
@@ -3050,6 +3052,41 @@ test('豆瓣导入保留原始字段并且只补空值', () => {
     doubanId: '87654321',
     doubanTitle: null,
   }, item), {});
+});
+
+test('豆瓣短评剔除页面辅助标记但保留数据库原始字段', () => {
+  const dirtyReview = `国漫无可争议的第一
+    <span class="pl">(2 有用)</span>`;
+  assert.equal(normalizeDoubanShortReview(dirtyReview), '国漫无可争议的第一');
+  assert.equal(
+    normalizeDoubanShortReview('第一行\n第二行\n（3 有用）'),
+    '第一行\n第二行',
+  );
+  assert.equal(normalizeDoubanShortReview('这句话（很有用）'), '这句话（很有用）');
+
+  const parsed = parseCollectListHtml(`
+    <li id="list12345678" class="item">
+      <a href="https://movie.douban.com/subject/12345678/"></a>
+      <div class="title"><a>测试片名</a></div>
+      <div class="comment">${dirtyReview}</div>
+    </li>
+  `);
+  assert.equal(parsed[0]?.comment, '国漫无可争议的第一');
+
+  const movie = toMovieRecord({
+    id: 1n,
+    title: '测试片名',
+    posterUrl: null,
+    status: 'DONE',
+    rating: 5,
+    shortReview: dirtyReview,
+    doubanComment: dirtyReview,
+    doubanId: '12345678',
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    updatedAt: new Date('2026-01-02T00:00:00Z'),
+  });
+  assert.equal(movie.shortReview, '国漫无可争议的第一');
+  assert.equal(movie.doubanComment, dirtyReview);
 });
 
 test('已游玩的想玩游戏按进行中统计', () => {
