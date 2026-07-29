@@ -178,7 +178,10 @@ const dictionaries = {
     "lib.list.metric": "METRIC",
     "lib.list.no_log": "/// NO LOG ENTRY. AWAITING INPUT.",
     "lib.list.hr": "HR",
-    "lib.list.ach": "ACH",
+    "lib.list.achievements": "ACHIEVEMENTS",
+    "lib.list.trophies": "TROPHIES",
+    "lib.list.unlocked": "{0} UNLOCKED {1}",
+    "lib.list.synced": "SYNCED",
 
     "lib.edit.kicker": "CONTROL // OVERRIDE",
     "lib.edit.title": "RECORD_EDITOR",
@@ -1021,7 +1024,10 @@ const dictionaries = {
     "lib.list.metric": "指标",
     "lib.list.no_log": "/// 无日志条目。等待输入。",
     "lib.list.hr": "小时",
-    "lib.list.ach": "成就",
+    "lib.list.achievements": "成就",
+    "lib.list.trophies": "奖杯",
+    "lib.list.unlocked": "已解锁 {0} 个{1}",
+    "lib.list.synced": "同步于",
 
     "lib.edit.kicker": "控制 // 覆写",
     "lib.edit.title": "记录编辑器",

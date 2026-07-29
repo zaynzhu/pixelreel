@@ -332,7 +332,9 @@ export default function LibraryPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone="accent">{categoryLabel(record.category, t)}</Badge>
                         <Badge tone="muted">{record.sourceLabel}</Badge>
-                        {record.platformLabel && record.category === "game" ? (
+                        {record.platformLabel
+                          && record.category === "game"
+                          && record.platformLabel.toLowerCase() !== record.sourceLabel.toLowerCase() ? (
                           <Badge tone="muted">{record.platformLabel}</Badge>
                         ) : null}
                         <span className="text-[10px] text-[var(--accent)] uppercase font-bold">[{formatStatus(record.status, t)}]</span>
@@ -689,24 +691,71 @@ function buildRecordKey(record: LibraryRecord | null): SelectedRecordKey {
 }
 
 function buildRecordMeta(record: LibraryRecord, t: any) {
-  const parts = [record.sourceLabel, formatStatus(record.status, t), formatDate(record.updatedAt ?? record.createdAt)].filter(Boolean);
+  const parts = [record.sourceLabel, formatStatus(record.status, t)].filter(Boolean);
 
-  if (record.category === "game" && record.platformLabel) {
+  if (
+    record.category === "game"
+    && record.platformLabel
+    && record.platformLabel.toLowerCase() !== record.sourceLabel.toLowerCase()
+  ) {
     parts.unshift(record.platformLabel);
   }
+  const lastSyncedAt = record.category === "game" ? latestPlatformSync(record) : null;
+  parts.push(lastSyncedAt
+    ? `${t("lib.list.synced")} ${formatDate(lastSyncedAt)}`
+    : formatDate(record.updatedAt ?? record.createdAt));
   if (record.playtimeMinutes && record.playtimeMinutes > 0) {
     parts.push(`${Math.round(record.playtimeMinutes / 60)}${t("lib.list.hr")}`);
   }
-  if (
-    record.category === "game" &&
-    record.achievementTotal != null &&
-    record.achievementUnlocked != null &&
-    record.achievementTotal > 0
-  ) {
-    parts.push(`${record.achievementUnlocked}/${record.achievementTotal} ${t("lib.list.ach")}`);
+  if (record.category === "game") {
+    parts.push(...buildPlatformProgress(record, t));
   }
 
   return parts.join(" // ");
+}
+
+function buildPlatformProgress(record: LibraryRecord, t: any) {
+  const entries = record.platformEntries?.length
+    ? record.platformEntries
+    : [{
+        platform: record.platform || record.platformLabel || record.sourceLabel,
+        achievementTotal: record.achievementTotal ?? null,
+        achievementUnlocked: record.achievementUnlocked ?? null,
+      }];
+  return entries.flatMap(entry => {
+    const platform = formatPlatform(entry.platform);
+    const metric = entry.platform.trim().toUpperCase() === "PSN"
+      ? t("lib.list.trophies")
+      : t("lib.list.achievements");
+    if (
+      entry.achievementTotal != null
+      && entry.achievementTotal > 0
+      && entry.achievementUnlocked != null
+      && entry.achievementUnlocked <= entry.achievementTotal
+    ) {
+      return [`${platform} ${entry.achievementUnlocked}/${entry.achievementTotal} ${metric}`];
+    }
+    if (entry.achievementUnlocked != null && entry.achievementUnlocked > 0) {
+      return [`${platform} ${t("lib.list.unlocked", entry.achievementUnlocked, metric)}`];
+    }
+    return [];
+  });
+}
+
+function latestPlatformSync(record: LibraryRecord) {
+  const timestamps = (record.platformEntries ?? [])
+    .map(entry => new Date(entry.lastSyncedAt).getTime())
+    .filter(Number.isFinite);
+  return timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : null;
+}
+
+function formatPlatform(value: string) {
+  switch (value.trim().toUpperCase()) {
+    case "XBOX": return "Xbox";
+    case "STEAM": return "Steam";
+    case "PSN": return "PSN";
+    default: return value;
+  }
 }
 
 function formatStatus(status: RecordStatus, t: any) {
