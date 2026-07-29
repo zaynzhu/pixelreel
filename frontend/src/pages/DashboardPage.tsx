@@ -1,19 +1,52 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiFetch } from "../api";
 import { useProfileStore } from "../stores/profileStore";
 import { useI18nStore } from "../stores/i18nStore";
 import { StarRating } from "../components/StarRating";
 import { NextUpQueue } from "../components/NextUpQueue";
 import { MonthlyMemories } from "../components/MonthlyMemories";
 import { ImgWithFallback } from "../components/ImgWithFallback";
+import type { SyncSourceStatus } from "../types/sync";
+import {
+  applyPlatformAccountOverride,
+  getSyncAvailabilityCounts,
+  loadRememberedPlatformAccounts,
+} from "../types/sync";
 
 export default function DashboardPage() {
   const { summary, loading, error, fetchSummary } = useProfileStore();
   const { t } = useI18nStore();
+  const [syncAttentionCount, setSyncAttentionCount] = useState<number | null>(null);
+  const latestSyncStatusRequest = useRef(0);
 
   useEffect(() => {
     void fetchSummary();
   }, [fetchSummary]);
+
+  useEffect(() => {
+    const requestId = ++latestSyncStatusRequest.current;
+    const accounts = loadRememberedPlatformAccounts();
+
+    void apiFetch<SyncSourceStatus>("/import/sources/status")
+      .then((status) => {
+        if (requestId !== latestSyncStatusRequest.current) return;
+        const psnAvailability = applyPlatformAccountOverride(status.psn, accounts.psn);
+        const counts = getSyncAvailabilityCounts(
+          status,
+          status.xbox.providers.microsoft,
+          psnAvailability,
+        );
+        setSyncAttentionCount(counts.attention);
+      })
+      .catch(() => {
+        if (requestId === latestSyncStatusRequest.current) setSyncAttentionCount(null);
+      });
+
+    return () => {
+      latestSyncStatusRequest.current++;
+    };
+  }, []);
 
   if (!summary) {
     return (
@@ -51,6 +84,16 @@ export default function DashboardPage() {
       to: "/sync/review?tab=pending&source=all",
       description: t("dash.nodes.review_desc"),
       badge: t("dash.nodes.review_badge", String(overview?.pendingImports ?? 0)),
+    },
+    {
+      title: t("dash.nodes.sync_title"),
+      to: "/sync",
+      description: t("dash.nodes.sync_desc"),
+      badge: syncAttentionCount === null
+        ? undefined
+        : syncAttentionCount > 0
+          ? t("dash.nodes.sync_attention", String(syncAttentionCount))
+          : t("dash.nodes.sync_ready"),
     },
     {
       title: t("dash.nodes.movie_title"),

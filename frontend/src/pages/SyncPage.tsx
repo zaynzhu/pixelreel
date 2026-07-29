@@ -7,7 +7,10 @@ import { useTaskStore, type Task } from '../stores/taskStore'
 import { toast } from '../stores/toastStore'
 import type { RecordStatus } from '../types/library'
 import type {
+  PlatformAccounts,
   PlatformConnectionResponse,
+  PlatformSource,
+  RememberedPlatformAccounts,
   SyncAvailability,
   SyncHistoryEntry,
   SyncHistoryResponse,
@@ -17,9 +20,14 @@ import type {
   SyncTaskResponse,
   SyncUnavailableReason,
 } from '../types/sync'
-import { applyPlatformAccountOverride } from '../types/sync'
+import {
+  applyPlatformAccountOverride,
+  getSyncAvailabilityCounts,
+  loadRememberedPlatformAccounts,
+  saveRememberedPlatformAccounts,
+  SYNC_SOURCE_ORDER,
+} from '../types/sync'
 
-const SOURCE_ORDER: SyncSourceKey[] = ['douban', 'trakt', 'steam', 'xbox', 'psn']
 const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
   douban: 'douban-harvest',
   trakt: 'trakt-import',
@@ -29,45 +37,8 @@ const TASK_TYPES: Partial<Record<SyncSourceKey, string>> = {
 }
 
 type DirectSource = 'steam' | 'trakt' | 'xbox' | 'psn'
-type PlatformSource = 'xbox' | 'psn'
 type XboxProvider = 'microsoft' | 'openxbl'
 type ConnectionResult = { ok: true } | { ok: false; error: string }
-type PlatformAccounts = Record<PlatformSource, string>
-type RememberedPlatformAccounts = Record<PlatformSource, boolean>
-
-const PLATFORM_ACCOUNT_STORAGE_KEY = 'pixelreel.sync.platform-accounts.v1'
-
-function loadRememberedPlatformAccounts(): PlatformAccounts {
-  const emptyAccounts = { xbox: '', psn: '' }
-  try {
-    const stored = JSON.parse(localStorage.getItem(PLATFORM_ACCOUNT_STORAGE_KEY) ?? '{}') as Partial<PlatformAccounts>
-    return {
-      xbox: typeof stored.xbox === 'string' && stored.xbox.length <= 100 ? stored.xbox : '',
-      psn: typeof stored.psn === 'string' && stored.psn.length <= 100 ? stored.psn : '',
-    }
-  } catch {
-    return emptyAccounts
-  }
-}
-
-function saveRememberedPlatformAccounts(
-  accounts: PlatformAccounts,
-  remembered: RememberedPlatformAccounts,
-) {
-  const stored = {
-    xbox: remembered.xbox ? accounts.xbox : '',
-    psn: remembered.psn ? accounts.psn : '',
-  }
-  try {
-    if (stored.xbox || stored.psn) {
-      localStorage.setItem(PLATFORM_ACCOUNT_STORAGE_KEY, JSON.stringify(stored))
-    } else {
-      localStorage.removeItem(PLATFORM_ACCOUNT_STORAGE_KEY)
-    }
-  } catch {
-    // 浏览器拒绝本地存储时仍允许本次同步
-  }
-}
 
 export default function SyncPage() {
   const { t, lang } = useI18nStore()
@@ -182,14 +153,11 @@ export default function SyncPage() {
   const psnAvailability = status
     ? applyPlatformAccountOverride(status.psn, platformAccounts.psn)
     : null
-  const availableCount = status
-    ? SOURCE_ORDER.filter(source => {
-      if (source === 'xbox') return xboxAvailability?.available
-      if (source === 'psn') return psnAvailability?.available
-      return status[source].available
-    }).length
-    : 0
-  const attentionCount = status ? SOURCE_ORDER.length - availableCount : 0
+  const availabilityCounts = status && xboxAvailability && psnAvailability
+    ? getSyncAvailabilityCounts(status, xboxAvailability, psnAvailability)
+    : { available: 0, attention: 0 }
+  const availableCount = availabilityCounts.available
+  const attentionCount = availabilityCounts.attention
 
   const latestTask = (source: SyncSourceKey) => {
     const type = TASK_TYPES[source]
@@ -319,7 +287,7 @@ export default function SyncPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 bg-[var(--line)] lg:grid-cols-1">
-            <StatusMetric label={t('sync.metric.sources')} value={SOURCE_ORDER.length} />
+            <StatusMetric label={t('sync.metric.sources')} value={SYNC_SOURCE_ORDER.length} />
             <StatusMetric label={t('sync.metric.available')} value={availableCount} accent />
             <StatusMetric label={t('sync.metric.attention')} value={attentionCount} warning={attentionCount > 0} />
             <StatusMetric label={t('sync.metric.running')} value={runningCount} warning={runningCount > 0} />

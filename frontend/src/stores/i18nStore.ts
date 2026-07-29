@@ -88,6 +88,10 @@ const dictionaries = {
     "dash.nodes.review_title": "IMPORT.REVIEW",
     "dash.nodes.review_desc": "Process newly synced records before they enter the formal library.",
     "dash.nodes.review_badge": "{0} PENDING",
+    "dash.nodes.sync_title": "SYNC.CENTER",
+    "dash.nodes.sync_desc": "Review source readiness and run real platform imports.",
+    "dash.nodes.sync_attention": "{0} ATTENTION",
+    "dash.nodes.sync_ready": "ALL READY",
     "dash.btn.exec": "EXEC",
 
     "dash.status.movie": "MOVIE.STATUS",
@@ -939,6 +943,10 @@ const dictionaries = {
     "dash.nodes.review_title": "导入审核",
     "dash.nodes.review_desc": "处理新同步记录，再决定是否纳入正式资料库。",
     "dash.nodes.review_badge": "待处理 {0}",
+    "dash.nodes.sync_title": "同步中心",
+    "dash.nodes.sync_desc": "检查来源连接状态并执行真实平台同步。",
+    "dash.nodes.sync_attention": "需处理 {0}",
+    "dash.nodes.sync_ready": "全部就绪",
     "dash.btn.exec": "执行",
 
     "dash.status.movie": "电影状态分布",
