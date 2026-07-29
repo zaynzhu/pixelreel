@@ -261,22 +261,29 @@ export default function DashboardPage() {
           )) ?? <LoadingHint loading={loading} t={t} />}
         </div>
         {summary && (
-          <div className="mt-6 grid grid-cols-3 gap-px border border-[var(--line)] bg-[var(--line)]">
-            <TelemetryMetric
-              label={t("dash.platforms.playtime")}
-              value={formatTotalPlaytime(summary.gameTelemetry.totalPlaytimeMinutes, t)}
-            />
-            <TelemetryMetric
-              label={t("dash.platforms.profiles")}
-              value={summary.gameTelemetry.platformProfiles.toLocaleString()}
-            />
-            <TelemetryMetric
-              label={t("dash.platforms.achievements")}
-              value={summary.gameTelemetry.achievementProfiles > 0
-                ? summary.gameTelemetry.achievementUnlocked.toLocaleString()
-                : "—"}
-            />
-          </div>
+          <>
+            <div className="mt-6 grid grid-cols-3 gap-px border border-[var(--line)] bg-[var(--line)]">
+              <TelemetryMetric
+                label={t("dash.platforms.playtime")}
+                value={formatTotalPlaytime(summary.gameTelemetry.totalPlaytimeMinutes, t)}
+              />
+              <TelemetryMetric
+                label={t("dash.platforms.profiles")}
+                value={summary.gameTelemetry.platformProfiles.toLocaleString()}
+              />
+              <TelemetryMetric
+                label={t("dash.platforms.achievements")}
+                value={summary.gameTelemetry.achievementProfiles > 0
+                  ? summary.gameTelemetry.achievementUnlocked.toLocaleString()
+                  : "—"}
+              />
+            </div>
+            <div className="mt-4 space-y-2">
+              {summary.gameTelemetry.platforms.map(item => (
+                <PlatformHealthRow key={item.platform} item={item} t={t} />
+              ))}
+            </div>
+          </>
         )}
       </section>
 
@@ -449,6 +456,41 @@ function TelemetryMetric({ label, value }: { label: string; value: string }) {
     <div className="bg-[var(--surface)] px-3 py-4 text-center">
       <p className="font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">{label}</p>
       <p className="mt-2 font-display text-lg text-white">{value}</p>
+    </div>
+  );
+}
+
+function PlatformHealthRow({
+  item,
+  t,
+}: {
+  item: {
+    platform: string;
+    profiles: number;
+    playtimeProfiles: number;
+    achievementProfiles: number;
+    achievementsWithoutTotal: number;
+    lastSyncedAt: string;
+  };
+  t: any;
+}) {
+  return (
+    <div className="border border-[var(--line)] bg-[var(--surface-hover)] px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-display text-sm text-white">{item.platform}</span>
+        <span className="font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
+          {t("dash.platforms.synced")} {formatDate(item.lastSyncedAt)}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[9px] text-[var(--muted)]">
+        <span>{t("dash.platforms.playtime_coverage")} {item.playtimeProfiles}/{item.profiles}</span>
+        <span>{t("dash.platforms.achievement_coverage")} {item.achievementProfiles}/{item.profiles}</span>
+        {item.achievementsWithoutTotal > 0 && (
+          <span className="text-[var(--accent-deep)]">
+            {t("dash.platforms.unlocked_only")} {item.achievementsWithoutTotal}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

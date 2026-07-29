@@ -101,6 +101,10 @@ const dictionaries = {
     "dash.platforms.profiles": "PROFILES",
     "dash.platforms.achievements": "UNLOCKED",
     "dash.platforms.hours": "H",
+    "dash.platforms.synced": "SYNC",
+    "dash.platforms.playtime_coverage": "PLAYTIME",
+    "dash.platforms.achievement_coverage": "ACHIEVEMENTS",
+    "dash.platforms.unlocked_only": "UNLOCKED ONLY",
 
     "dash.log": "LOG // RECENT_ACTIVITY",
     "dash.recent": "LATEST ACQUISITIONS",
@@ -911,6 +915,10 @@ const dictionaries = {
     "dash.platforms.profiles": "平台档案",
     "dash.platforms.achievements": "已解锁成就 / 奖杯",
     "dash.platforms.hours": "小时",
+    "dash.platforms.synced": "同步于",
+    "dash.platforms.playtime_coverage": "游玩时长",
+    "dash.platforms.achievement_coverage": "成就数据",
+    "dash.platforms.unlocked_only": "仅有已解锁数",
 
     "dash.log": "日志 // 最近活动",
     "dash.recent": "最新入库记录",

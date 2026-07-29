@@ -2926,8 +2926,20 @@ test('游戏遥测按平台档案汇总并归一化不完整成就进度', () =>
     {
       playtimeMinutes: 999,
       platformEntries: [
-        { playtimeMinutes: 30, achievementUnlocked: 5, achievementTotal: 10 },
-        { playtimeMinutes: 45, achievementUnlocked: 12, achievementTotal: 20 },
+        {
+          platform: 'STEAM',
+          playtimeMinutes: 30,
+          achievementUnlocked: 5,
+          achievementTotal: 10,
+          lastSyncedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+        {
+          platform: 'XBOX',
+          playtimeMinutes: 45,
+          achievementUnlocked: 12,
+          achievementTotal: 20,
+          lastSyncedAt: new Date('2026-01-02T00:00:00Z'),
+        },
       ],
     },
     {
@@ -2939,8 +2951,20 @@ test('游戏遥测按平台档案汇总并归一化不完整成就进度', () =>
     {
       playtimeMinutes: null,
       platformEntries: [
-        { playtimeMinutes: null, achievementUnlocked: 11, achievementTotal: 10 },
-        { playtimeMinutes: null, achievementUnlocked: null, achievementTotal: 5 },
+        {
+          platform: 'XBOX',
+          playtimeMinutes: null,
+          achievementUnlocked: 11,
+          achievementTotal: 10,
+          lastSyncedAt: new Date('2026-01-03T00:00:00Z'),
+        },
+        {
+          platform: 'PSN',
+          playtimeMinutes: null,
+          achievementUnlocked: null,
+          achievementTotal: 5,
+          lastSyncedAt: new Date('2026-01-04T00:00:00Z'),
+        },
       ],
     },
   ]), {
@@ -2949,6 +2973,32 @@ test('游戏遥测按平台档案汇总并归一化不完整成就进度', () =>
     achievementUnlocked: 31,
     achievementTotal: 43,
     achievementProfiles: 5,
+    platforms: [
+      {
+        platform: 'XBOX',
+        profiles: 2,
+        playtimeProfiles: 1,
+        achievementProfiles: 2,
+        achievementsWithoutTotal: 1,
+        lastSyncedAt: '2026-01-03T00:00:00.000Z',
+      },
+      {
+        platform: 'STEAM',
+        profiles: 1,
+        playtimeProfiles: 1,
+        achievementProfiles: 1,
+        achievementsWithoutTotal: 0,
+        lastSyncedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        platform: 'PSN',
+        profiles: 1,
+        playtimeProfiles: 0,
+        achievementProfiles: 1,
+        achievementsWithoutTotal: 0,
+        lastSyncedAt: '2026-01-04T00:00:00.000Z',
+      },
+    ],
   });
 });
 

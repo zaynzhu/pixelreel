@@ -61,6 +61,14 @@ export type ProfileSummary = {
     achievementUnlocked: number;
     achievementTotal: number;
     achievementProfiles: number;
+    platforms: Array<{
+      platform: string;
+      profiles: number;
+      playtimeProfiles: number;
+      achievementProfiles: number;
+      achievementsWithoutTotal: number;
+      lastSyncedAt: string;
+    }>;
   };
   tvShowSources: CountItem[];
   nextUp: {

@@ -29,6 +29,7 @@ export interface ProfileSummaryResponse {
     achievementUnlocked: number;
     achievementTotal: number;
     achievementProfiles: number;
+    platforms: GamePlatformHealthItem[];
   };
   tvShowSources: CountItem[];
   nextUp: {
@@ -50,6 +51,15 @@ export interface CountItem {
   key: string;
   label: string;
   count: number;
+}
+
+export interface GamePlatformHealthItem {
+  platform: string;
+  profiles: number;
+  playtimeProfiles: number;
+  achievementProfiles: number;
+  achievementsWithoutTotal: number;
+  lastSyncedAt: string;
 }
 
 export interface RecentRecordItem {

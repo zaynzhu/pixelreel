@@ -70,6 +70,7 @@ export async function getProfileSummary(): Promise<ProfileSummaryResponse> {
             playtimeMinutes: true,
             achievementTotal: true,
             achievementUnlocked: true,
+            lastSyncedAt: true,
           },
         },
         achievementTotal: true,
@@ -282,6 +283,14 @@ export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTe
   let achievementUnlocked = 0;
   let achievementTotal = 0;
   let achievementProfiles = 0;
+  const platformHealth = new Map<string, {
+    platform: string;
+    profiles: number;
+    playtimeProfiles: number;
+    achievementProfiles: number;
+    achievementsWithoutTotal: number;
+    lastSyncedAt: Date;
+  }>();
 
   for (const game of games) {
     totalPlaytimeMinutes += gamePlaytimeMinutes(game) ?? 0;
@@ -300,6 +309,38 @@ export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTe
         achievementProfiles++;
       }
     }
+
+    for (const entry of platformEntries) {
+      const platform = String(entry.platform ?? '').toUpperCase();
+      const lastSyncedAt = entry.lastSyncedAt instanceof Date
+        ? entry.lastSyncedAt
+        : new Date(entry.lastSyncedAt);
+      if (!platform || Number.isNaN(lastSyncedAt.getTime())) continue;
+
+      const progress = normalizePlatformAchievementProgress(
+        entry.achievementTotal,
+        entry.achievementUnlocked,
+      );
+      const current = platformHealth.get(platform) ?? {
+        platform,
+        profiles: 0,
+        playtimeProfiles: 0,
+        achievementProfiles: 0,
+        achievementsWithoutTotal: 0,
+        lastSyncedAt,
+      };
+
+      current.profiles++;
+      if (entry.playtimeMinutes != null) current.playtimeProfiles++;
+      if ((progress.achievementUnlocked ?? 0) > 0 || progress.achievementTotal != null) {
+        current.achievementProfiles++;
+      }
+      if ((progress.achievementUnlocked ?? 0) > 0 && progress.achievementTotal == null) {
+        current.achievementsWithoutTotal++;
+      }
+      if (lastSyncedAt > current.lastSyncedAt) current.lastSyncedAt = lastSyncedAt;
+      platformHealth.set(platform, current);
+    }
   }
 
   return {
@@ -308,6 +349,12 @@ export function buildGameTelemetry(games: any[]): ProfileSummaryResponse['gameTe
     achievementUnlocked,
     achievementTotal,
     achievementProfiles,
+    platforms: Array.from(platformHealth.values())
+      .sort((left, right) => right.profiles - left.profiles)
+      .map(item => ({
+        ...item,
+        lastSyncedAt: item.lastSyncedAt.toISOString(),
+      })),
   };
 }
 
