@@ -181,6 +181,7 @@ Xbox 会写入游戏与成就摘要；部分 Xbox title history 只提供已解�
 | [API 接口](#关键接口) | 搜索、记录库、导入、雷达等全部 API |
 | [配置项](#配置项) | .env 环境变量完整列表 |
 | [db/setup.md](db/setup.md) | 从零搭建开发环境手顺 |
+| [docs/README.md](docs/README.md) | 当前文档、规划记录与历史归档的边界 |
 
 ### 前端路由
 
@@ -249,9 +250,9 @@ DELETE /api/import/tasks/:taskId
 POST   /api/trakt/import/movies/task?status=WANT
 POST   /api/trakt/import/shows/task?status=WANT
 POST   /api/import/steam/owned/task?status=WANT
-POST   /api/import/xbox/owned/task?gamertag=&status=WANT
+POST   /api/import/xbox/owned/task?provider=microsoft|openxbl&gamertag=&status=WANT
 POST   /api/import/psn/owned/task?psnId=&status=WANT
-POST   /api/import/xbox/verify?gamertag=
+POST   /api/import/xbox/verify?provider=microsoft|openxbl&gamertag=
 POST   /api/import/psn/verify?psnId=
 GET    /api/import/platforms/status  # Xbox/PSN 配置可用性，不返回密钥或 Cookie
 POST   /api/import/tmdb-enrich/backfill?limit=50
@@ -306,7 +307,8 @@ PUT    /api/settings
 |-------|---------|---------|
 | Movie | doubanId, tmdbId, imdbId, traktId | title, posterUrl, releaseDate, overview, rating(1-5星), shortReview |
 | TvShow | doubanId, tmdbId, imdbId, traktId | title, posterUrl, firstAirDate, overview, rating(1-5星), shortReview |
-| Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5星), shortReview, platform, playtimeMinutes |
+| Game | rawgId, steamAppId, xboxId, psnId（兼容字段） | title, posterUrl, rating(1-5星), shortReview, status |
+| GamePlatformEntry | platform + externalId | 每个平台独立的游玩时长、成就/奖杯、首次导入和最近同步 |
 | ActivityLog | -- | action, entityType, entityId, entityTitle, oldValues, newValues |
 | RadarItem | sourceKey(唯一), source, sourceId, tmdbId | title, titleZh, overview, posterPath, type, category, platform |
 

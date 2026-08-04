@@ -34,7 +34,9 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | `OMDB_API_KEY` | OMDb API Key | 按需 |
 | `RAWG_API_KEY` | RAWG API Key | 按需 |
 | `STEAM_WEB_API_KEY` | Steam Web API Key | 按需 |
-| `OPENXBL_API_KEY` | OpenXBL API Key（Xbox 同步） | 启用 Xbox 时 |
+| `OPENXBL_API_KEY` | OpenXBL API Key（兼容 Xbox 来源） | 使用 OpenXBL 时 |
+| `MICROSOFT_XBOX_CLIENT_ID` | 自有 Azure 应用 Client ID | 仅高级备用 |
+| `MICROSOFT_XBOX_ENABLED` | 启用自有 Microsoft 应用备用登录 | 否 |
 | `OPENXBL_ENABLED` | 启用 Xbox 同步（默认 false） | 否 |
 | `PSN_PROFILES_ENABLED` | 启用 PSNProfiles 同步（默认 false） | 否 |
 | `PSN_PROFILES_COOKIE` | PSNProfiles 的 Cloudflare Cookie | 遇验证拦截时 |
@@ -83,15 +85,21 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | POST | `/api/import/tmdb-enrich/backfill?limit=50` | 批量补充 TMDB 数据 |
 | POST | `/api/import/tmdb-detail/backfill?limit=50` | 按 tmdbId 回填详情 |
 | POST | `/api/import/steam/backfill` | 回填 Steam 海报和游玩时间 |
-| POST | `/api/trakt/import/movies` | Trakt 电影导入 |
-| POST | `/api/trakt/import/shows` | Trakt 电视剧导入 |
-| POST | `/api/import/steam/owned` | Steam 已购导入 |
-| POST | `/api/import/xbox/owned/task?gamertag=&status=` | OpenXBL Xbox 游戏历史任务 |
+| POST | `/api/trakt/import/movies/task` | Trakt 电影导入任务 |
+| POST | `/api/trakt/import/shows/task` | Trakt 电视剧导入任务 |
+| POST | `/api/import/steam/owned/task` | Steam 已购导入任务 |
+| POST | `/api/xbox/auth-url` | 创建 Microsoft Xbox OAuth 登录地址 |
+| GET | `/api/xbox/callback` | Microsoft Xbox OAuth 回调 |
+| POST | `/api/import/xbox/owned/task?provider=&gamertag=&status=` | Microsoft 或 OpenXBL Xbox 游戏历史任务 |
+| POST | `/api/import/xbox/verify?provider=&gamertag=` | 只读验证 Xbox 连接 |
 | POST | `/api/import/psn/owned/task?psnId=&status=` | PSNProfiles 公开游戏档案任务 |
+| POST | `/api/import/psn/verify?psnId=` | 只读验证 PSNProfiles 档案 |
 | POST | `/api/import/covers/fill` | RAWG 封面补全 |
 | POST | `/api/import/tmdb-covers/fill` | TMDB 封面补全 |
 
-Xbox 通过 Gamertag → XUID → 游戏历史链路导入，PSN 按公开 PSNProfiles 档案逐页导入。两项来源默认关闭，需先在 Settings 配置并启用；新记录进入导入审核队列，已有记录只刷新平台指标和空封面。
+Xbox 默认可复用 OpenXbox 公开桌面客户端完成 Microsoft 官方 OAuth，无需注册 Azure；
+自有 Azure 应用只作为高级备用。OpenXBL 仍可通过 Gamertag → XUID → 游戏历史链路使用。
+PSN 按公开 PSNProfiles 档案逐页导入。新记录进入导入审核队列，已有记录只刷新平台档案指标和空封面。
 
 ### 数据健康
 

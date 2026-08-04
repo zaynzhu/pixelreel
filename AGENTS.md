@@ -176,7 +176,8 @@ frontend/src/
 ## 深度文档
 
 - 项目总览与当前能力 → `README.md`
-- 认证设计 → `docs/plans/2026-04-08-multi-user-auth-design.md`（基于 Spring，需要重写为 Express 版本）
+- 文档状态与历史设计索引 → `docs/README.md`
+- 游戏记录与平台档案分层决策 → `docs/adr/0001-separate-game-platform-entries.md`
 - 开发环境搭建 → `db/setup.md`
 
 ## 豆瓣数据导入（douban-harvester）
@@ -210,9 +211,9 @@ frontend/src/
 
 ## 数据库
 
-- MySQL 8.4 运行在 NAS Docker（192.168.50.233:13306），非本地
+- 数据库位置以 `express-backend/.env` 的 `DATABASE_URL` 为准，不在规则中固化主机地址
 - 豆瓣导入的影视数据在 `movie` 和 `tv_show` 表，**不能动**（Trakt 数据可以操作）
-- TMDB 覆盖率约 93%，仅少数因 TMDB 无收录而缺失
+- 覆盖率和记录数量属于运行快照，使用前必须通过当前 API 或数据库重新核对
 
 ## 常见陷阱
 
@@ -225,5 +226,5 @@ frontend/src/
 - Prisma `$extends()` 返回新客户端 — 必须用 `getDb()` 获取扩展后的实例，不能直接 import 原始 `prisma`。所有路由和服务统一用 `getDb()`。
 - 新组件必须做 i18n — 在 `i18nStore.ts` 的 `dictionaries.en` 和 `dictionaries.zh` 中添加 key，组件中用 `t('key')` 渲染。
 - Prisma `BigInt` 字段（如 `steamAppId`）比较时必须先统一类型；只有确认在安全整数范围内才能转 `Number()`。JSON 序列化时安全值返回数字，超出 `Number.MAX_SAFE_INTEGER` 的值返回十进制字符串。
-- 不要用 Playwright 截图让模型分析页面效果 — 模型不支持图片输入，截图白费。需要理解页面时读代码或用 `browser_snapshot` 获取 DOM。
+- 页面验证优先结合可访问 DOM、真实 API 响应与截图，不能只凭构建成功判断交付完成。
 - `tsx watch` 会在 git commit 时重启后端；任务状态会恢复为“因重启中断”，但执行本身不会续跑。长时间回填仍使用 `npx tsx src/server.ts`（无 watch）启动。

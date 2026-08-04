@@ -108,7 +108,10 @@ curl -X POST 'http://localhost:18889/api/trakt/import/movies/task?status=WANT'
 curl -X POST 'http://localhost:18889/api/import/steam/owned/task?status=WANT'
 ```
 
-Xbox imports title history through OpenXBL, while PSN reads every page of a public PSNProfiles profile. Both integrations are disabled by default and must be configured in Settings.
+Xbox supports Microsoft OAuth as the default source and OpenXBL as a compatibility source.
+The default Microsoft flow reuses the OpenXbox public desktop client and does not require an Azure
+app registration. PSN reads every page of a public PSNProfiles profile. New records from either
+source enter the import review queue.
 
 ### Discover with Radar
 
@@ -207,7 +210,7 @@ DELETE /api/import/tasks/:taskId
 POST   /api/trakt/import/movies/task?status=WANT
 POST   /api/trakt/import/shows/task?status=WANT
 POST   /api/import/steam/owned/task?status=WANT
-POST   /api/import/xbox/owned/task?gamertag=&status=WANT
+POST   /api/import/xbox/owned/task?provider=microsoft|openxbl&gamertag=&status=WANT
 POST   /api/import/psn/owned/task?psnId=&status=WANT
 GET    /api/import/platforms/status  # Xbox/PSN availability without secrets
 POST   /api/import/tmdb-enrich/backfill?limit=50
@@ -246,7 +249,8 @@ Three core tables with fields grouped by source (Douban primary, TMDB secondary)
 |-------|-------------|----------------|
 | Movie | doubanId, tmdbId, imdbId, traktId | title, posterUrl, releaseDate, overview, rating(1-5), shortReview |
 | TvShow | doubanId, tmdbId, imdbId, traktId | title, posterUrl, firstAirDate, overview, rating(1-5), shortReview |
-| Game | rawgId, steamAppId, xboxId, psnId | title, posterUrl, rating(1-5), shortReview, platform, playtimeMinutes |
+| Game | rawgId, steamAppId, xboxId, psnId (compatibility fields) | title, posterUrl, rating(1-5), shortReview, status |
+| GamePlatformEntry | platform + externalId | Per-platform playtime, achievements/trophies, first import, last sync |
 | ActivityLog | -- | action, entityType, entityId, entityTitle, oldValues, newValues |
 | RadarItem | sourceKey(unique), source, sourceId, tmdbId | title, titleZh, overview, posterPath, type, category, platform |
 

@@ -84,13 +84,25 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 
 ## Xbox / PSN
 
-### Xbox（OpenXBL）
+### Xbox（推荐 Microsoft 账号直连）
+
+1. 在同步中心选择“Microsoft 账号登录”
+2. 点击登录按钮，在 Microsoft 官方页面完成授权
+3. 返回同步中心后先执行只读连接验证，再启动同步
+
+默认登录复用 OpenXbox 公开桌面客户端，不需要注册 Azure，也不需要 OpenXBL API Key。
+PixelReel 不接收 Microsoft 密码；refresh token 仅以 `0600` 权限保存在本机
+`express-backend/data/xbox-microsoft-auth.json`，不会通过 API 或 Settings 回传。
+自有 Microsoft Entra 应用仅作为高级备用配置。
+
+### Xbox（OpenXBL 兼容来源）
 
 1. 在 [OpenXBL](https://xbl.io) 创建 API Key
 2. 在 Settings 的 OpenXBL 分类填写 `OPENXBL_API_KEY`，并将 `OPENXBL_ENABLED` 设为 `true`
-3. 在同步中心输入 Xbox Gamertag，或调用 `POST /api/import/xbox/owned/task?gamertag=玩家代号&status=WANT`
+3. 在同步中心输入 Xbox Gamertag，或调用 `POST /api/import/xbox/owned/task?provider=openxbl&gamertag=玩家代号&status=WANT`
 
-服务先按 Gamertag 查询 XUID，再读取游戏历史。新记录写入导入审核队列，不覆盖已有 Xbox 记录。
+服务先按完整 Gamertag 精确匹配 XUID，再读取游戏历史。现代 Gamertag 应包含
+`#数字后缀`。新记录写入导入审核队列，不覆盖已有个人状态、评分或短评。
 
 ### PSN（PSNProfiles）
 
@@ -98,7 +110,9 @@ PixelReel 依赖多个外部平台 API 实现影视/游戏搜索和平台导入�
 2. 在同步中心输入 PSN 在线 ID，或调用 `POST /api/import/psn/owned/task?psnId=在线ID&status=WANT`
 3. 公开档案可能直接返回 Cloudflare 403；同步任务会明确提示更新 Cookie，此时在 Settings 的 PSN 分类填写新的 `PSN_PROFILES_COOKIE`，保存后即可重试
 
-服务按 `?ajax=1&page=N` 逐页读取公开档案，最多 100 页，并以奖杯链接中的数字列表 ID 作为稳定 `psnId`。新记录写入导入审核队列，不覆盖已有 PSN 记录。
+服务按 `ajax=1&completion=all&order=last-played&pf=all&page=N` 逐页读取公开档案，
+最多 100 页，并以奖杯链接中的数字列表 ID 作为稳定 `psnId`。新记录写入导入审核队列，
+不覆盖已有个人状态、评分或短评。
 
 `GET /api/import/platforms/status` 只返回两项来源的配置可用性，不返回 API Key 或 Cookie。外部服务响应可能变化，首次使用应先用真实账号做小范围核对。
 
