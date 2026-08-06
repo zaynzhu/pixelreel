@@ -79,7 +79,7 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | GET | `/api/import/douban-harvest/status?taskId=xxx` | 任务进度 |
 | GET | `/api/import/tasks` | 所有任务列表 |
 | GET | `/api/import/sources/status` | 正式同步来源可用性（不返回凭据） |
-| GET | `/api/import/sources/history` | 各正式来源最近一次同步终态 |
+| GET | `/api/import/sources/history` | 各正式来源最后一次同步终态 |
 | GET | `/api/import/platforms/status` | Xbox/PSN 配置可用性（不返回密钥或 Cookie） |
 | DELETE | `/api/import/tasks/:taskId` | 取消任务 |
 | POST | `/api/import/tmdb-enrich/backfill?limit=50` | 批量补充 TMDB 数据 |

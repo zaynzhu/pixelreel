@@ -5,6 +5,11 @@
 ## 当前文档
 
 - [项目总览与使用说明](../README.md)
+- [系统架构](ARCHITECTURE.md)
+- [产品行为约束](PRODUCT_BEHAVIOR.md)
+- [外部来源接入指南](INTEGRATIONS.md)
+- [运行与维护手册](RUNBOOK.md)
+- [交接说明](HANDOFF.md)
 - [开发环境搭建](../db/setup.md)
 - [后端说明](../express-backend/README.md)
 - [外部服务配置指南](../express-backend/docs/API_KEY_GUIDE.md)
@@ -14,6 +19,7 @@
 
 `plans/` 保存阶段性方案与实现计划。文件名中的日期表示方案形成时间，不代表当前状态；
 凡与代码冲突的内容均以当前实现为准。标有 `STALE` 的 Java/Spring 方案只用于追溯历史。
+超过 1500 行的文件均属于历史执行记录，不再继续追加。
 
 ## 历史归档
 

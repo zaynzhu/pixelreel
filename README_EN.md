@@ -144,6 +144,11 @@ Visit the `/radar` page to browse TMDB now-playing, upcoming, and trending title
 | [API Endpoints](#api-endpoints) | Search, library, import, radar, and more |
 | [Configuration](#configuration) | Complete .env variable reference |
 | [db/setup.md](db/setup.md) | Step-by-step development environment setup |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture, data model, and core flows |
+| [docs/PRODUCT_BEHAVIOR.md](docs/PRODUCT_BEHAVIOR.md) | Cross-page and cross-API behavior constraints |
+| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Douban, Trakt, Steam, Xbox, and PSN setup |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Operations, backup, and troubleshooting |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | Current capabilities and handoff checklist |
 
 ### Frontend Routes
 
