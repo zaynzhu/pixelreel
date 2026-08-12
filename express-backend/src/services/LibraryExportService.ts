@@ -5,7 +5,7 @@ import { serializeBigIntForJson } from '../json'
 export const LIBRARY_EXPORT_FORMAT = 'pixelreel-library-export'
 export const LIBRARY_EXPORT_VERSION = 2
 
-interface LibraryExportRecords {
+export interface LibraryExportRecords {
   movies: unknown[]
   tvShows: unknown[]
   games: unknown[]
@@ -59,7 +59,7 @@ export function libraryExportFilename(exportedAt: Date) {
   return `pixelreel-library-${timestamp}.json`
 }
 
-export async function exportLibrarySnapshot(exportedAt = new Date()) {
+export async function readLibraryExportRecords(): Promise<LibraryExportRecords> {
   const db = getDb()
   const [movies, tvShows, games] = await db.$transaction([
     db.movie.findMany({ orderBy: { id: 'asc' } }),
@@ -76,7 +76,12 @@ export async function exportLibrarySnapshot(exportedAt = new Date()) {
       },
     }),
   ])
-  const snapshot = buildLibraryExportSnapshot({ movies, tvShows, games }, exportedAt)
+  return { movies, tvShows, games }
+}
+
+export async function exportLibrarySnapshot(exportedAt = new Date()) {
+  const records = await readLibraryExportRecords()
+  const snapshot = buildLibraryExportSnapshot(records, exportedAt)
   return {
     filename: libraryExportFilename(exportedAt),
     json: serializeLibraryExportSnapshot(snapshot),

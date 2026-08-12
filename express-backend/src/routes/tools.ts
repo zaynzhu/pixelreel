@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { getDb } from '../config/db'
 import fs from 'fs'
+import multer from 'multer'
 import path from 'path'
 import { exportLibrarySnapshot } from '../services/LibraryExportService'
+import { previewLibraryRestoreSnapshot } from '../services/LibraryRestorePreviewService'
 import {
   assertNoQueryParameters,
   parseBoundedStringParameter,
@@ -13,6 +15,42 @@ import {
 
 const router = Router()
 const TOOL_CATEGORIES = ['movie', 'tv_show'] as const
+export const LIBRARY_RESTORE_PREVIEW_MAX_BYTES = 50 * 1024 * 1024
+
+const restorePreviewUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: LIBRARY_RESTORE_PREVIEW_MAX_BYTES,
+    files: 1,
+    fields: 0,
+  },
+})
+
+export function getLibraryRestorePreviewUploadError(error: unknown) {
+  if (!(error instanceof multer.MulterError)) return null
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return {
+      status: 413,
+      message: `快照文件不能超过 ${LIBRARY_RESTORE_PREVIEW_MAX_BYTES / 1024 / 1024} MiB`,
+    }
+  }
+  return { status: 400, message: '仅接受一个名为 file 的 JSON 快照文件' }
+}
+
+function uploadRestorePreview(req: Request, res: Response, next: NextFunction) {
+  restorePreviewUpload.single('file')(req, res, (error) => {
+    if (!error) {
+      next()
+      return
+    }
+    const uploadError = getLibraryRestorePreviewUploadError(error)
+    if (uploadError) {
+      res.status(uploadError.status).json({ error: uploadError.message })
+      return
+    }
+    next(error)
+  })
+}
 
 export function parseToolSearchParameters(value: Record<string, unknown>) {
   const unknownKey = Object.keys(value).find(key => key !== 'query')
@@ -56,6 +94,15 @@ router.get('/export-library', async (req: Request, res: Response) => {
   res.setHeader('X-PixelReel-Platform-Profile-Count', String(snapshot.counts.platformProfiles))
   res.setHeader('X-PixelReel-Records-SHA256', snapshot.integrity.recordsSha256)
   res.send(json)
+})
+
+// 只读校验快照并与当前资料库比较，不执行任何恢复或写入
+router.post('/restore-preview', uploadRestorePreview, async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query)
+  if (!req.file) {
+    throw new RequestValidationError('请选择 PixelReel JSON 快照文件')
+  }
+  res.json(await previewLibraryRestoreSnapshot(req.file.buffer))
 })
 
 // 搜索电影和电视剧记录

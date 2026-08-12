@@ -112,6 +112,15 @@ PSN 按公开 PSNProfiles 档案逐页导入。新记录进入导入审核队列
 | DELETE | `/api/data-health/duplicates/review/:id` | 恢复候选组到待处理队列 |
 | POST | `/api/data-health/repair` | 启动定向空字段修复任务，每批最多 50 条 |
 
+### 资料库工具
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/tools/export-library` | 下载带计数清单和 SHA-256 的 v2 资料库快照 |
+| POST | `/api/tools/restore-preview` | 上传一个最大 50 MiB 的 v2 JSON 快照并只读比较现库，不执行恢复 |
+| GET | `/api/tools/search?query=` | 搜索待转换的影视记录 |
+| POST | `/api/tools/convert-category` | 在电影与剧集之间转换记录类型 |
+
 ### 雷达
 
 | 方法 | 路径 | 说明 |

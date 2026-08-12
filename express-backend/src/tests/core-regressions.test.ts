@@ -127,6 +127,8 @@ import {
 import { buildXboxAuthorizationSuccessUrl } from '../routes/xbox';
 import {
   assertConvertedSourceDeleted,
+  getLibraryRestorePreviewUploadError,
+  LIBRARY_RESTORE_PREVIEW_MAX_BYTES,
   parseConvertCategoryBody,
   parseToolSearchParameters,
 } from '../routes/tools';
@@ -136,6 +138,11 @@ import {
   libraryExportFilename,
   serializeLibraryExportSnapshot,
 } from '../services/LibraryExportService';
+import {
+  buildLibraryRestorePreview,
+  LibraryRestorePreviewValidationError,
+  parseLibraryRestoreSnapshot,
+} from '../services/LibraryRestorePreviewService';
 import {
   assertEmptyRequestBody,
   assertNoQueryParameters,
@@ -2958,6 +2965,153 @@ test('资料库快照保留豆瓣原始字段并生成可移植 JSON', () => {
   assert.deepEqual(
     Object.keys(parsed),
     ['format', 'version', 'exportedAt', 'counts', 'integrity', 'records'],
+  );
+});
+
+test('恢复预览严格校验快照格式、计数和 SHA-256', () => {
+  const snapshot = buildLibraryExportSnapshot({
+    movies: [{ id: 1n, title: '电影', doubanId: '1292052' }],
+    tvShows: [{ id: 2n, title: '剧集' }],
+    games: [{
+      id: 3n,
+      title: '游戏',
+      platformEntries: [{
+        id: 4n,
+        gameId: 3n,
+        platform: 'PSN',
+        externalId: '123',
+      }],
+    }],
+  }, new Date('2026-08-12T08:00:00.000Z'));
+  const serialized = serializeLibraryExportSnapshot(snapshot);
+  const parsed = parseLibraryRestoreSnapshot(serialized);
+  assert.equal(parsed.counts.total, 3);
+  assert.equal(parsed.counts.platformProfiles, 1);
+
+  const damaged = JSON.parse(serialized);
+  damaged.records.movies[0].title = '被改动';
+  assert.throws(
+    () => parseLibraryRestoreSnapshot(JSON.stringify(damaged)),
+    (error: unknown) => error instanceof LibraryRestorePreviewValidationError
+      && error.message.includes('SHA-256 校验失败'),
+  );
+
+  const wrongCounts = JSON.parse(serialized);
+  wrongCounts.counts.total = 4;
+  assert.throws(
+    () => parseLibraryRestoreSnapshot(JSON.stringify(wrongCounts)),
+    (error: unknown) => error instanceof LibraryRestorePreviewValidationError
+      && error.message === '快照计数清单与记录区不一致',
+  );
+  assert.throws(
+    () => parseLibraryRestoreSnapshot('{not-json'),
+    (error: unknown) => error instanceof LibraryRestorePreviewValidationError
+      && error.message === '快照不是有效的 JSON 文件',
+  );
+});
+
+test('恢复预览只读区分快照独有、差异、不变、冲突和现库独有记录', () => {
+  const snapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [
+        { id: 1n, title: '相同电影', doubanId: 'movie-1' },
+        { id: 2n, title: '快照独有电影' },
+      ],
+      tvShows: [{ id: 10n, title: '旧剧名', tmdbId: 10n }],
+      games: [{
+        id: 20n,
+        title: '游戏',
+        rawgId: 100n,
+        platformEntries: [{
+          id: 21n,
+          gameId: 20n,
+          platform: 'STEAM',
+          externalId: '50',
+        }],
+      }],
+    }, new Date('2026-08-12T08:00:00.000Z')),
+  ));
+  const preview = buildLibraryRestorePreview(snapshot, {
+    movies: [
+      { id: 1n, title: '相同电影', doubanId: 'movie-1' },
+      { id: 3n, title: '现库独有电影' },
+    ],
+    tvShows: [{ id: 10n, title: '新剧名', tmdbId: 10n }],
+    games: [{
+      id: 200n,
+      title: '游戏',
+      rawgId: 100n,
+      platformEntries: [{
+        id: 201n,
+        gameId: 200n,
+        platform: 'STEAM',
+        externalId: '50',
+      }],
+    }],
+  });
+
+  assert.equal(preview.readOnly, true);
+  assert.deepEqual(preview.comparison.movies, {
+    snapshotOnly: 1,
+    different: 0,
+    unchanged: 1,
+    conflicts: 0,
+    currentOnly: 1,
+  });
+  assert.equal(preview.comparison.tvShows.different, 1);
+  assert.equal(preview.comparison.games.different, 1);
+  assert.equal(preview.comparison.platformProfiles.different, 1);
+  assert.equal(preview.comparison.summary.conflicts, 0);
+  assert.equal(preview.hasConflicts, false);
+
+  const conflictSnapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [{ id: 1n, title: '冲突电影', doubanId: 'same-source' }],
+      tvShows: [],
+      games: [],
+    }, new Date('2026-08-12T08:00:00.000Z')),
+  ));
+  const conflictPreview = buildLibraryRestorePreview(conflictSnapshot, {
+    movies: [
+      { id: 1n, title: 'ID 对应记录', doubanId: 'different-source' },
+      { id: 2n, title: '来源对应记录', doubanId: 'same-source' },
+    ],
+    tvShows: [],
+    games: [],
+  });
+  assert.equal(conflictPreview.hasConflicts, true);
+  assert.equal(conflictPreview.comparison.movies.conflicts, 1);
+  assert.deepEqual(conflictPreview.conflicts[0].currentIds, ['1', '2']);
+
+  const duplicateIdentitySnapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [
+        { id: 1n, title: '第一条', doubanId: 'shared-source' },
+        { id: 2n, title: '第二条', doubanId: 'shared-source' },
+      ],
+      tvShows: [],
+      games: [],
+    }, new Date('2026-08-12T08:00:00.000Z')),
+  ));
+  const exactPreview = buildLibraryRestorePreview(
+    duplicateIdentitySnapshot,
+    duplicateIdentitySnapshot.records,
+  );
+  assert.equal(exactPreview.comparison.movies.unchanged, 2);
+  assert.equal(exactPreview.comparison.movies.conflicts, 0);
+});
+
+test('恢复预览上传限制拒绝超大或错误字段文件', () => {
+  assert.deepEqual(
+    getLibraryRestorePreviewUploadError(new multer.MulterError('LIMIT_FILE_SIZE')),
+    {
+      status: 413,
+      message: `快照文件不能超过 ${LIBRARY_RESTORE_PREVIEW_MAX_BYTES / 1024 / 1024} MiB`,
+    },
+  );
+  assert.deepEqual(
+    getLibraryRestorePreviewUploadError(new multer.MulterError('LIMIT_UNEXPECTED_FILE')),
+    { status: 400, message: '仅接受一个名为 file 的 JSON 快照文件' },
   );
 });
 

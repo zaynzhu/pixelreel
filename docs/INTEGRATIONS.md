@@ -127,3 +127,18 @@ Xbox、PSN 和 Steam 指标写入 `GamePlatformEntry`。零时长是有效值；
 
 更多 API Key 获取方式见
 [express-backend/docs/API_KEY_GUIDE.md](../express-backend/docs/API_KEY_GUIDE.md)。
+
+## 资料库快照工具
+
+工具页 `/tools` 可导出并只读校验资料库快照：
+
+```bash
+curl -OJ http://127.0.0.1:18889/api/tools/export-library
+
+curl -X POST \
+  -F 'file=@pixelreel-library-2026-08-12T08-00-00Z.json;type=application/json' \
+  http://127.0.0.1:18889/api/tools/restore-preview
+```
+
+恢复预览只支持 `pixelreel-library-export` v2，最大 50 MiB。响应区分快照独有、内容不同、
+完全相同、身份冲突和现库独有记录；接口不会创建、更新、合并或删除任何资料库数据。

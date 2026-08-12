@@ -35,6 +35,7 @@
 - **Showcase Display** -- Grid and fullscreen carousel modes, perfect for casting your collection on a big screen
 - **Activity Log** -- Automatic CRUD tracking with undo support and advanced filtering
 - **Background Task Recovery** -- Persist import and sync progress, and explicitly mark interrupted tasks after a service restart
+- **Verified Library Snapshots** -- Export a checksummed v2 JSON snapshot, then upload it for a read-only validation and conflict preview without changing the current library
 
 ## 🚀 Quick Start
 
@@ -231,6 +232,13 @@ GET    /api/radar/status
 POST   /api/radar/sync
 POST   /api/radar/sync/:source
 POST   /api/radar/add-to-library
+```
+
+#### Tools
+
+```text
+GET    /api/tools/export-library    Download the complete v2 library snapshot
+POST   /api/tools/restore-preview   Validate and compare a snapshot without restoring it
 ```
 
 #### Other
