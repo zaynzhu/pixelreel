@@ -85,6 +85,10 @@ import {
   verifyPsnProfilesConnection,
 } from '../services/import/PsnProfilesImportService';
 import { buildLegacyGamePlatformEntrySeeds } from '../services/GamePlatformEntryService';
+import {
+  applyImportReviewDecisionInTransaction,
+  ImportReviewConflictError,
+} from '../services/ImportReviewService';
 import { parseRawgPosterUrl } from '../services/import/RawgPosterLookupService';
 import { toSafeTmdbId } from '../services/import/TmdbId';
 import { fetchMovieDetail } from '../services/import/TmdbDetailBackfillService';
@@ -2398,6 +2402,84 @@ test('导入审核请求只接受唯一且有界的记录引用', () => {
   assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [{ category: 'xbox', id: 1 }] }), RequestValidationError);
   assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [{ category: 'game', id: 1 }, { category: 'game', id: 1 }] }), RequestValidationError);
   assert.throws(() => parseImportReviewDecisionBody({ decision: 'IGNORED', records: [{ category: 'game', id: 1, title: 'x' }] }), RequestValidationError);
+});
+
+test('导入审核只在整批目标仍可处理时更新全部记录', async () => {
+  const reviewStates: unknown[] = [];
+  const createDelegate = (matched: number) => ({
+    count: async ({ where }: { where: { importReviewState: unknown } }) => {
+      reviewStates.push(where.importReviewState);
+      return matched;
+    },
+    updateMany: async () => ({ count: matched }),
+  });
+  const transaction = {
+    movie: createDelegate(1),
+    tvShow: createDelegate(1),
+    game: createDelegate(1),
+  } as any;
+
+  assert.deepEqual(await applyImportReviewDecisionInTransaction(transaction, [
+    { category: 'movie', id: 1 },
+    { category: 'tv_show', id: 2 },
+    { category: 'game', id: 3 },
+  ], 'ACCEPTED'), {
+    requested: 3,
+    updated: 3,
+    decision: 'ACCEPTED',
+  });
+  assert.deepEqual(reviewStates, [
+    { in: ['PENDING', 'IGNORED'] },
+    { in: ['PENDING', 'IGNORED'] },
+    { in: ['PENDING', 'IGNORED'] },
+  ]);
+});
+
+test('导入审核在目标状态变化时拒绝整批且不尝试写入', async () => {
+  let updateCalls = 0;
+  const createDelegate = (matched: number) => ({
+    count: async () => matched,
+    updateMany: async () => {
+      updateCalls += 1;
+      return { count: matched };
+    },
+  });
+  const transaction = {
+    movie: createDelegate(0),
+    tvShow: createDelegate(0),
+    game: createDelegate(0),
+  } as any;
+
+  await assert.rejects(
+    applyImportReviewDecisionInTransaction(
+      transaction,
+      [{ category: 'game', id: 1 }],
+      'IGNORED',
+    ),
+    (reason: unknown) => reason instanceof ImportReviewConflictError && reason.status === 409,
+  );
+  assert.equal(updateCalls, 0);
+});
+
+test('导入审核在写入数量异常时抛错以回滚事务', async () => {
+  const createDelegate = (matched: number, updated: number) => ({
+    count: async () => matched,
+    updateMany: async () => ({ count: updated }),
+  });
+  const transaction = {
+    movie: createDelegate(1, 0),
+    tvShow: createDelegate(0, 0),
+    game: createDelegate(0, 0),
+  } as any;
+
+  await assert.rejects(
+    applyImportReviewDecisionInTransaction(
+      transaction,
+      [{ category: 'movie', id: 1 }],
+      'IGNORED',
+    ),
+    ImportReviewConflictError,
+  );
 });
 
 test('HTTP 错误响应保留 4xx 提示并隐藏 5xx 详情', () => {

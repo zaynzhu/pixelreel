@@ -25,6 +25,12 @@ interface ReviewResponse {
   }
 }
 
+interface ReviewDecisionResponse {
+  requested: number
+  updated: number
+  decision: ReviewDecision
+}
+
 interface GameDuplicateHint {
   recordId: number
   groupKey: string
@@ -285,13 +291,20 @@ export default function ImportReviewPage() {
       ) return
       if (requestId !== latestDecisionRequest.current || requestTab !== tabRef.current) return
 
-      await apiFetch("/library/import-review", {
+      const response = await apiFetch<ReviewDecisionResponse>("/library/import-review", {
         method: "POST",
         body: JSON.stringify({
           decision,
           records: targets.map(record => ({ category: record.category, id: record.id })),
         }),
       })
+      if (
+        response.requested !== targets.length
+        || response.updated !== targets.length
+        || response.decision !== decision
+      ) {
+        throw new Error(t("review.decision_result_invalid"))
+      }
       if (requestId !== latestDecisionRequest.current || requestTab !== tabRef.current) return
       setRecords(current => current.filter(record => !targetKeys.has(recordKey(record))))
       setDuplicateHints(current => Object.fromEntries(

@@ -76,6 +76,7 @@ cd express-backend && npx prisma generate && npx prisma db push
 - Xbox 默认使用 Microsoft OAuth；OpenXBL 是兼容来源。PSN 读取公开 PSNProfiles 档案。
 - 账号覆盖只在用户明确勾选时保存到当前浏览器；密码、Cookie 和令牌不得进入该存储。
 - Xbox/PSN 连接验证必须只读，不创建任务、不查询或写入资料库。
+- 导入审核的批量决定必须在可串行化事务中复核全部目标；任一状态变化就拒绝整批，不能部分更新。
 - 同类型同步任务只允许一个运行实例；取消后在外部请求和写库前再次检查取消信号。
 - 同步状态和历史不返回凭据；空结果、整体失败和部分成功必须明确区分。
 

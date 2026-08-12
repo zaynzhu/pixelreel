@@ -67,6 +67,7 @@ npm run check           # TypeScript 构建 + 核心回归测试
 | GET | `/api/library?cursor=&limit=50&category=&year=&status=` | 混合记录列表（游标分页） |
 | GET | `/api/library/:category/:id` | 单条完整记录 |
 | PATCH | `/api/library/:category/:id` | 更新记录 |
+| POST | `/api/library/import-review` | 原子接受或忽略导入记录；任一目标变化时整批返回 409 |
 | GET | `/api/library/random?limit=N` | 随机记录（N 最大 20） |
 | GET | `/api/timeline?cursor=&limit=96&category=&year=` | 时间线轻量列表 |
 | GET | `/api/timeline/years?category=` | 可选年份列表 |
