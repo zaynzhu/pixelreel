@@ -130,6 +130,7 @@ import {
   getLibraryRestorePreviewUploadError,
   LIBRARY_RESTORE_PREVIEW_MAX_BYTES,
   parseConvertCategoryBody,
+  parseLibraryRestoreConfirmationToken,
   parseToolSearchParameters,
 } from '../routes/tools';
 import {
@@ -143,6 +144,12 @@ import {
   LibraryRestorePreviewValidationError,
   parseLibraryRestoreSnapshot,
 } from '../services/LibraryRestorePreviewService';
+import {
+  LibraryRestoreConfirmationStore,
+  LibraryRestoreConflictError,
+  prepareAdditiveRestoreData,
+  writeRestoreSafetyBackup,
+} from '../services/LibraryRestoreService';
 import {
   assertEmptyRequestBody,
   assertNoQueryParameters,
@@ -2106,6 +2113,8 @@ test('活动日志参数拒绝非法游标、ID 和日期', () => {
   });
   assert.equal(parseActivityListParameters({ action: 'TASK_CANCEL' }).action, 'TASK_CANCEL');
   assert.equal(parseActivityListParameters({ action: 'DATA_CHANGE' }).action, 'DATA_CHANGE');
+  assert.equal(parseActivityListParameters({ action: 'RESTORE' }).action, 'RESTORE');
+  assert.equal(parseActivityListParameters({ entityType: 'LIBRARY' }).entityType, 'LIBRARY');
   assert.throws(() => parseActivityListParameters({ action: 'INVALID' }), RequestValidationError);
   assert.throws(() => parseActivityListParameters({ entityType: 'USER' }), RequestValidationError);
   assert.throws(() => parseActivityListParameters({ verbose: 'true' }), RequestValidationError);
@@ -2145,6 +2154,7 @@ test('已撤销的活动日志不再标记为可撤销', () => {
   assert.equal(serializeLog({ ...protectedCreate, entityType: 'GAME' }).undoable, true);
   assert.equal(serializeLog({ ...protectedCreate, newValues: { status: 'DONE' } }).undoable, true);
   assert.equal(serializeLog({ ...entry, action: 'MERGE', entityType: 'GAME' }).undoable, true);
+  assert.equal(serializeLog({ ...entry, action: 'RESTORE', entityType: 'LIBRARY' }).undoable, false);
 });
 
 test('雷达接口拒绝非法筛选、同步来源和条目 ID', () => {
@@ -2912,6 +2922,87 @@ test('分类转换在源记录已被并发处理时中止事务', () => {
   );
 });
 
+const RESTORE_TEST_DATE = new Date('2026-08-12T08:00:00.000Z');
+
+function completeRestoreMovie(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 101n,
+    title: '快照电影',
+    posterUrl: null,
+    releaseDate: null,
+    overview: null,
+    status: 'DONE',
+    rating: 5,
+    shortReview: '保留个人记录',
+    createdAt: RESTORE_TEST_DATE,
+    updatedAt: RESTORE_TEST_DATE,
+    importReviewState: 'ACCEPTED',
+    doubanId: '1292052',
+    doubanTitle: '豆瓣原始标题',
+    doubanAltTitle: null,
+    doubanIntro: null,
+    doubanRating: 5,
+    doubanDate: '2026-08-12',
+    doubanComment: '豆瓣原始短评',
+    doubanLink: 'https://movie.douban.com/subject/1292052/',
+    doubanAvgRating: '9.7',
+    tmdbId: null,
+    tmdbTitle: null,
+    tmdbPosterUrl: null,
+    tmdbReleaseDate: null,
+    tmdbOverview: null,
+    tmdbVoteAverage: null,
+    tmdbPopularity: null,
+    tmdbGenreIds: null,
+    imdbId: null,
+    imdbRating: null,
+    traktId: null,
+    ...overrides,
+  };
+}
+
+function completeRestoreProfile(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 301n,
+    gameId: 201n,
+    platform: 'PSN',
+    externalId: '98765',
+    playtimeMinutes: null,
+    achievementTotal: 20,
+    achievementUnlocked: 8,
+    importedAt: RESTORE_TEST_DATE,
+    lastSyncedAt: RESTORE_TEST_DATE,
+    createdAt: RESTORE_TEST_DATE,
+    updatedAt: RESTORE_TEST_DATE,
+    ...overrides,
+  };
+}
+
+function completeRestoreGame(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 201n,
+    title: '快照游戏',
+    posterUrl: null,
+    platform: null,
+    playtimeMinutes: null,
+    achievementTotal: null,
+    achievementUnlocked: null,
+    importedAt: RESTORE_TEST_DATE,
+    importReviewState: 'ACCEPTED',
+    status: 'DONE',
+    rating: 4,
+    shortReview: null,
+    createdAt: RESTORE_TEST_DATE,
+    updatedAt: RESTORE_TEST_DATE,
+    rawgId: 777n,
+    steamAppId: null,
+    xboxId: null,
+    psnId: '98765',
+    platformEntries: [completeRestoreProfile()],
+    ...overrides,
+  };
+}
+
 test('资料库快照保留豆瓣原始字段并生成可移植 JSON', () => {
   const exportedAt = new Date('2026-07-15T08:30:45.123Z');
   const snapshot = buildLibraryExportSnapshot({
@@ -3113,6 +3204,150 @@ test('恢复预览上传限制拒绝超大或错误字段文件', () => {
     getLibraryRestorePreviewUploadError(new multer.MulterError('LIMIT_UNEXPECTED_FILE')),
     { status: 400, message: '仅接受一个名为 file 的 JSON 快照文件' },
   );
+});
+
+test('增量恢复只准备快照独有记录并保留完整豆瓣字段', () => {
+  const snapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [completeRestoreMovie()],
+      tvShows: [],
+      games: [completeRestoreGame()],
+    }, RESTORE_TEST_DATE),
+  ));
+  const prepared = prepareAdditiveRestoreData(snapshot, {
+    movies: [],
+    tvShows: [],
+    games: [],
+  });
+
+  assert.deepEqual(prepared.counts, {
+    movies: 1,
+    tvShows: 0,
+    games: 1,
+    platformProfiles: 1,
+    total: 3,
+    protectedDoubanCreates: 1,
+  });
+  assert.equal(prepared.data.movies[0].id, 101n);
+  assert.equal(prepared.data.movies[0].doubanComment, '豆瓣原始短评');
+  assert.equal(prepared.data.games[0].platform, null);
+  assert.equal(prepared.data.platformProfiles[0].gameId, 201n);
+  assert.equal(prepared.plan.preview.comparison.summary.currentOnly, 0);
+});
+
+test('增量恢复不覆盖差异记录，并把新平台档案关联到已匹配游戏', () => {
+  const movieSnapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [completeRestoreMovie()],
+      tvShows: [],
+      games: [],
+    }, RESTORE_TEST_DATE),
+  ));
+  const differing = prepareAdditiveRestoreData(movieSnapshot, {
+    movies: [completeRestoreMovie({ title: '现库标题' })],
+    tvShows: [],
+    games: [],
+  });
+  assert.equal(differing.counts.total, 0);
+  assert.equal(differing.plan.preview.comparison.movies.different, 1);
+
+  const gameSnapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [],
+      tvShows: [],
+      games: [completeRestoreGame()],
+    }, RESTORE_TEST_DATE),
+  ));
+  const currentGame = completeRestoreGame({
+    id: 901n,
+    psnId: null,
+    platformEntries: [],
+  });
+  const profileOnly = prepareAdditiveRestoreData(gameSnapshot, {
+    movies: [],
+    tvShows: [],
+    games: [currentGame],
+  });
+  assert.equal(profileOnly.counts.games, 0);
+  assert.equal(profileOnly.counts.platformProfiles, 1);
+  assert.equal(profileOnly.data.platformProfiles[0].gameId, 901n);
+});
+
+test('增量恢复在写库前拒绝未知字段和越界值', () => {
+  const snapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [completeRestoreMovie()],
+      tvShows: [],
+      games: [],
+    }, RESTORE_TEST_DATE),
+  ));
+  (snapshot.records.movies[0] as Record<string, unknown>).unexpected = true;
+  assert.throws(
+    () => prepareAdditiveRestoreData(snapshot, { movies: [], tvShows: [], games: [] }),
+    LibraryRestorePreviewValidationError,
+  );
+
+  const invalidRatingSnapshot = parseLibraryRestoreSnapshot(serializeLibraryExportSnapshot(
+    buildLibraryExportSnapshot({
+      movies: [completeRestoreMovie({ rating: 6 })],
+      tvShows: [],
+      games: [],
+    }, RESTORE_TEST_DATE),
+  ));
+  assert.throws(
+    () => prepareAdditiveRestoreData(invalidRatingSnapshot, { movies: [], tvShows: [], games: [] }),
+    LibraryRestorePreviewValidationError,
+  );
+});
+
+test('恢复确认令牌绑定快照和现库指纹且只能使用一次', () => {
+  const store = new LibraryRestoreConfirmationStore();
+  const created = store.create('a'.repeat(64), 'b'.repeat(64), 1_000);
+  assert.match(created.token, /^[a-f0-9]{48}$/);
+  assert.doesNotThrow(() => store.consume(created.token, 'a'.repeat(64), 'b'.repeat(64), 2_000));
+  assert.throws(
+    () => store.consume(created.token, 'a'.repeat(64), 'b'.repeat(64), 2_000),
+    LibraryRestoreConflictError,
+  );
+
+  const changed = store.create('a'.repeat(64), 'b'.repeat(64), 3_000);
+  assert.throws(
+    () => store.consume(changed.token, 'c'.repeat(64), 'b'.repeat(64), 4_000),
+    LibraryRestoreConflictError,
+  );
+  const expired = store.create('a'.repeat(64), 'b'.repeat(64), 5_000);
+  assert.throws(
+    () => store.consume(expired.token, 'a'.repeat(64), 'b'.repeat(64), 605_000),
+    LibraryRestoreConflictError,
+  );
+});
+
+test('恢复接口只接受严格格式的二次确认令牌', () => {
+  assert.equal(parseLibraryRestoreConfirmationToken('a'.repeat(48)), 'a'.repeat(48));
+  assert.throws(() => parseLibraryRestoreConfirmationToken(undefined), RequestValidationError);
+  assert.throws(() => parseLibraryRestoreConfirmationToken('A'.repeat(48)), RequestValidationError);
+  assert.throws(() => parseLibraryRestoreConfirmationToken('a'.repeat(47)), RequestValidationError);
+});
+
+test('增量恢复前的安全备份可校验且文件权限为 0600', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pixelreel-restore-backup-'));
+  try {
+    const backupPath = await writeRestoreSafetyBackup({
+      movies: [completeRestoreMovie()],
+      tvShows: [],
+      games: [],
+    }, RESTORE_TEST_DATE, directory);
+    const stat = fs.statSync(backupPath);
+    assert.equal(stat.mode & 0o777, 0o600);
+    const backup = parseLibraryRestoreSnapshot(fs.readFileSync(backupPath));
+    assert.equal(backup.counts.movies, 1);
+    assert.equal(
+      (backup.records.movies[0] as Record<string, unknown>).doubanId,
+      '1292052',
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('健康检查区分数据库正常和不可用', async () => {

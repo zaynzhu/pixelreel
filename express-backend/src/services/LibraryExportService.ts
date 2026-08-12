@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import { Prisma } from '@prisma/client'
 import { getDb } from '../config/db'
 import { serializeBigIntForJson } from '../json'
 
@@ -59,9 +60,10 @@ export function libraryExportFilename(exportedAt: Date) {
   return `pixelreel-library-${timestamp}.json`
 }
 
-export async function readLibraryExportRecords(): Promise<LibraryExportRecords> {
-  const db = getDb()
-  const [movies, tvShows, games] = await db.$transaction([
+export async function readLibraryExportRecordsFromClient(
+  db: Prisma.TransactionClient,
+): Promise<LibraryExportRecords> {
+  const [movies, tvShows, games] = await Promise.all([
     db.movie.findMany({ orderBy: { id: 'asc' } }),
     db.tvShow.findMany({ orderBy: { id: 'asc' } }),
     db.game.findMany({
@@ -77,6 +79,10 @@ export async function readLibraryExportRecords(): Promise<LibraryExportRecords> 
     }),
   ])
   return { movies, tvShows, games }
+}
+
+export async function readLibraryExportRecords(): Promise<LibraryExportRecords> {
+  return getDb().$transaction(transaction => readLibraryExportRecordsFromClient(transaction))
 }
 
 export async function exportLibrarySnapshot(exportedAt = new Date()) {

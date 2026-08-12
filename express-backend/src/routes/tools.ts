@@ -4,7 +4,10 @@ import fs from 'fs'
 import multer from 'multer'
 import path from 'path'
 import { exportLibrarySnapshot } from '../services/LibraryExportService'
-import { previewLibraryRestoreSnapshot } from '../services/LibraryRestorePreviewService'
+import {
+  previewAdditiveLibraryRestoreSnapshot,
+  restoreAdditiveLibrarySnapshot,
+} from '../services/LibraryRestoreService'
 import {
   assertNoQueryParameters,
   parseBoundedStringParameter,
@@ -35,6 +38,15 @@ export function getLibraryRestorePreviewUploadError(error: unknown) {
     }
   }
   return { status: 400, message: '仅接受一个名为 file 的 JSON 快照文件' }
+}
+
+export function parseLibraryRestoreConfirmationToken(value: unknown) {
+  const token = parseBoundedStringParameter(value, '恢复确认令牌', 100)
+  if (!token) throw new RequestValidationError('缺少恢复确认令牌，请重新生成预览')
+  if (!/^[a-f0-9]{48}$/.test(token)) {
+    throw new RequestValidationError('恢复确认令牌格式无效')
+  }
+  return token
 }
 
 function uploadRestorePreview(req: Request, res: Response, next: NextFunction) {
@@ -102,7 +114,21 @@ router.post('/restore-preview', uploadRestorePreview, async (req: Request, res: 
   if (!req.file) {
     throw new RequestValidationError('请选择 PixelReel JSON 快照文件')
   }
-  res.json(await previewLibraryRestoreSnapshot(req.file.buffer))
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(await previewAdditiveLibraryRestoreSnapshot(req.file.buffer))
+})
+
+// 经二次确认后只补回快照独有数据，不覆盖或删除当前资料库记录
+router.post('/restore', uploadRestorePreview, async (req: Request, res: Response) => {
+  assertNoQueryParameters(req.query)
+  if (!req.file) {
+    throw new RequestValidationError('请选择 PixelReel JSON 快照文件')
+  }
+  const confirmationToken = parseLibraryRestoreConfirmationToken(
+    req.get('X-PixelReel-Restore-Confirmation'),
+  )
+  res.setHeader('Cache-Control', 'no-store')
+  res.json(await restoreAdditiveLibrarySnapshot(req.file.buffer, confirmationToken))
 })
 
 // 搜索电影和电视剧记录

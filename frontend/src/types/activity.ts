@@ -1,5 +1,5 @@
-export type ActivityAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'MERGE' | 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL' | 'TASK_CANCEL' | 'UNDO'
-export type EntityType = 'MOVIE' | 'TV_SHOW' | 'GAME' | 'TASK'
+export type ActivityAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'MERGE' | 'RESTORE' | 'TASK_START' | 'TASK_DONE' | 'TASK_FAIL' | 'TASK_CANCEL' | 'UNDO'
+export type EntityType = 'MOVIE' | 'TV_SHOW' | 'GAME' | 'LIBRARY' | 'TASK'
 
 export interface ActivityRecord {
   id: string

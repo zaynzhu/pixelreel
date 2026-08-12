@@ -19,6 +19,7 @@ const ACTION_COLORS: Record<ActivityAction, string> = {
   UPDATE: '#d4ff00',
   DELETE: '#ff4444',
   MERGE: '#44aaff',
+  RESTORE: '#bb88ff',
   TASK_START: '#888888',
   TASK_DONE: '#44aaff',
   TASK_FAIL: '#ff4444',
@@ -92,6 +93,23 @@ function renderChangeSummary(record: ActivityRecord): React.ReactNode {
     return (
       <span className="text-[10px] text-[var(--muted)]">
         {sourceIds ? `merged: ${sourceIds}` : '-'}
+      </span>
+    )
+  }
+
+  if (action === 'RESTORE') {
+    const restored = metadata?.restored
+    if (!restored || typeof restored !== 'object' || Array.isArray(restored)) return null
+    const values = restored as Record<string, unknown>
+    const summary = [
+      `movie: ${truncate(values.movies ?? 0)}`,
+      `tv: ${truncate(values.tvShows ?? 0)}`,
+      `game: ${truncate(values.games ?? 0)}`,
+      `profile: ${truncate(values.platformProfiles ?? 0)}`,
+    ].join(' | ')
+    return (
+      <span className="text-[10px] text-[var(--muted)]">
+        {summary}
       </span>
     )
   }
@@ -266,6 +284,7 @@ const ACTION_I18N_MAP = {
   UPDATE: 'activity.updated',
   DELETE: 'activity.deleted',
   MERGE: 'activity.merged',
+  RESTORE: 'activity.restored',
   TASK_START: 'activity.task_start',
   TASK_DONE: 'activity.task_done',
   TASK_FAIL: 'activity.task_fail',

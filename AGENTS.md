@@ -40,7 +40,8 @@ cd express-backend && npx prisma generate && npx prisma db push
 - 禁止删除带 `doubanId` 的 `Movie` 或 `TvShow`，禁止改写豆瓣原始字段。
 - 忽略导入只修改 `importReviewState`，不能删除记录。
 - 分类转换只能在同一事务完整复制记录后删除源记录。
-- 快照恢复预览必须保持只读；没有独立确认的实际恢复设计时不得据此写库。
+- 快照恢复预览必须保持只读；实际恢复只能在二次确认后增量创建快照独有数据，禁止覆盖、
+  合并或删除现库记录，且必须校验现库指纹、先写安全备份并记录 `RESTORE` 活动。
 - 不执行批量清库 SQL，不绕过 Prisma 写入保护。
 
 ### 重复候选与合并

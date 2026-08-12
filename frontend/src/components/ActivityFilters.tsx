@@ -13,6 +13,7 @@ function useEntityTabs(): TabOption[] {
     { label: t('activity.movie'), value: 'MOVIE' },
     { label: t('activity.tv'), value: 'TV_SHOW' },
     { label: t('activity.game'), value: 'GAME' },
+    { label: t('activity.library'), value: 'LIBRARY' },
   ]
 }
 

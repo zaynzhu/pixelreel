@@ -9,7 +9,7 @@ import {
 
 type JsonObject = Record<string, unknown>
 
-interface LibraryExportCounts {
+export interface LibraryExportCounts {
   movies: number
   tvShows: number
   games: number
@@ -49,6 +49,7 @@ interface CollectionComparison {
   counts: LibraryRestoreComparisonCounts
   conflicts: LibraryRestoreConflict[]
   matches: Map<string, string>
+  snapshotOnlyIds: Set<string>
 }
 
 const CONFLICT_DETAIL_LIMIT = 50
@@ -345,6 +346,7 @@ function compareCollection(
   }
   const conflicts: LibraryRestoreConflict[] = []
   const matches = new Map<string, string>()
+  const snapshotOnlyIds = new Set<string>()
   const matchedCurrentIds = new Set<string>()
 
   snapshotRecords.forEach((record) => {
@@ -365,6 +367,7 @@ function compareCollection(
 
     if (candidateIds.size === 0) {
       counts.snapshotOnly++
+      snapshotOnlyIds.add(snapshotId)
       return
     }
     if (candidateIds.size > 1) {
@@ -386,7 +389,7 @@ function compareCollection(
     else counts.different++
   })
   counts.currentOnly = currentRecords.length - matchedCurrentIds.size
-  return { counts, conflicts, matches }
+  return { counts, conflicts, matches, snapshotOnlyIds }
 }
 
 function comparePlatformProfiles(
@@ -418,6 +421,7 @@ function comparePlatformProfiles(
   }
   const conflicts: LibraryRestoreConflict[] = []
   const matches = new Map<string, string>()
+  const snapshotOnlyIds = new Set<string>()
   const matchedCurrentIds = new Set<string>()
 
   snapshotProfiles.forEach((profile) => {
@@ -437,6 +441,7 @@ function comparePlatformProfiles(
 
     if (candidateIds.size === 0) {
       counts.snapshotOnly++
+      snapshotOnlyIds.add(snapshotId)
       return
     }
     if (candidateIds.size > 1) {
@@ -473,7 +478,7 @@ function comparePlatformProfiles(
     else counts.different++
   })
   counts.currentOnly = currentProfiles.length - matchedCurrentIds.size
-  return { counts, conflicts, matches }
+  return { counts, conflicts, matches, snapshotOnlyIds }
 }
 
 function addComparisonCounts(values: LibraryRestoreComparisonCounts[]) {
@@ -492,7 +497,7 @@ function addComparisonCounts(values: LibraryRestoreComparisonCounts[]) {
   })
 }
 
-export function buildLibraryRestorePreview(
+function analyzeLibraryRestore(
   snapshot: ValidatedLibraryExportSnapshot,
   currentRecords: LibraryExportRecords,
 ) {
@@ -519,7 +524,7 @@ export function buildLibraryRestorePreview(
   ]
   const currentPlatformProfiles = countPlatformProfiles(currentRecords.games)
 
-  return {
+  const preview = {
     valid: true,
     readOnly: true,
     snapshot: {
@@ -545,6 +550,43 @@ export function buildLibraryRestorePreview(
     hasConflicts: summary.conflicts > 0,
     conflicts: allConflicts.slice(0, CONFLICT_DETAIL_LIMIT),
     omittedConflictCount: Math.max(0, allConflicts.length - CONFLICT_DETAIL_LIMIT),
+  }
+  return { movies, tvShows, games, platformProfiles, preview }
+}
+
+export function buildLibraryRestorePreview(
+  snapshot: ValidatedLibraryExportSnapshot,
+  currentRecords: LibraryExportRecords,
+) {
+  return analyzeLibraryRestore(snapshot, currentRecords).preview
+}
+
+export function buildLibraryRestoreExecutionPlan(
+  snapshot: ValidatedLibraryExportSnapshot,
+  currentRecords: LibraryExportRecords,
+) {
+  const analysis = analyzeLibraryRestore(snapshot, currentRecords)
+  const gameIdMap = new Map(analysis.games.matches)
+  analysis.games.snapshotOnlyIds.forEach(id => gameIdMap.set(id, id))
+  const selectSnapshotOnly = (records: unknown[], ids: Set<string>, label: string) => (
+    records.filter((record) => isJsonObject(record)
+      && ids.has(normalizeRecordId(record.id, `${label} ID`))) as JsonObject[]
+  )
+
+  return {
+    preview: analysis.preview,
+    currentFingerprint: calculateLibraryRecordsSha256(currentRecords),
+    records: {
+      movies: selectSnapshotOnly(snapshot.records.movies, analysis.movies.snapshotOnlyIds, '电影记录'),
+      tvShows: selectSnapshotOnly(snapshot.records.tvShows, analysis.tvShows.snapshotOnlyIds, '剧集记录'),
+      games: selectSnapshotOnly(snapshot.records.games, analysis.games.snapshotOnlyIds, '游戏记录'),
+      platformProfiles: (snapshot.records.games as JsonObject[])
+        .flatMap(game => getPlatformEntries(game))
+        .filter(profile => analysis.platformProfiles.snapshotOnlyIds.has(
+          normalizeRecordId(profile.id, '平台档案 ID'),
+        )),
+    },
+    gameIdMap,
   }
 }
 

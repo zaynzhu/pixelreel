@@ -99,6 +99,42 @@ interface RestorePreviewResponse {
   hasConflicts: boolean
   conflicts: RestoreConflict[]
   omittedConflictCount: number
+  restorePlan: {
+    mode: 'additive'
+    canApply: boolean
+    willCreate: {
+      movies: number
+      tvShows: number
+      games: number
+      platformProfiles: number
+      total: number
+      protectedDoubanCreates: number
+    }
+    willNotOverwrite: number
+    willPreserveCurrentOnly: number
+  }
+  confirmation: {
+    token: string
+    expiresAt: string
+  } | null
+}
+
+interface RestoreResult {
+  success: true
+  mode: 'additive'
+  restored: {
+    movies: number
+    tvShows: number
+    games: number
+    platformProfiles: number
+    total: number
+    protectedDoubanCreates: number
+  }
+  skippedDifferent: number
+  preservedCurrentOnly: number
+  backupPath: string
+  afterFingerprint: string
+  completedAt: string
 }
 
 const RESTORE_PREVIEW_MAX_BYTES = 50 * 1024 * 1024
@@ -180,6 +216,8 @@ export default function ToolsPage() {
   const [restorePreview, setRestorePreview] = useState<RestorePreviewResponse | null>(null)
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [previewingRestore, setPreviewingRestore] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null)
   const latestSearchRequest = useRef(0);
   const latestRestoreRequest = useRef(0)
   const restoreAbortController = useRef<AbortController | null>(null)
@@ -228,6 +266,7 @@ export default function ToolsPage() {
     restoreAbortController.current = null
     setRestoreFile(file)
     setRestorePreview(null)
+    setRestoreResult(null)
     setPreviewingRestore(false)
     setRestoreError(
       file && file.size > RESTORE_PREVIEW_MAX_BYTES
@@ -237,7 +276,7 @@ export default function ToolsPage() {
   }
 
   const handleRestorePreview = async () => {
-    if (!restoreFile || previewingRestore || restoreFile.size > RESTORE_PREVIEW_MAX_BYTES) return
+    if (!restoreFile || previewingRestore || restoring || restoreFile.size > RESTORE_PREVIEW_MAX_BYTES) return
     const requestId = ++latestRestoreRequest.current
     const controller = new AbortController()
     restoreAbortController.current?.abort()
@@ -245,6 +284,7 @@ export default function ToolsPage() {
     setPreviewingRestore(true)
     setRestoreError(null)
     setRestorePreview(null)
+    setRestoreResult(null)
 
     const formData = new FormData()
     formData.append('file', restoreFile)
@@ -264,6 +304,44 @@ export default function ToolsPage() {
         setPreviewingRestore(false)
         restoreAbortController.current = null
       }
+    }
+  }
+
+  const handleRestoreApply = async () => {
+    if (!restoreFile || !restorePreview?.restorePlan.canApply || !restorePreview.confirmation || restoring) return
+    const plan = restorePreview.restorePlan
+    const confirmed = await confirmDialog(t(
+      'tools.restore.apply_confirm',
+      plan.willCreate.total,
+      plan.willCreate.protectedDoubanCreates,
+      plan.willNotOverwrite,
+      plan.willPreserveCurrentOnly,
+    ))
+    if (!confirmed) return
+
+    const requestId = ++latestRestoreRequest.current
+    setRestoring(true)
+    setRestoreError(null)
+    const formData = new FormData()
+    formData.append('file', restoreFile)
+    try {
+      const result = await apiFetch<RestoreResult>('/tools/restore', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-PixelReel-Restore-Confirmation': restorePreview.confirmation.token,
+        },
+      })
+      if (requestId !== latestRestoreRequest.current) return
+      setRestoreResult(result)
+      setRestorePreview(null)
+      toast(t('tools.restore.apply_success', result.restored.total))
+    } catch (reason) {
+      if (requestId !== latestRestoreRequest.current) return
+      setRestorePreview(null)
+      setRestoreError(reason instanceof Error ? reason.message : t('tools.restore.apply_failed'))
+    } finally {
+      if (requestId === latestRestoreRequest.current) setRestoring(false)
     }
   }
 
@@ -425,6 +503,7 @@ export default function ToolsPage() {
                 type="file"
                 accept=".json,application/json"
                 onChange={handleRestoreFileChange}
+                disabled={restoring}
                 className="tech-input w-full text-xs file:mr-4 file:border-0 file:bg-[var(--accent)] file:px-3 file:py-2 file:font-mono file:text-[9px] file:font-bold file:uppercase file:text-black"
                 aria-describedby="restore-preview-file-hint"
               />
@@ -450,7 +529,7 @@ export default function ToolsPage() {
             <button
               type="button"
               onClick={() => void handleRestorePreview()}
-              disabled={!restoreFile || previewingRestore || restoreFile.size > RESTORE_PREVIEW_MAX_BYTES}
+              disabled={!restoreFile || previewingRestore || restoring || restoreFile.size > RESTORE_PREVIEW_MAX_BYTES}
               className="brutal-btn mt-10 w-full justify-between"
             >
               <span>
@@ -563,11 +642,98 @@ export default function ToolsPage() {
               </div>
             )}
 
+            {!restorePreview.hasConflicts && restorePreview.restorePlan.canApply && restorePreview.confirmation && (
+              <div className="mt-5 border border-[var(--accent)] bg-[rgba(212,255,0,0.04)] p-5">
+                <span className="section-kicker">{t('tools.restore.plan_kicker')}</span>
+                <h4 className="mt-1 font-display text-lg text-white">{t('tools.restore.plan_title')}</h4>
+                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                  {t('tools.restore.plan_desc')}
+                </p>
+                <div className="mt-4 grid gap-px bg-[var(--line)] grid-cols-2 lg:grid-cols-4">
+                  <RestoreMetric label={t('tools.restore.category.movie')} value={restorePreview.restorePlan.willCreate.movies} />
+                  <RestoreMetric label={t('tools.restore.category.tv')} value={restorePreview.restorePlan.willCreate.tvShows} />
+                  <RestoreMetric label={t('tools.restore.category.game')} value={restorePreview.restorePlan.willCreate.games} />
+                  <RestoreMetric label={t('tools.restore.category.profiles')} value={restorePreview.restorePlan.willCreate.platformProfiles} />
+                </div>
+                <div className="mt-4 grid gap-2 text-xs text-[var(--muted)] sm:grid-cols-2">
+                  <p>{t('tools.restore.skipped_different', restorePreview.restorePlan.willNotOverwrite)}</p>
+                  <p>{t('tools.restore.preserved_current', restorePreview.restorePlan.willPreserveCurrentOnly)}</p>
+                </div>
+                {restorePreview.restorePlan.willCreate.protectedDoubanCreates > 0 && (
+                  <div className="mt-4 border border-amber-400/50 bg-amber-400/10 p-4 text-xs text-amber-200">
+                    <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-amber-300">
+                      {t('tools.restore.protected_title')}
+                    </div>
+                    <p className="mt-2 leading-5">
+                      {t(
+                        'tools.restore.protected_desc',
+                        restorePreview.restorePlan.willCreate.protectedDoubanCreates,
+                      )}
+                    </p>
+                  </div>
+                )}
+                <div className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-mono text-[9px] text-[var(--muted)]">
+                    {t(
+                      'tools.restore.token_expires',
+                      new Date(restorePreview.confirmation.expiresAt).toLocaleString(
+                        lang === 'zh' ? 'zh-CN' : 'en-US',
+                      ),
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleRestoreApply()}
+                    disabled={restoring}
+                    className="brutal-btn-accent justify-center sm:min-w-52"
+                  >
+                    {restoring ? t('tools.restore.applying') : t('tools.restore.apply')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!restorePreview.hasConflicts && !restorePreview.restorePlan.canApply && (
+              <div className="mt-5 border border-[var(--line)] bg-[var(--surface)] p-4 text-xs text-[var(--muted)]">
+                {t('tools.restore.no_changes')}
+              </div>
+            )}
+
             <p className="mt-5 font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
               {t('tools.export.checksum')}
             </p>
             <code className="mt-1 block break-all font-mono text-[9px] text-white">
               {restorePreview.snapshot.recordsSha256}
+            </code>
+          </div>
+        )}
+
+        {restoreResult && (
+          <div role="status" className="border-t border-[var(--accent)] bg-[rgba(212,255,0,0.04)] p-6">
+            <span className="section-kicker">{t('tools.restore.result_kicker')}</span>
+            <h3 className="mt-1 font-display text-xl text-white">
+              {t('tools.restore.result_title', restoreResult.restored.total)}
+            </h3>
+            <div className="mt-5 grid gap-px bg-[var(--line)] grid-cols-2 lg:grid-cols-4">
+              <RestoreMetric label={t('tools.restore.category.movie')} value={restoreResult.restored.movies} />
+              <RestoreMetric label={t('tools.restore.category.tv')} value={restoreResult.restored.tvShows} />
+              <RestoreMetric label={t('tools.restore.category.game')} value={restoreResult.restored.games} />
+              <RestoreMetric label={t('tools.restore.category.profiles')} value={restoreResult.restored.platformProfiles} />
+            </div>
+            <div className="mt-4 grid gap-2 text-xs text-[var(--muted)] sm:grid-cols-2">
+              <p>{t('tools.restore.skipped_different', restoreResult.skippedDifferent)}</p>
+              <p>{t('tools.restore.preserved_current', restoreResult.preservedCurrentOnly)}</p>
+              <p className="break-all">{t('tools.restore.result_backup', restoreResult.backupPath)}</p>
+              <p>{t(
+                'tools.restore.result_completed',
+                new Date(restoreResult.completedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US'),
+              )}</p>
+            </div>
+            <p className="mt-5 font-mono text-[8px] uppercase tracking-wider text-[var(--muted)]">
+              {t('tools.restore.result_hash')}
+            </p>
+            <code className="mt-1 block break-all font-mono text-[9px] text-white">
+              {restoreResult.afterFingerprint}
             </code>
           </div>
         )}

@@ -130,7 +130,7 @@ Xbox、PSN 和 Steam 指标写入 `GamePlatformEntry`。零时长是有效值；
 
 ## 资料库快照工具
 
-工具页 `/tools` 可导出并只读校验资料库快照：
+工具页 `/tools` 可导出快照、生成只读恢复预览，并在二次确认后执行增量恢复：
 
 ```bash
 curl -OJ http://127.0.0.1:18889/api/tools/export-library
@@ -141,4 +141,18 @@ curl -X POST \
 ```
 
 恢复预览只支持 `pixelreel-library-export` v2，最大 50 MiB。响应区分快照独有、内容不同、
-完全相同、身份冲突和现库独有记录；接口不会创建、更新、合并或删除任何资料库数据。
+完全相同、身份冲突和现库独有记录；预览接口不会创建、更新、合并或删除任何资料库数据。
+
+无身份冲突且存在快照独有数据时，响应中的 `confirmation.token` 可在十分钟内使用一次。
+实际恢复必须上传同一个快照，并把令牌放在请求头中：
+
+```bash
+curl -X POST \
+  -H 'X-PixelReel-Restore-Confirmation: <confirmation.token>' \
+  -F 'file=@pixelreel-library-2026-08-12T08-00-00Z.json;type=application/json' \
+  http://127.0.0.1:18889/api/tools/restore
+```
+
+`POST /api/tools/restore` 会写入资料库，应优先在 `/tools` 审阅逐类数量并完成二次确认。
+它只创建快照独有数据，内容不同不覆盖、现库独有不删除；现库在预览后变化或出现任何身份
+冲突时整次操作中止。服务会先生成安全备份，并在成功后写入 `RESTORE` 活动日志。
